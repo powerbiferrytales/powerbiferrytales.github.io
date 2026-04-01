@@ -155,5 +155,14 @@ nav a.active { font-weight: 700; }
 @media (max-width: 600px) {
   header { flex-direction: column; gap: 14px; padding: 16px 20px; }
   nav { justify-content: center; gap: 16px; }
-  .card { padding: 20px 24px 28px; }
+  .card { padding: 20px 24px 28px; margin-top: 20px; }
+  .card-spacer { display: none; }
+  .avatar-wrap {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin: 0 auto 16px;
+    width: fit-content;
+  }
 }
