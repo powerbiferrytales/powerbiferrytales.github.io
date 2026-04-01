@@ -1,0 +1,8 @@
+# Ignore everything except index.html
+*
+!index.html
+!.gitignore
+
+# Power BI / Deneb files (belong in a separate repo)
+**/.pbi/localSettings.json
+**/.pbi/cache.abf
