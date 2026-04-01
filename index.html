@@ -1,0 +1,1994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferry Tales Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vega/5.25.0/vega.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/5.16.3/vega-lite.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/6.24.0/vega-embed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/brace-fold.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<style>
+:root {
+  --bg: #0a0a0b;
+  --surface: #111113;
+  --surface2: #19191d;
+  --border: #222226;
+  --border2: #2e2e34;
+  --text: #e4e4e8;
+  --muted: #7e7e92;
+  --dim: #8888a0;
+  --accent: #f59e0b;
+  --accent-glow: rgba(245,158,11,0.12);
+  --accent2: #fb923c;
+  --red: #ef4444;
+  --green: #22c55e;
+  --blue: #60a5fa;
+  --purple: #a78bfa;
+  --teal: #34d399;
+  --font: 'Barlow Condensed', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; background: #050506; color: var(--text); }
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 24px);
+  margin: 12px;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--border);
+  font-family: var(--font);
+  font-size: 15px;
+  letter-spacing: 0.03em;
+}
+
+/* ─── HEADER ─── */
+.header {
+  height: 55px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  gap: 12px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.logo-hex {
+  width: 27px; height: 27px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 900; color: #000; flex-shrink: 0;
+}
+.logo-text {
+  font-size: 18px; font-weight: 900; letter-spacing: 0.12em; color: var(--accent);
+}
+.logo-sub { font-size: 14px; font-weight: 400; color: var(--muted); letter-spacing: 0.2em; }
+
+.divider { width: 1px; height: 30px; background: var(--border2); flex-shrink: 0; }
+
+.template-rail {
+  flex: 1; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none;
+}
+.template-rail::-webkit-scrollbar { display: none; }
+
+.tpl-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 5px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.13s;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  border-radius: 2px;
+}
+.tpl-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+.tpl-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+.header-btns { display: flex; gap: 5px; flex-shrink: 0; }
+
+/* ─── WORKSPACE ─── */
+.workspace { flex: 1; display: flex; overflow: hidden; }
+
+/* ─── PANELS ─── */
+.panel { display: flex; flex-direction: column; overflow: hidden; }
+.panel + .panel { border-left: 1px solid var(--border); }
+
+.panel-head {
+  height: 42px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 12px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em; color: var(--muted);
+  flex-shrink: 0;
+}
+.panel-head-right { display: flex; align-items: center; gap: 8px; }
+
+/* ─── DATA PANEL ─── */
+.data-panel { width: 240px; min-width: 190px; flex-shrink: 0; background: var(--surface); }
+.data-body { flex: 1; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+
+.section { padding: 10px; border-bottom: 1px solid var(--border); }
+.sec-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.2em; color: var(--muted);
+  margin-bottom: 7px; display: flex; align-items: center; justify-content: space-between;
+}
+.sec-label span { font-weight: 400; color: var(--accent); opacity: 0.8; letter-spacing: 0.05em; }
+
+.sample-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.sample-chip {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  padding: 3px 9px; cursor: pointer; border-radius: 2px; transition: all 0.12s;
+}
+.sample-chip:hover { border-color: var(--accent); color: var(--accent); }
+.sample-chip.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+.upload-zone {
+  border: 1px dashed var(--border2);
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--muted);
+  display: block;
+  border-radius: 2px;
+}
+.upload-zone:hover { border-color: var(--accent); color: var(--accent); }
+.upload-zone .uz-icon { font-size: 20px; line-height: 1; display: block; margin-bottom: 5px; }
+.upload-zone .uz-text { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; display: block; }
+.upload-zone .uz-hint { font-size: 10px; opacity: 0.4; margin-top: 3px; display: block; }
+.upload-zone input { display: none; }
+
+/* Field list */
+.field-list { display: flex; flex-direction: column; gap: 1px; }
+.field-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; cursor: pointer; border-radius: 2px; transition: background 0.1s;
+}
+.field-item:hover { background: var(--accent-glow); }
+.field-item:hover .field-name { color: var(--accent); }
+.field-type {
+  font-size: 9px; font-family: var(--font); font-weight: 700; letter-spacing: 0.1em;
+  padding: 1px 4px; border-radius: 2px; flex-shrink: 0; min-width: 17px; text-align: center;
+}
+.ft-Q { background: rgba(96,165,250,0.18); color: var(--blue); }
+.ft-N { background: rgba(167,139,250,0.18); color: var(--purple); }
+.ft-T { background: rgba(52,211,153,0.18); color: var(--teal); }
+.ft-O { background: rgba(251,191,36,0.18); color: #fbbf24; }
+.field-name { font-family: var(--mono); font-size: 11px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Data table (legacy, kept for safety) */
+.data-tbl { font-family: var(--mono); font-size: 10px; width: 100%; border-collapse: collapse; color: var(--dim); }
+.data-tbl th { color: var(--accent); font-weight: 600; text-align: left; padding: 3px 5px; border-bottom: 1px solid var(--border); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65px; }
+.data-tbl td { padding: 2px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65px; }
+.data-tbl tr:hover td { background: var(--surface2); }
+
+/* ─── SPEC PANEL / CODEMIRROR ─── */
+.spec-panel { flex: 1; min-width: 0; background: var(--bg); }
+
+#spec-editor-wrap {
+  flex: 1; overflow: hidden; min-height: 0;
+}
+#spec-editor-wrap .CodeMirror {
+  height: 100% !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 14px;
+  line-height: 1.75 !important;
+  background: var(--bg) !important;
+  color: #b8c0cc !important;
+}
+.CodeMirror-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border2) transparent;
+}
+.CodeMirror-gutters {
+  background: var(--surface) !important;
+  border-right: 1px solid var(--border) !important;
+  padding-right: 2px;
+}
+.CodeMirror-linenumber {
+  color: var(--muted) !important;
+  font-size: 12px !important;
+  padding: 0 6px 0 8px !important;
+  min-width: 28px !important;
+}
+.CodeMirror-foldgutter { width: 16px; }
+.CodeMirror-foldgutter-open::after {
+  content: '▾'; color: var(--accent); font-size: 13px;
+  cursor: pointer; opacity: 0.65;
+}
+.CodeMirror-foldgutter-folded::after {
+  content: '▸'; color: var(--accent); font-size: 13px;
+  cursor: pointer; opacity: 0.65;
+}
+.CodeMirror-foldgutter-open:hover::after,
+.CodeMirror-foldgutter-folded:hover::after { opacity: 1; }
+/* Bracket matching — neon yellow */
+.CodeMirror-matchingbracket {
+  background: rgba(252, 255, 0, 0.13) !important;
+  color: #f8ff00 !important;
+  outline: 1px solid rgba(252, 255, 0, 0.55) !important;
+  border-radius: 1px;
+}
+/* Syntax colours */
+.cm-s-default .cm-string    { color: #a8cc88 !important; }
+.cm-s-default .cm-number    { color: #79b8ff !important; }
+.cm-s-default .cm-atom      { color: #f97583 !important; }
+.cm-s-default .cm-property  { color: #e8bf6a !important; }
+.cm-s-default .cm-punctuation,
+.cm-s-default .cm-operator  { color: #7e8da0 !important; }
+/* Cursor */
+.CodeMirror-cursor { border-left: 2px solid var(--accent) !important; }
+/* Selection */
+.CodeMirror-selected,
+.CodeMirror-focused .CodeMirror-selected { background: rgba(245,158,11,0.18) !important; }
+/* Active line */
+.CodeMirror-activeline-background { background: rgba(255,255,255,0.028) !important; }
+/* Error line indicators */
+.CodeMirror-error-gutter { width: 14px; }
+.cm-error-gutter-marker {
+  width: 14px; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  cursor: default;
+}
+.cm-error-gutter-marker::before {
+  content: '●';
+  color: #ff2255;
+  font-size: 8px;
+  text-shadow: 0 0 6px #ff2255, 0 0 12px rgba(255,34,85,0.7);
+  animation: errPulse 1.8s ease-in-out infinite;
+}
+@keyframes errPulse {
+  0%,100% { opacity: 1; text-shadow: 0 0 6px #ff2255, 0 0 12px rgba(255,34,85,0.7); }
+  50%      { opacity: 0.6; text-shadow: 0 0 3px #ff2255; }
+}
+.cm-error-line-bg {
+  background: rgba(255, 34, 85, 0.07) !important;
+}
+.cm-error-line-wrap {
+  box-shadow: inset 3px 0 0 #ff2255, inset 4px 0 8px rgba(255,34,85,0.18) !important;
+}
+
+/* Fold placeholder widget */
+.CodeMirror-foldmarker {
+  background: var(--accent-glow);
+  border: 1px solid rgba(245,158,11,0.35);
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 11px;
+  border-radius: 2px;
+  padding: 0 6px;
+  cursor: pointer;
+  margin: 0 4px;
+  letter-spacing: 0.05em;
+}
+.CodeMirror-foldmarker:hover { background: rgba(245,158,11,0.22); }
+
+.error-bar {
+  background: rgba(239,68,68,0.08); border-top: 1px solid rgba(239,68,68,0.25);
+  color: var(--red); font-family: var(--mono); font-size: 13px;
+  padding: 7px 15px; max-height: 80px; overflow-y: auto; white-space: pre-wrap;
+  flex-shrink: 0;
+}
+
+/* ─── PREVIEW PANEL ─── */
+.preview-panel { flex: 1; min-width: 0; background: var(--surface); display: flex; flex-direction: column; }
+.preview-top {
+  flex: 1; min-height: 0; overflow: auto;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  background: radial-gradient(ellipse at 60% 40%, rgba(245,158,11,0.03) 0%, transparent 70%);
+}
+
+#vega-container { max-width: 100%; }
+#vega-container .vega-embed { background: transparent !important; }
+
+/* ─── DATA BOTTOM PANEL ─── */
+.data-bottom {
+  height: 280px; flex-shrink: 0;
+  display: flex; flex-direction: column; background: var(--bg);
+  overflow: hidden;
+}
+.data-bottom-head {
+  height: 40px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 12px; gap: 10px; flex-shrink: 0;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.15em; color: var(--muted);
+}
+.data-bottom-head .db-info {
+  font-weight: 400; color: var(--accent); opacity: 0.75; letter-spacing: 0.04em; font-size: 10px;
+}
+.data-bottom-head .db-badge {
+  margin-left: auto; font-size: 10px; font-weight: 600; color: var(--muted);
+  letter-spacing: 0.08em; opacity: 0.6;
+}
+.data-grid-wrap {
+  flex: 1; min-height: 0; overflow-x: auto; overflow-y: scroll;
+  scrollbar-width: thin; scrollbar-color: #555566 var(--surface2);
+}
+.data-grid-wrap::-webkit-scrollbar { width: 8px; height: 8px; }
+.data-grid-wrap::-webkit-scrollbar-track { background: var(--surface2); }
+.data-grid-wrap::-webkit-scrollbar-thumb { background: #555566; border-radius: 3px; }
+.data-grid-wrap::-webkit-scrollbar-thumb:hover { background: #7777aa; }
+.full-tbl {
+  font-family: var(--mono); font-size: 12px; border-collapse: collapse;
+  white-space: nowrap; color: var(--dim);
+}
+.full-tbl th {
+  position: sticky; top: 0; background: var(--surface2); color: var(--accent);
+  font-weight: 600; text-align: left; padding: 6px 13px;
+  border-bottom: 1px solid var(--border); border-right: 1px solid var(--border);
+  z-index: 1; font-size: 10px; letter-spacing: 0.06em;
+}
+.full-tbl td {
+  padding: 4px 13px; border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis;
+}
+.full-tbl tr:nth-child(even) td { background: rgba(255,255,255,0.013); }
+.full-tbl tr:hover td { background: var(--accent-glow); color: var(--text); }
+.db-empty {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; color: var(--muted); font-size: 13px; letter-spacing: 0.12em;
+  flex-direction: column; gap: 8px;
+}
+.db-empty-icon { font-size: 28px; opacity: 0.2; }
+
+/* ─── STATUS DOT ─── */
+.dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-ok { background: var(--green); }
+.dot-err { background: var(--red); }
+.dot-spin { background: var(--accent); animation: blink 0.8s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* ─── BUTTONS ─── */
+.btn {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 5px 11px; cursor: pointer; border-radius: 2px; transition: all 0.12s; white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn-primary { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.btn-primary:hover { background: rgba(245,158,11,0.2); }
+
+select {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
+  padding: 4px 8px; cursor: pointer; outline: none; border-radius: 2px;
+}
+
+/* ─── MODAL ─── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+  backdrop-filter: blur(6px);
+}
+.modal-box {
+  background: var(--surface); border: 1px solid var(--border2);
+  width: 660px; max-height: 80vh; display: flex; flex-direction: column; gap: 0;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.modal-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 15px 17px; border-bottom: 1px solid var(--border);
+  font-size: 13px; font-weight: 700; letter-spacing: 0.15em; color: var(--accent);
+}
+.modal-body { padding: 15px 17px; display: flex; flex-direction: column; gap: 12px; flex: 1; overflow: hidden; }
+
+.fmt-toggle { display: flex; gap: 5px; }
+.fmt-btn {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 5px 17px; cursor: pointer; border-radius: 2px; transition: all 0.12s;
+}
+.fmt-btn.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+
+#paste-area {
+  flex: 1; min-height: 260px; background: var(--bg); border: 1px solid var(--border2); color: var(--text);
+  font-family: var(--mono); font-size: 14px; line-height: 1.6; padding: 12px 15px;
+  resize: none; outline: none; border-radius: 2px;
+}
+
+/* ─── SCROLLBARS ─── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+/* ─── INTELLISENSE ─── */
+.intellisense {
+  position: fixed; z-index: 2000;
+  background: var(--surface2);
+  border: 1px solid rgba(245,158,11,0.45);
+  border-radius: 3px;
+  min-width: 250px; max-width: 400px;
+  max-height: 315px; overflow-y: auto;
+  box-shadow: 0 10px 36px rgba(0,0,0,0.75), 0 0 0 1px rgba(245,158,11,0.08);
+  scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+  animation: isIn 0.1s ease;
+}
+@keyframes isIn { from { opacity:0; transform:translateY(-5px) } to { opacity:1; transform:none } }
+.is-head {
+  padding: 6px 12px 5px; position: sticky; top: 0; z-index: 1;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  font-family: var(--font); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.18em; color: var(--accent);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.is-head-count { font-weight: 400; opacity: 0.6; }
+.is-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 6px 12px; cursor: pointer;
+  font-family: var(--mono); font-size: 13px; color: var(--dim);
+  border-bottom: 1px solid var(--border); transition: background 0.07s;
+  user-select: none; border-left: 3px solid transparent;
+}
+.is-item:last-child { border-bottom: none; }
+.is-item:hover {
+  background: rgba(245,158,11,0.1); color: var(--text);
+  border-left-color: rgba(245,158,11,0.3);
+}
+.is-item.active {
+  background: rgba(245,158,11,0.22); color: var(--text);
+  border-left-color: var(--accent);
+}
+.is-icon {
+  font-size: 9px; font-family: var(--font); font-weight: 700; letter-spacing: 0.1em;
+  border-radius: 2px; padding: 1px 4px; flex-shrink: 0; min-width: 17px; text-align: center;
+  background: var(--surface); border: 1px solid var(--border2); color: var(--muted);
+}
+.is-match { color: var(--accent); }
+.is-desc {
+  margin-left: auto; font-family: var(--font); font-size: 11px;
+  color: var(--muted); letter-spacing: 0.03em; white-space: nowrap;
+  padding-left: 10px; flex-shrink: 0;
+}
+.is-keys {
+  margin-left: auto; font-size: 10px; font-family: var(--font); color: var(--accent);
+  letter-spacing: 0.05em; opacity: 0; flex-shrink: 0;
+}
+.is-item.active .is-keys { opacity: 0.7; }
+
+/* ─── CONSOLE MESSAGES ─── */
+.console-panel {
+  flex-shrink: 0; max-height: 120px; overflow-y: auto;
+  background: #0e0c08; border-top: 1px solid #3a2e10;
+  scrollbar-width: thin; scrollbar-color: #3a3020 transparent;
+  display: none; flex-direction: column;
+}
+.console-panel.has-messages { display: flex; }
+.console-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 10px; background: #141008; border-bottom: 1px solid #2e2408;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.15em; color: #b08040;
+  flex-shrink: 0;
+}
+.console-clear {
+  background: none; border: 1px solid #3a2e10; color: #b08040;
+  font-family: var(--font); font-size: 8px; font-weight: 700; letter-spacing: 0.1em;
+  padding: 2px 7px; cursor: pointer; border-radius: 2px;
+  transition: all 0.12s;
+}
+.console-clear:hover { border-color: #b08040; color: #f0b060; }
+.console-msg {
+  display: flex; align-items: baseline; gap: 8px;
+  padding: 3px 10px; font-family: var(--mono); font-size: 10px;
+  color: #c09040; border-bottom: 1px solid #1e1808;
+  line-height: 1.4;
+}
+.console-msg:last-child { border-bottom: none; }
+.console-msg-icon { font-size: 9px; flex-shrink: 0; opacity: 0.8; }
+.console-msg-text { word-break: break-all; }
+.resizer-v {
+  width: 5px; flex-shrink: 0;
+  background: var(--border);
+  cursor: col-resize; position: relative; z-index: 10;
+  transition: background 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.resizer-v::after {
+  content: ''; position: absolute;
+  top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 1px; height: 48px;
+  background: var(--border2); border-radius: 1px;
+  pointer-events: none;
+}
+.resizer-v:hover, .resizer-v.dragging { background: var(--accent); }
+.resizer-v.dragging::after { background: var(--accent); }
+
+.resizer-h {
+  height: 5px; flex-shrink: 0;
+  background: var(--border2);
+  cursor: row-resize; position: relative; z-index: 10;
+  transition: background 0.15s;
+}
+.resizer-h::after {
+  content: ''; position: absolute;
+  left: 50%; top: 50%; transform: translate(-50%,-50%);
+  height: 1px; width: 48px;
+  background: var(--border2); border-radius: 1px;
+  pointer-events: none;
+}
+.resizer-h:hover, .resizer-h.dragging { background: var(--accent); }
+
+/* Fit button */
+.btn-fit { display: flex; align-items: center; gap: 5px; }
+.btn-fit-icon { font-size: 12px; line-height: 1; }
+
+/* ─── ZOOM CONTROLS ─── */
+.zoom-ctrl {
+  display: flex; align-items: center;
+  border: 1px solid var(--border2); border-radius: 2px; overflow: hidden; flex-shrink: 0;
+}
+.zoom-btn {
+  background: var(--surface2); border: none; color: var(--dim);
+  font-family: var(--mono); font-size: 16px; font-weight: 400;
+  width: 26px; height: 27px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s; flex-shrink: 0; line-height: 1; padding: 0;
+}
+.zoom-btn:hover { background: var(--accent-glow); color: var(--accent); }
+.zoom-lbl {
+  font-family: var(--mono); font-size: 10px; color: var(--muted);
+  padding: 0 7px; min-width: 46px; text-align: center; line-height: 27px;
+  border-left: 1px solid var(--border2); border-right: 1px solid var(--border2);
+  white-space: nowrap; letter-spacing: 0.04em;
+}
+
+/* Preview zoom wrapper — scale is applied here, origin top-center */
+#preview-zoom-wrap {
+  transform-origin: top center;
+  display: inline-block;
+}
+
+/* ─── LEFT PANEL & TABS ─── */
+.left-panel { width: 50%; min-width: 200px; flex-shrink: 0; }
+
+.panel + .panel { border-left: none; }
+
+.tab-bar {
+  height: 42px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: stretch; flex-shrink: 0;
+}
+.tab-btn {
+  display: flex; align-items: center; gap: 7px; padding: 0 20px;
+  cursor: pointer; border: none; border-right: 1px solid var(--border);
+  background: transparent; font-family: var(--font); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.15em; color: var(--muted); transition: all 0.13s; position: relative;
+  white-space: nowrap;
+}
+.tab-btn:hover { color: var(--text); background: var(--surface2); }
+.tab-btn.active { color: var(--accent); background: var(--bg); }
+.tab-btn.active::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+  height: 2px; background: var(--accent);
+}
+.tab-icon { font-size: 14px; font-family: var(--mono); opacity: 0.6; }
+
+.tab-bar-right {
+  flex: 1; display: flex; align-items: center; justify-content: flex-end;
+  padding: 0 10px; gap: 8px; overflow: hidden;
+}
+.tab-actions { display: flex; align-items: center; gap: 8px; }
+
+.tab-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+/* Hidden */
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ─── HEADER ─── -->
+  <header class="header">
+    <div class="logo">
+      <div>
+        <div class="logo-text">FERRY TALES STUDIO</div>
+        <div class="logo-sub">vega-lite builder</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="template-rail" id="template-rail"></div>
+    <button class="btn" id="btn-share" title="Copy shareable link with current spec">⬡ SHARE SPEC</button>
+    <div class="header-btns"></div>
+  </header>
+
+  <!-- ─── WORKSPACE ─── -->
+  <div class="workspace">
+
+    <!-- ─── LEFT PANEL (tabbed) ─── -->
+    <div class="panel left-panel">
+
+      <!-- Tab bar -->
+      <div class="tab-bar">
+        <button class="tab-btn" id="tab-btn-data" onclick="switchTab('data')">
+          <span class="tab-icon">⊡</span> USE YOUR OWN DATA
+        </button>
+        <button class="tab-btn active" id="tab-btn-spec" onclick="switchEditorView('spec')">
+          <span class="tab-icon">{ }</span> SPEC
+        </button>
+        <button class="tab-btn" id="tab-btn-config" onclick="switchEditorView('config')">
+          <span class="tab-icon">⚙</span> CONFIG
+        </button>
+        <div class="tab-bar-right">
+          <div class="tab-actions hidden" id="tab-actions-data">
+            <button class="btn" id="btn-paste">PASTE</button>
+          </div>
+          <div class="tab-actions" id="tab-actions-spec">
+            <button class="btn" id="btn-format">FORMAT</button>
+            <button class="btn btn-primary" id="btn-inject">↓ DATA</button>
+            <div class="zoom-ctrl">
+              <button class="zoom-btn" id="btn-edz-out" title="Decrease font size">−</button>
+              <span class="zoom-lbl" id="edz-label">14px</span>
+              <button class="zoom-btn" id="btn-edz-in"  title="Increase font size">+</button>
+            </div>
+            <span style="font-size:10px;color:var(--muted);letter-spacing:0.1em">AUTO</span>
+            <div class="dot dot-spin" id="status-dot"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DATA tab -->
+      <div class="tab-content hidden" id="tab-data">
+        <div class="data-body">
+          <div class="section">
+            <div class="sec-label">SAMPLE DATASETS</div>
+            <div class="sample-chips" id="sample-chips"></div>
+          </div>
+          <div class="section">
+            <label class="upload-zone" id="upload-zone">
+              <span class="uz-icon">⬆</span>
+              <span class="uz-text">DROP FILE HERE</span>
+              <span class="uz-hint">CSV · JSON · TSV</span>
+              <input type="file" id="file-input" accept=".csv,.json,.tsv">
+            </label>
+          </div>
+          <div class="section hidden" id="fields-section">
+            <div class="sec-label">FIELDS <span id="row-label"></span></div>
+            <div class="field-list" id="field-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SPEC tab -->
+      <div class="tab-content" id="tab-spec">
+        <div id="spec-editor-wrap"></div>
+        <div class="error-bar hidden" id="error-bar"></div>
+      </div>
+
+    </div><!-- /left-panel -->
+
+    <!-- ─── VERTICAL RESIZER ─── -->
+    <div id="resizer-v" class="resizer-v"></div>
+
+    <!-- ─── PREVIEW PANEL ─── -->
+    <div class="panel preview-panel" id="preview-panel">
+      <div class="panel-head" style="flex-shrink:0">
+        PREVIEW
+        <div class="panel-head-right">
+          <button class="btn btn-fit" id="btn-fit" title="Fit chart to available frame">
+            <span class="btn-fit-icon">⤢</span> FIT
+          </button>
+          <div class="zoom-ctrl">
+            <button class="zoom-btn" id="btn-pvz-out" title="Zoom out">−</button>
+            <span class="zoom-lbl" id="pvz-label">100%</span>
+            <button class="zoom-btn" id="btn-pvz-in"  title="Zoom in">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="preview-top" id="preview-top">
+        <div id="preview-zoom-wrap">
+          <div id="vega-container"></div>
+        </div>
+      </div>
+      <!-- Console messages -->
+      <div class="console-panel" id="console-panel">
+        <div class="console-head">
+          CONSOLE MESSAGES
+          <button class="console-clear" id="btn-console-clear">✕ CLEAR</button>
+        </div>
+        <div id="console-messages"></div>
+      </div>
+      <!-- Horizontal resizer -->
+      <div id="resizer-h" class="resizer-h"></div>
+      <!-- Data table -->
+      <div class="data-bottom" id="data-bottom">
+        <div class="data-bottom-head">
+          DATA
+          <span class="db-info" id="db-info"></span>
+          <span class="db-badge" id="db-badge"></span>
+          <div class="zoom-ctrl" style="margin-left:auto">
+            <button class="zoom-btn" id="btn-dtz-out" title="Decrease table font size">−</button>
+            <span class="zoom-lbl" id="dtz-label">12px</span>
+            <button class="zoom-btn" id="btn-dtz-in"  title="Increase table font size">+</button>
+          </div>
+        </div>
+        <div class="data-grid-wrap" id="data-grid-wrap">
+          <div class="db-empty">
+            <span class="db-empty-icon">⊡</span>
+            No data loaded — use the DATA tab to connect a dataset
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /workspace -->
+</div><!-- /app -->
+
+<!-- Intellisense popup -->
+<div class="intellisense hidden" id="intellisense"></div>
+
+<!-- ─── PASTE MODAL ─── -->
+<div class="modal-overlay hidden" id="paste-modal">
+  <div class="modal-box">
+    <div class="modal-head">
+      PASTE DATA
+      <button class="btn" id="modal-close">✕ CLOSE</button>
+    </div>
+    <div class="modal-body">
+      <div class="fmt-toggle">
+        <button class="fmt-btn active" data-fmt="csv">CSV</button>
+        <button class="fmt-btn" data-fmt="json">JSON</button>
+        <button class="fmt-btn" data-fmt="tsv">TSV</button>
+      </div>
+      <textarea id="paste-area" placeholder="Paste your CSV or JSON array here..."></textarea>
+      <button class="btn btn-primary" id="btn-load-paste">LOAD DATA →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────
+const SCHEMA = "https://vega.github.io/schema/vega-lite/v5.json";
+const DS = "https://cdn.jsdelivr.net/npm/vega-datasets@2/data/";
+
+const DARK_CFG = {
+  background: "transparent",
+  view: { stroke: "transparent" },
+  font: "Barlow Condensed, sans-serif",
+  axis: {
+    labelColor: "#9ca3af", titleColor: "#9ca3af",
+    gridColor: "#222226", domainColor: "#2e2e34", tickColor: "#2e2e34",
+    labelFontSize: 11, titleFontSize: 11, titleFontWeight: 600
+  },
+  legend: { labelColor: "#9ca3af", titleColor: "#9ca3af", labelFontSize: 11, titleFontSize: 11 },
+  title: { color: "#e4e4e8", fontSize: 14, fontWeight: 700, anchor: "start", offset: 8 },
+  range: {
+    category: ["#f59e0b","#60a5fa","#34d399","#a78bfa","#fb923c","#f87171","#38bdf8","#4ade80","#e879f9","#facc15"]
+  },
+  mark: { tooltip: true }
+};
+
+const SAMPLES = [
+  { name: "Cars",       file: "cars.json" },
+  { name: "Iris",       file: "iris.json" },
+  { name: "Weather",    file: "seattle-weather.csv" },
+  { name: "Movies",     file: "movies.json" },
+  { name: "Stocks",     file: "stocks.csv" },
+  { name: "Barley",     file: "barley.json" },
+  { name: "Population", file: "population.json" },
+  { name: "Gapminder",  file: "gapminder.json" },
+];
+
+const TEMPLATES = [
+  { id:"bar", name:"BAR", icon:"▐▌▌",
+    spec: { "$schema":SCHEMA, "title":"Bar Chart", "data":{"url":DS+"population.json"},
+      "transform":[{"filter":"datum.year == 2000"}],
+      "mark":{"type":"bar"},
+      "encoding":{ "x":{"field":"people","type":"quantitative","aggregate":"sum","axis":{"title":"Population"}}, "y":{"field":"age","type":"ordinal","axis":{"title":"Age Group"}} }
+    }
+  },
+  { id:"col", name:"COLUMN", icon:"▐██",
+    spec: { "$schema":SCHEMA, "title":"Column Chart", "data":{"url":DS+"barley.json"},
+      "mark":{"type":"bar"},
+      "encoding":{ "x":{"field":"site","type":"nominal","axis":{"labelAngle":-30,"title":"Site"}}, "y":{"field":"yield","type":"quantitative","aggregate":"mean","axis":{"title":"Avg Yield"}} }
+    }
+  },
+  { id:"line", name:"LINE", icon:"╱╱╱",
+    spec: { "$schema":SCHEMA, "title":"Line Chart", "data":{"url":DS+"stocks.csv"},
+      "transform":[{"filter":"datum.symbol === 'GOOG'"}],
+      "mark":{"type":"line","point":{"filled":true,"size":40}},
+      "encoding":{ "x":{"field":"date","type":"temporal"}, "y":{"field":"price","type":"quantitative"} }
+    }
+  },
+  { id:"multiline", name:"MULTI-LINE", icon:"≈≈≈",
+    spec: { "$schema":SCHEMA, "title":"Multi-Series Line", "data":{"url":DS+"stocks.csv"},
+      "mark":"line",
+      "encoding":{ "x":{"field":"date","type":"temporal"}, "y":{"field":"price","type":"quantitative"}, "color":{"field":"symbol","type":"nominal"} }
+    }
+  },
+  { id:"scatter", name:"SCATTER", icon:"∴∴∴",
+    spec: { "$schema":SCHEMA, "title":"Scatter Plot", "data":{"url":DS+"cars.json"},
+      "mark":{"type":"point","filled":true,"size":60,"opacity":0.75},
+      "encoding":{ "x":{"field":"Horsepower","type":"quantitative"}, "y":{"field":"Miles_per_Gallon","type":"quantitative","title":"MPG"}, "color":{"field":"Origin","type":"nominal"}, "tooltip":[{"field":"Name"},{"field":"Horsepower"},{"field":"Miles_per_Gallon","title":"MPG"},{"field":"Origin"}] }
+    }
+  },
+  { id:"bubble", name:"BUBBLE", icon:"○●○",
+    spec: { "$schema":SCHEMA, "title":"Bubble Chart", "data":{"url":DS+"cars.json"},
+      "mark":{"type":"point","filled":true,"opacity":0.7},
+      "encoding":{ "x":{"field":"Horsepower","type":"quantitative"}, "y":{"field":"Miles_per_Gallon","type":"quantitative","title":"MPG"}, "size":{"field":"Weight_in_lbs","type":"quantitative","title":"Weight"}, "color":{"field":"Origin","type":"nominal"} }
+    }
+  },
+  { id:"area", name:"AREA", icon:"▲▲▲",
+    spec: { "$schema":SCHEMA, "title":"Stacked Area", "data":{"url":DS+"unemployment-across-industries.json"},
+      "mark":"area",
+      "encoding":{ "x":{"field":"date","type":"temporal","timeUnit":"yearmonth"}, "y":{"field":"count","type":"quantitative","aggregate":"sum"}, "color":{"field":"series","type":"nominal"} }
+    }
+  },
+  { id:"hist", name:"HISTOGRAM", icon:"▐█▌",
+    spec: { "$schema":SCHEMA, "title":"Histogram", "data":{"url":DS+"cars.json"},
+      "transform":[{"filter":"isValid(datum.Horsepower)"}],
+      "mark":{"type":"bar","binSpacing":1},
+      "encoding":{ "x":{"bin":{"maxbins":20},"field":"Horsepower","type":"quantitative","title":"Horsepower"}, "y":{"aggregate":"count","type":"quantitative"} }
+    }
+  },
+  { id:"heatmap", name:"HEATMAP", icon:"▦▦▦",
+    spec: { "$schema":SCHEMA, "title":"Temperature Heatmap", "data":{"url":DS+"seattle-weather.csv"},
+      "mark":"rect",
+      "encoding":{ "x":{"field":"date","timeUnit":"date","type":"ordinal","axis":{"title":"Day of Month"}}, "y":{"field":"date","timeUnit":"month","type":"ordinal","axis":{"title":"Month"}}, "color":{"field":"temp_max","aggregate":"max","type":"quantitative","scale":{"scheme":"orangered"},"legend":{"title":"Max Temp (°C)"}} }
+    }
+  },
+  { id:"box", name:"BOX PLOT", icon:"⊟⊟",
+    spec: { "$schema":SCHEMA, "title":"Box Plot", "data":{"url":DS+"cars.json"},
+      "mark":{"type":"boxplot","extent":"min-max"},
+      "encoding":{ "x":{"field":"Origin","type":"nominal"}, "y":{"field":"Miles_per_Gallon","type":"quantitative","title":"MPG"} }
+    }
+  },
+  { id:"layer", name:"LAYER", icon:"⧉⧉",
+    spec: { "$schema":SCHEMA, "title":"Bar + Labels (Layered)", "data":{"url":DS+"stocks.csv"},
+      "transform":[{"filter":"datum.symbol === 'GOOG'"}],
+      "encoding":{
+        "x":{"field":"date","timeUnit":"year","type":"ordinal","axis":{"title":"Year"}},
+        "y":{"field":"price","type":"quantitative","aggregate":"mean","axis":{"title":"Mean Price"}}
+      },
+      "layer":[
+        {
+          "mark":{"type":"bar"}
+        },
+        {
+          "mark":{"type":"text","dy":-10,"fontWeight":"bold"},
+          "encoding":{
+            "text":{"field":"price","type":"quantitative","aggregate":"mean","format":".0f"},
+            "color":{"value":"#f59e0b"}
+          }
+        }
+      ]
+    }
+  },
+  { id:"facet", name:"FACET", icon:"⊞⊞",
+    spec: { "$schema":SCHEMA, "title":"Faceted Scatter", "data":{"url":DS+"cars.json"},
+      "mark":{"type":"point","filled":true,"opacity":0.7},
+      "encoding":{ "x":{"field":"Horsepower","type":"quantitative"}, "y":{"field":"Miles_per_Gallon","type":"quantitative","title":"MPG"}, "facet":{"field":"Origin","type":"nominal","columns":3} },
+      "spec":{}
+    }
+  },
+  { id:"repeat", name:"REPEAT", icon:"⊡⊡",
+    spec: { "$schema":SCHEMA, "title":"Repeat Matrix", "data":{"url":DS+"iris.json"},
+      "repeat":{"row":["petalLength","petalWidth"],"column":["sepalLength","sepalWidth"]},
+      "spec":{ "mark":{"type":"point","filled":true,"size":30,"opacity":0.6},
+        "encoding":{ "x":{"field":{"repeat":"column"},"type":"quantitative"}, "y":{"field":{"repeat":"row"},"type":"quantitative"}, "color":{"field":"species","type":"nominal"} }
+      }
+    }
+  },
+  { id:"blank", name:"BLANK", icon:"◻",
+    spec: { "$schema":SCHEMA, "title":"My Chart",
+      "data":{"name":"dataset"},
+      "layer":[
+        {
+          "mark":{"type":"bar"},
+          "encoding":{
+            "x":{"field":"x_field","type":"nominal","axis":{"title":"X Axis"}},
+            "y":{"field":"y_field","type":"quantitative","axis":{"title":"Y Axis"}}
+          }
+        }
+      ]
+    }
+  },
+];
+
+// ─────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────
+let userData = null;
+let activeTemplateId = null;
+let embedResult = null;
+let renderTimer = null;
+let pasteFormat = 'csv';
+let fitState = { active: false, width: null, height: null };
+let suppressRender = false;
+let activeEditorView = 'spec'; // 'spec' | 'config'
+let specBuffer  = '';
+let configBuffer = JSON.stringify(DARK_CFG, null, 2);
+
+// ─────────────────────────────────────────────────────────────
+// DOM
+// ─────────────────────────────────────────────────────────────
+let cmEditor = null;  // CodeMirror instance
+const errorBar   = document.getElementById('error-bar');
+const statusDot  = document.getElementById('status-dot');
+const vegaBox    = document.getElementById('vega-container');
+const fieldList  = document.getElementById('field-list');
+const fieldsSec  = document.getElementById('fields-section');
+const rowLabel   = document.getElementById('row-label');
+const pasteModal = document.getElementById('paste-modal');
+const pasteArea  = document.getElementById('paste-area');
+const dataGridWrap = document.getElementById('data-grid-wrap');
+const dbInfo     = document.getElementById('db-info');
+const dbBadge    = document.getElementById('db-badge');
+
+// ─────────────────────────────────────────────────────────────
+// TAB SWITCHING
+// ─────────────────────────────────────────────────────────────
+function switchTab(name) {
+  const isData = name === 'data';
+  document.getElementById('tab-btn-data').classList.toggle('active', isData);
+  // Only highlight spec/config buttons when the editor panel is visible
+  document.getElementById('tab-btn-spec').classList.toggle('active', !isData && activeEditorView === 'spec');
+  document.getElementById('tab-btn-config').classList.toggle('active', !isData && activeEditorView === 'config');
+  document.querySelectorAll('.tab-actions').forEach(a =>
+    a.classList.toggle('hidden', a.id !== (isData ? 'tab-actions-data' : 'tab-actions-spec')));
+  document.getElementById('tab-data').classList.toggle('hidden', !isData);
+  document.getElementById('tab-spec').classList.toggle('hidden', isData);
+  if (!isData && cmEditor) setTimeout(() => cmEditor.refresh(), 0);
+}
+
+function switchEditorView(view) {
+  // Save current CM content to whichever buffer is active
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  else configBuffer = cmEditor.getValue();
+
+  activeEditorView = view;
+
+  // Update tab button highlights (data tab stays independent)
+  document.getElementById('tab-btn-spec').classList.toggle('active', view === 'spec');
+  document.getElementById('tab-btn-config').classList.toggle('active', view === 'config');
+
+  // Show/hide ↓ DATA button (only meaningful in spec view)
+  document.getElementById('btn-inject').style.display = view === 'spec' ? '' : 'none';
+
+  // Load the target buffer into CM without triggering a render
+  suppressRender = true;
+  cmEditor.setValue(view === 'spec' ? specBuffer : configBuffer);
+  suppressRender = false;
+
+  // Make sure the spec panel is visible
+  switchTab('spec');
+}
+
+// ─────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  buildTemplateRail();
+  buildSampleChips();
+  initCM();
+  initResizers();
+  bindEvents();
+  // Load spec from URL hash if present, otherwise default template
+  if (!loadSpecFromHash()) {
+    applyTemplate(TEMPLATES[0]); // bar default
+    // Activate fit after first render settles
+    setTimeout(fitToFrame, 600);
+  }
+});
+
+function initCM() {
+  cmEditor = CodeMirror(document.getElementById('spec-editor-wrap'), {
+    mode: { name: 'javascript', json: true },
+    lineNumbers: true,
+    lineWrapping: false,
+    foldGutter: true,
+    gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter', 'CodeMirror-error-gutter'],
+    matchBrackets: true,
+    indentUnit: 2,
+    tabSize: 2,
+    electricChars: false,
+    extraKeys: {
+      'Tab':   cm => { if (isState.visible) commitIS(isState.items[isState.activeIdx]); else cm.execCommand('insertSoftTab'); },
+      'Enter': cm => { if (isState.visible) commitIS(isState.items[isState.activeIdx]); else cm.execCommand('newlineAndIndent'); },
+      'Esc':   ()  => { if (isState.visible) hideIS(); },
+      'Down':  cm  => { if (isState.visible) { isNavigatingIS = true; const n = Math.min(isState.items.length,20); isState.activeIdx=(isState.activeIdx+1)%n; renderIS(); setTimeout(()=>{isNavigatingIS=false;},0); } else cm.execCommand('goLineDown'); },
+      'Up':    cm  => { if (isState.visible) { isNavigatingIS = true; const n = Math.min(isState.items.length,20); isState.activeIdx=(isState.activeIdx-1+n)%n; renderIS(); setTimeout(()=>{isNavigatingIS=false;},0); } else cm.execCommand('goLineUp'); },
+    }
+  });
+  cmEditor.on('change', () => {
+    if (suppressRender) return;
+    // Keep active buffer in sync
+    if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+    else configBuffer = cmEditor.getValue();
+    checkIntellisense();
+    clearTimeout(renderTimer);
+    dot('spin');
+    renderTimer = setTimeout(renderSpec, 950);
+  });
+  cmEditor.on('cursorActivity', () => {
+    if (isNavigatingIS) return;
+    checkIntellisense();
+    if (isState.visible) positionIS();
+  });
+  cmEditor.on('blur',   () => setTimeout(hideIS, 160));
+  cmEditor.on('scroll', () => { if (isState.visible) positionIS(); });
+}
+
+// ─────────────────────────────────────────────────────────────
+// RESIZERS
+// ─────────────────────────────────────────────────────────────
+function initResizers() {
+  const workspace    = document.querySelector('.workspace');
+  const leftPanel    = document.querySelector('.left-panel');
+  const previewPanel = document.getElementById('preview-panel');
+  const vResizer     = document.getElementById('resizer-v');
+  const hResizer     = document.getElementById('resizer-h');
+  const dataBottom   = document.getElementById('data-bottom');
+
+  // ── Vertical (left ↔ right panels) ──
+  let vDragging = false, vStartX = 0, vStartW = 0;
+
+  vResizer.addEventListener('mousedown', e => {
+    vDragging = true;
+    vStartX   = e.clientX;
+    vStartW   = leftPanel.getBoundingClientRect().width;
+    vResizer.classList.add('dragging');
+    document.body.style.cssText += ';cursor:col-resize!important;user-select:none!important';
+    e.preventDefault();
+  });
+
+  // ── Horizontal (preview ↕ data table) ──
+  let hDragging = false, hStartY = 0, hStartH = 0;
+
+  hResizer.addEventListener('mousedown', e => {
+    hDragging = true;
+    hStartY   = e.clientY;
+    hStartH   = dataBottom.getBoundingClientRect().height;
+    hResizer.classList.add('dragging');
+    document.body.style.cssText += ';cursor:row-resize!important;user-select:none!important';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', e => {
+    if (vDragging) {
+      const total = workspace.getBoundingClientRect().width;
+      const rw    = vResizer.getBoundingClientRect().width;
+      const newW  = Math.max(200, Math.min(total - rw - 200, vStartW + (e.clientX - vStartX)));
+      leftPanel.style.width = newW + 'px';
+      if (cmEditor) cmEditor.refresh();
+    }
+    if (hDragging) {
+      const panelH = previewPanel.getBoundingClientRect().height;
+      const delta  = hStartY - e.clientY;          // drag up = bigger table
+      const newH   = Math.max(60, Math.min(panelH - 120, hStartH + delta));
+      dataBottom.style.height = newH + 'px';
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (vDragging) {
+      vDragging = false;
+      vResizer.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      if (cmEditor) cmEditor.refresh();
+    }
+    if (hDragging) {
+      hDragging = false;
+      hResizer.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// ZOOM — PREVIEW
+// ─────────────────────────────────────────────────────────────
+const PVZ_STEPS = [0.25,0.33,0.5,0.67,0.75,0.9,1.0,1.1,1.25,1.5,1.75,2.0,2.5,3.0,4.0];
+let previewZoomIdx = 6; // 1.0
+
+function setPreviewZoom(idx) {
+  previewZoomIdx = Math.max(0, Math.min(PVZ_STEPS.length - 1, idx));
+  const z = PVZ_STEPS[previewZoomIdx];
+  document.getElementById('preview-zoom-wrap').style.transform = `scale(${z})`;
+  document.getElementById('pvz-label').textContent = Math.round(z * 100) + '%';
+  // Deactivate fit mode — user has manually overridden the zoom
+  fitState.active = false;
+  document.getElementById('btn-fit').classList.remove('btn-primary');
+}
+
+// ─────────────────────────────────────────────────────────────
+// ZOOM — CODE EDITOR
+// ─────────────────────────────────────────────────────────────
+const EDZ_SIZES = [9,10,11,12,13,14,15,16,17,18,20,22,24,28];
+let codeZoomIdx = 5; // 14px
+
+function setCodeZoom(idx) {
+  codeZoomIdx = Math.max(0, Math.min(EDZ_SIZES.length - 1, idx));
+  const sz = EDZ_SIZES[codeZoomIdx];
+  document.getElementById('edz-label').textContent = sz + 'px';
+  if (cmEditor) {
+    // Target the .CodeMirror element directly — its font-size CSS is now un-!important
+    const el = cmEditor.getWrapperElement();
+    el.style.fontSize = sz + 'px';
+    // Force CM to recalculate line heights and gutter positions
+    cmEditor.refresh();
+    // Second refresh needed after layout reflow settles
+    setTimeout(() => cmEditor.refresh(), 50);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// ZOOM — DATA TABLE
+// ─────────────────────────────────────────────────────────────
+const DTZ_SIZES = [9,10,11,12,13,14,15,16,17,18,20,22,24,28];
+let dataZoomIdx = 3; // 12px
+
+function setDataZoom(idx) {
+  dataZoomIdx = Math.max(0, Math.min(DTZ_SIZES.length - 1, idx));
+  const sz = DTZ_SIZES[dataZoomIdx];
+  document.getElementById('dtz-label').textContent = sz + 'px';
+  const tbl = document.querySelector('#data-grid-wrap .full-tbl');
+  if (tbl) tbl.style.fontSize = sz + 'px';
+  // Store as CSS var so future table renders also inherit it
+  document.documentElement.style.setProperty('--tbl-font-size', sz + 'px');
+}
+// ─────────────────────────────────────────────────────────────
+async function fitToFrame() {
+  const previewTop = document.getElementById('preview-top');
+
+  // Reset any manual zoom transform so the chart fills the frame correctly
+  previewZoomIdx = 6; // 100%
+  document.getElementById('preview-zoom-wrap').style.transform = 'scale(1)';
+  document.getElementById('pvz-label').textContent = '100%';
+
+  const availW = previewTop.clientWidth  - 40;
+  const availH = previewTop.clientHeight - 40;
+  const plotW  = Math.max(80,  availW - 100); // subtract y-axis + legend overhead
+  const plotH  = Math.max(60,  availH - 110); // subtract title + x-axis overhead
+
+  const txt = specBuffer.trim();
+  if (!txt) return;
+  let spec;
+  try { spec = JSON.parse(txt); }
+  catch(e) { err("Spec: " + e.message); return; }
+
+  const isMulti = !!(spec.hconcat || spec.vconcat || spec.concat || spec.facet || spec.repeat);
+
+  // Save fit state so subsequent re-renders also use these dimensions
+  fitState = {
+    active: true,
+    width:  isMulti ? availW : plotW,
+    height: isMulti ? null   : plotH,
+    isMulti
+  };
+
+  // Show FIT button as active
+  document.getElementById('btn-fit').classList.add('btn-primary');
+
+  let rs = JSON.parse(JSON.stringify(spec));
+  if (userData && rs.data && rs.data.name === 'dataset') rs.data = { values: userData };
+  if (!rs.config) rs.config = DARK_CFG;
+
+  rs.width = fitState.width;
+  if (!isMulti) {
+    rs.height   = fitState.height;
+    rs.autosize = { type: 'fit', contains: 'padding', resize: true };
+  }
+
+  try {
+    dot('spin');
+    if (embedResult) { try { embedResult.finalize(); } catch(_){} embedResult = null; }
+    vegaBox.innerHTML = '';
+    const result = await vegaEmbed('#vega-container', rs, {
+      renderer: 'svg',
+      actions: { export: { svg: true, png: true }, source: false, editor: true, compiled: false },
+    });
+    embedResult = result;
+    clearErr();
+    dot('ok');
+  } catch(e) { err("Render: " + e.message); }
+}
+
+// ─────────────────────────────────────────────────────────────
+// CONSOLE MESSAGES
+// ─────────────────────────────────────────────────────────────
+(function interceptConsole() {
+  const _warn = console.warn.bind(console);
+  console.warn = (...args) => {
+    _warn(...args);
+    addConsoleMsg('warn', args.join(' '));
+  };
+})();
+
+function addConsoleMsg(type, text) {
+  // Filter to Vega/render related messages only
+  if (!text.includes('WARN') && !text.includes('vega') && !text.includes('Vega')) return;
+  const panel    = document.getElementById('console-panel');
+  const messages = document.getElementById('console-messages');
+  if (!panel || !messages) return;
+  const el = document.createElement('div');
+  el.className = 'console-msg';
+  el.innerHTML = `<span class="console-msg-icon">⚠</span><span class="console-msg-text">${text.replace(/</g,'&lt;')}</span>`;
+  messages.appendChild(el);
+  panel.classList.add('has-messages');
+  // Auto-scroll to latest
+  panel.scrollTop = panel.scrollHeight;
+}
+
+function clearConsole() {
+  const panel    = document.getElementById('console-panel');
+  const messages = document.getElementById('console-messages');
+  if (messages) messages.innerHTML = '';
+  if (panel)    panel.classList.remove('has-messages');
+}
+// ─────────────────────────────────────────────────────────────
+function shareSpec() {
+  // Ensure both buffers are current
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  else configBuffer = cmEditor.getValue();
+
+  let spec, config;
+  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
+  try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
+
+  const combined = JSON.stringify({ ...spec, config }, null, 2);
+
+  navigator.clipboard.writeText(combined).then(() => {
+    const btn = document.getElementById('btn-share');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ COPIED!';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 2200);
+  }).catch(() => {
+    prompt('Copy your Vega-Lite spec:', combined);
+  });
+}
+
+function loadSpecFromHash() {
+  try {
+    const hash = location.hash;
+    if (!hash.startsWith('#spec=')) return false;
+    const encoded = hash.slice(6);
+    const decoded = decodeURIComponent(escape(atob(encoded)));
+    const spec = JSON.parse(decoded);
+    setSpec(spec.config ? spec : { ...spec, config: DARK_CFG });
+    switchEditorView('spec');
+    return true;
+  } catch(_) {
+    return false;
+  }
+}
+
+function buildTemplateRail() {
+  const rail = document.getElementById('template-rail');
+  TEMPLATES.forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'tpl-btn';
+    btn.dataset.id = t.id;
+    btn.innerHTML = t.name;
+    btn.onclick = () => applyTemplate(t);
+    rail.appendChild(btn);
+  });
+}
+
+function buildSampleChips() {
+  const c = document.getElementById('sample-chips');
+  SAMPLES.forEach(s => {
+    const chip = document.createElement('div');
+    chip.className = 'sample-chip';
+    chip.textContent = s.name;
+    chip.onclick = () => fetchSample(s);
+    c.appendChild(chip);
+  });
+}
+
+function bindEvents() {
+  // Paste modal
+  document.getElementById('btn-paste').onclick   = () => pasteModal.classList.remove('hidden');
+  document.getElementById('modal-close').onclick  = () => pasteModal.classList.add('hidden');
+  pasteModal.addEventListener('click', e => { if (e.target === pasteModal) pasteModal.classList.add('hidden'); });
+
+  document.querySelectorAll('.fmt-btn').forEach(b => {
+    b.onclick = () => {
+      pasteFormat = b.dataset.fmt;
+      document.querySelectorAll('.fmt-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+
+  document.getElementById('btn-load-paste').onclick = () => {
+    const txt = pasteArea.value.trim();
+    if (!txt) return;
+    if (pasteFormat === 'json') parseJSON(txt);
+    else parseCSV(txt, pasteFormat === 'tsv' ? '\t' : ',');
+    pasteModal.classList.add('hidden');
+  };
+
+  // File upload
+  document.getElementById('file-input').addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return;
+    readFile(f); e.target.value = '';
+  });
+
+  // Drag & drop
+  const zone = document.getElementById('upload-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.style.borderColor = 'var(--accent)'; });
+  zone.addEventListener('dragleave', () => { zone.style.borderColor = ''; });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.style.borderColor = '';
+    const f = e.dataTransfer.files[0]; if (f) readFile(f);
+  });
+
+  document.getElementById('btn-console-clear').onclick = clearConsole;
+  document.getElementById('btn-share').onclick   = shareSpec;
+  document.getElementById('btn-format').onclick  = formatJSON;
+  document.getElementById('btn-inject').onclick   = injectData;
+  document.getElementById('btn-fit').onclick      = fitToFrame;
+  document.getElementById('btn-pvz-in').onclick   = () => setPreviewZoom(previewZoomIdx + 1);
+  document.getElementById('btn-pvz-out').onclick  = () => setPreviewZoom(previewZoomIdx - 1);
+  document.getElementById('btn-edz-in').onclick   = () => setCodeZoom(codeZoomIdx + 1);
+  document.getElementById('btn-edz-out').onclick  = () => setCodeZoom(codeZoomIdx - 1);
+  document.getElementById('btn-dtz-in').onclick   = () => setDataZoom(dataZoomIdx + 1);
+  document.getElementById('btn-dtz-out').onclick  = () => setDataZoom(dataZoomIdx - 1);
+}
+
+// ─────────────────────────────────────────────────────────────
+// TEMPLATES
+// ─────────────────────────────────────────────────────────────
+function applyTemplate(t) {
+  activeTemplateId = t.id;
+  document.querySelectorAll('.tpl-btn').forEach(b => b.classList.toggle('active', b.dataset.id === t.id));
+
+  // Clear data table so stale data from a previous template doesn't linger
+  if (!userData) {
+    dataGridWrap.innerHTML = `<div class="db-empty"><span class="db-empty-icon">⊡</span>Loading data…</div>`;
+    dbInfo.textContent = '';
+    dbBadge.textContent = '';
+  }
+
+  let spec = JSON.parse(JSON.stringify(t.spec));
+  spec.config = DARK_CFG;
+
+  setSpec(spec);
+
+  // Re-fit after render settles if fit mode is active
+  if (fitState.active) setTimeout(fitToFrame, 600);
+}
+
+function setSpec(spec) {
+  // Split config from spec into separate buffers
+  const cfg = spec.config || DARK_CFG;
+  const specOnly = Object.assign({}, spec);
+  delete specOnly.config;
+
+  configBuffer = JSON.stringify(cfg, null, 2);
+  specBuffer   = JSON.stringify(specOnly, null, 2);
+
+  suppressRender = true;
+  cmEditor.setValue(activeEditorView === 'config' ? configBuffer : specBuffer);
+  suppressRender = false;
+
+  renderSpec();
+}
+
+// ─────────────────────────────────────────────────────────────
+// DATA LOADING
+// ─────────────────────────────────────────────────────────────
+function readFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const txt = ev.target.result;
+    if (file.name.endsWith('.json')) parseJSON(txt);
+    else parseCSV(txt, file.name.endsWith('.tsv') ? '\t' : ',');
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text, delimiter = ',') {
+  try {
+    const r = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true, delimiter });
+    if (r.errors.length && !r.data.length) { err("CSV Error: " + r.errors[0].message); return; }
+    setData(r.data, r.meta.fields || Object.keys(r.data[0] || {}));
+    clearSampleActive();
+  } catch(e) { err("CSV Error: " + e.message); }
+}
+
+function parseJSON(text) {
+  try {
+    const d = JSON.parse(text);
+    const arr = Array.isArray(d) ? d : [d];
+    const fields = arr.length ? Object.keys(arr[0]) : [];
+    setData(arr, fields);
+    clearSampleActive();
+  } catch(e) { err("JSON Error: " + e.message); }
+}
+
+async function fetchSample(s) {
+  clearSampleActive();
+  document.querySelectorAll('.sample-chip').forEach(c => {
+    if (c.textContent === s.name) c.classList.add('active');
+  });
+  try {
+    const url = DS + s.file;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const txt = await resp.text();
+    if (s.file.endsWith('.csv')) parseCSVFromSample(txt);
+    else parseJSONFromSample(txt);
+  } catch(e) { err("Failed to load sample: " + e.message); }
+}
+
+function parseCSVFromSample(text) {
+  const r = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+  setData(r.data, r.meta.fields || Object.keys(r.data[0] || {}));
+}
+function parseJSONFromSample(text) {
+  const d = JSON.parse(text);
+  const arr = Array.isArray(d) ? d : [d];
+  setData(arr, arr.length ? Object.keys(arr[0]) : []);
+}
+
+function clearSampleActive() {
+  document.querySelectorAll('.sample-chip').forEach(c => c.classList.remove('active'));
+}
+
+// ─────────────────────────────────────────────────────────────
+// SET DATA
+// ─────────────────────────────────────────────────────────────
+function setData(data, fields) {
+  userData = data;
+  ftMapCache = null; // invalidate field type cache
+  showFields(data, fields);
+  renderDataTable(data, fields);
+  injectData();
+  switchTab('spec');
+}
+
+function injectData() {
+  if (!userData) return;
+  try {
+    const spec = JSON.parse(specBuffer);
+    spec.data = { name: 'dataset' };
+    if (spec.transform) delete spec.transform;
+    specBuffer = JSON.stringify(spec, null, 2);
+    if (activeEditorView === 'spec') {
+      suppressRender = true;
+      cmEditor.setValue(specBuffer);
+      suppressRender = false;
+    }
+    renderSpec();
+  } catch(e) { /* spec not valid yet */ }
+}
+
+// ─────────────────────────────────────────────────────────────
+// FIELD LIST
+// ─────────────────────────────────────────────────────────────
+function guessType(vals) {
+  const s = vals.filter(v => v != null).slice(0, 30);
+  if (!s.length) return 'N';
+  if (s.every(v => typeof v === 'number' || (!isNaN(+v) && String(v).trim() !== ''))) return 'Q';
+  if (s.some(v => typeof v === 'string' && !isNaN(Date.parse(v)) && isNaN(+v))) return 'T';
+  const u = new Set(s.map(String));
+  if (u.size <= Math.min(12, s.length * 0.6)) return 'O';
+  return 'N';
+}
+
+function showFields(data, fields) {
+  fieldsSec.classList.remove('hidden');
+  rowLabel.textContent = `${data.length.toLocaleString()} rows`;
+  fieldList.innerHTML = '';
+  fields.forEach(f => {
+    const type = guessType(data.map(r => r[f]));
+    const el = document.createElement('div');
+    el.className = 'field-item';
+    el.title = `Click to copy "${f}"`;
+    el.innerHTML = `<span class="field-type ft-${type}">${type}</span><span class="field-name">${f}</span>`;
+    el.onclick = () => {
+      navigator.clipboard.writeText(`"${f}"`).catch(() => {});
+      el.style.outline = '1px solid var(--accent)';
+      setTimeout(() => el.style.outline = '', 400);
+    };
+    fieldList.appendChild(el);
+  });
+}
+
+function renderDataTable(data, fields) {
+  const maxRows = Math.min(data.length, 1000);
+  dbInfo.textContent = `${data.length.toLocaleString()} rows × ${fields.length} columns`;
+  dbBadge.textContent = maxRows < data.length ? `showing first ${maxRows.toLocaleString()}` : '';
+
+  const thead = `<thead><tr>${fields.map(f => `<th>${f}</th>`).join('')}</tr></thead>`;
+  const tbody = `<tbody>${data.slice(0, maxRows).map(row =>
+    `<tr>${fields.map(f => {
+      const v = row[f];
+      const s = v == null ? '' : String(v);
+      return `<td title="${s.length > 30 ? s : ''}">${s}</td>`;
+    }).join('')}</tr>`
+  ).join('')}</tbody>`;
+
+  dataGridWrap.innerHTML = `<table class="full-tbl">${thead}${tbody}</table>`;
+
+  // Reapply current zoom so reloading data doesn't reset the font size
+  const sz = DTZ_SIZES[dataZoomIdx];
+  const tbl = dataGridWrap.querySelector('.full-tbl');
+  if (tbl) tbl.style.fontSize = sz + 'px';
+}
+
+// ─────────────────────────────────────────────────────────────
+// INTELLISENSE
+// ─────────────────────────────────────────────────────────────
+const VL_TYPES    = ['quantitative','nominal','ordinal','temporal'];
+const MARK_TYPES  = ['bar','line','area','point','circle','square','tick','rule','text','rect','boxplot','errorband','errorbar','trail','geoshape','image'];
+const AGGREGATES  = ['sum','mean','median','min','max','count','distinct','valid','missing','variance','stdev','stdevp','variancep','q1','q3','ci0','ci1','product','stderr'];
+const TIME_UNITS  = ['year','quarter','month','week','day','dayofyear','date','hours','minutes','seconds','milliseconds','yearquarter','yearmonth','yearmonthdate','yearmonthdatehours','yearmonthdate','monthdate','hoursminutes','hoursminutesseconds','minutesseconds','secondsmilliseconds'];
+const COLOR_SCHEMES = ['blues','greens','reds','oranges','purples','greys','viridis','magma','inferno','plasma','cividis','turbo','blueorange','brownbluegreen','purplegreen','redblue','redgrey','redyellowblue','redyellowgreen','spectral','tableau10','tableau20','category10','set1','set2','set3','paired','dark2','pastel1'];
+
+// Vega-Lite property catalogue  [key, category-badge, description]
+const VL_KEYS = [
+  // Top-level
+  ['$schema','TOP','Vega-Lite schema URL'],['title','TOP','Chart title'],['description','TOP','Chart description'],
+  ['data','TOP','Data source'],['mark','TOP','Mark type or config'],['encoding','TOP','Visual encodings'],
+  ['transform','TOP','Data transforms array'],['layer','TOP','Layer views'],['hconcat','TOP','Horizontal concat'],
+  ['vconcat','TOP','Vertical concat'],['concat','TOP','General concat'],['facet','TOP','Facet config'],
+  ['repeat','TOP','Repeat spec'],['spec','TOP','Inner spec'],['config','TOP','Global config'],
+  ['width','TOP','Chart width'],['height','TOP','Chart height'],['params','TOP','Interactive params'],
+  ['resolve','TOP','Scale/axis resolution'],['projection','TOP','Geo projection'],['name','TOP','Spec name'],
+  ['background','TOP','Background color'],['padding','TOP','Chart padding'],['autosize','TOP','Auto-sizing'],
+  ['datasets','TOP','Named datasets'],
+  // Encoding channels
+  ['x','ENC','X-axis position'],['y','ENC','Y-axis position'],['x2','ENC','X end position'],
+  ['y2','ENC','Y end position'],['color','ENC','Color encoding'],['size','ENC','Size encoding'],
+  ['shape','ENC','Shape encoding'],['opacity','ENC','Opacity encoding'],['text','ENC','Text encoding'],
+  ['tooltip','ENC','Tooltip fields'],['detail','ENC','Detail grouping'],['order','ENC','Draw order'],
+  ['row','ENC','Row facet'],['column','ENC','Column facet'],['theta','ENC','Arc angle'],
+  ['radius','ENC','Arc radius'],['strokeWidth','ENC','Stroke width enc'],['strokeDash','ENC','Stroke dash enc'],
+  ['angle','ENC','Rotation angle'],['xOffset','ENC','X offset enc'],['yOffset','ENC','Y offset enc'],
+  ['href','ENC','Link URL enc'],['key','ENC','Object constancy key'],
+  // Channel definition
+  ['field','CH','Data field name'],['type','CH','Data type'],['aggregate','CH','Aggregation fn'],
+  ['bin','CH','Binning'],['timeUnit','CH','Time unit'],['scale','CH','Scale options'],
+  ['axis','CH','Axis options'],['legend','CH','Legend options'],['sort','CH','Sort order'],
+  ['stack','CH','Stack mode'],['impute','CH','Impute missing'],['condition','CH','Conditional enc'],
+  ['format','CH','Format string'],['formatType','CH','Format type'],['bandPosition','CH','Band position'],
+  ['value','CH','Constant value'],['datum','CH','Constant datum'],['shorthand','CH','Shorthand string'],
+  // Mark
+  ['filled','MK','Fill mark shape'],['fill','MK','Fill color'],['stroke','MK','Stroke color'],
+  ['strokeWidth','MK','Stroke width'],['strokeOpacity','MK','Stroke opacity'],['fillOpacity','MK','Fill opacity'],
+  ['cornerRadius','MK','Corner radius'],['cornerRadiusEnd','MK','Bar end radius'],
+  ['point','MK','Points on line'],['line','MK','Connecting line'],['interpolate','MK','Line interpolation'],
+  ['tension','MK','Interpolation tension'],['extent','MK','Whisker extent'],['binSpacing','MK','Bin gap'],
+  ['clip','MK','Clip to view'],['cursor','MK','Mouse cursor'],['align','MK','Text alignment'],
+  ['baseline','MK','Text baseline'],['fontSize','MK','Font size'],['fontWeight','MK','Font weight'],
+  ['fontStyle','MK','Font style'],['font','MK','Font family'],['dx','MK','X offset px'],
+  ['dy','MK','Y offset px'],['limit','MK','Text truncation'],['ellipsis','MK','Truncation char'],
+  ['orient','MK','Mark orientation'],['invalid','MK','Invalid data handling'],
+  ['blend','MK','Blend mode'],['thickness','MK','Tick thickness'],
+  // Data source
+  ['url','DATA','Remote data URL'],['values','DATA','Inline data array'],
+  ['csv','DATA','CSV format hint'],['json','DATA','JSON format hint'],
+  // Transform
+  ['filter','TX','Filter expression'],['calculate','TX','Derived field expr'],['as','TX','Output field name'],
+  ['window','TX','Window functions'],['groupby','TX','Group-by fields'],
+  ['joinaggregate','TX','Join aggregate'],['flatten','TX','Flatten arrays'],
+  ['fold','TX','Fold to key-value'],['sample','TX','Random sample N'],['lookup','TX','Lookup join'],
+  ['pivot','TX','Pivot to wide'],['density','TX','KDE density'],['regression','TX','Regression fit'],
+  ['loess','TX','LOESS smoothing'],['op','TX','Window/agg op'],['frame','TX','Window frame'],
+  ['fields','TX','Fields to fold'],['from','TX','Lookup source'],['method','TX','Regression method'],
+  // Scale
+  ['domain','SC','Scale domain'],['range','SC','Scale range'],['scheme','SC','Color scheme'],
+  ['zero','SC','Include zero'],['nice','SC','Nice axis ends'],['clamp','SC','Clamp values'],
+  ['padding','SC','Band padding'],['paddingInner','SC','Inner padding'],['paddingOuter','SC','Outer padding'],
+  ['reverse','SC','Reverse scale'],['exponent','SC','Power exponent'],['base','SC','Log base'],
+  // Axis / Legend
+  ['grid','AX','Show grid lines'],['ticks','AX','Show tick marks'],['labels','AX','Show labels'],
+  ['tickCount','AX','Tick count hint'],['tickMinStep','AX','Min tick step'],
+  ['labelAngle','AX','Label rotation'],['labelOverlap','AX','Overlap strategy'],
+  ['offset','AX','Axis offset px'],['translate','AX','Axis translate'],
+  ['domainColor','AX','Domain line color'],['gridColor','AX','Grid color'],
+  ['labelColor','AX','Label color'],['tickColor','AX','Tick color'],['titleColor','AX','Title color'],
+  ['labelFontSize','AX','Label font size'],['titleFontSize','AX','Title font size'],
+  ['titlePadding','AX','Title padding'],['minExtent','AX','Min axis extent'],['maxExtent','AX','Max axis extent'],
+  ['tickBand','AX','Band tick placement'],['gradientLength','AX','Gradient bar length'],
+  // Config sub-objects
+  ['view','CFG','View config'],['header','CFG','Facet header cfg'],['numberFormat','CFG','Number format'],
+  ['timeFormat','CFG','Time format'],['lineBreak','CFG','Line break char'],
+  // Misc
+  ['columns','LAY','Facet columns'],['spacing','LAY','View spacing'],['center','LAY','Center views'],
+  ['bounds','LAY','Layout bounds'],['selection','LAY','Interactive selection'],
+  ['on','LAY','Trigger event'],['clear','LAY','Clear event'],['empty','LAY','Empty selection'],
+  ['encodings','LAY','Encoding channels'],['nearest','LAY','Nearest selection'],
+];
+
+const IS_MODES = [
+  {
+    id: 'field', label: 'FIELD',
+    re: /"field"\s*:\s*"([^"]*)$/,
+    items(q) {
+      if (!userData?.length) return [];
+      return Object.keys(userData[0]).filter(f => f.toLowerCase().includes(q.toLowerCase()));
+    },
+    icon(item) {
+      const t = (buildFTMap())[item] || 'N';
+      return { text: t, cls: 'field-type ft-' + t };
+    }
+  },
+  {
+    id: 'type', label: 'TYPE',
+    re: /"type"\s*:\s*"([^"]*)$/,
+    items(q) { return [...VL_TYPES, ...MARK_TYPES].filter(t => t.startsWith(q.toLowerCase())); },
+    icon(item) { return { text: VL_TYPES.includes(item) ? 'VL' : '▌', cls: 'is-icon' }; }
+  },
+  {
+    id: 'aggregate', label: 'AGGREGATE',
+    re: /"aggregate"\s*:\s*"([^"]*)$/,
+    items(q) { return AGGREGATES.filter(a => a.startsWith(q.toLowerCase())); },
+    icon() { return { text: 'ƒ', cls: 'is-icon' }; }
+  },
+  {
+    id: 'timeUnit', label: 'TIME UNIT',
+    re: /"timeUnit"\s*:\s*"([^"]*)$/,
+    items(q) { return TIME_UNITS.filter(t => t.startsWith(q.toLowerCase())); },
+    icon() { return { text: '⏱', cls: 'is-icon' }; }
+  },
+  {
+    id: 'scheme', label: 'SCHEME',
+    re: /"scheme"\s*:\s*"([^"]*)$/,
+    items(q) { return COLOR_SCHEMES.filter(s => s.startsWith(q.toLowerCase())); },
+    icon() { return { text: '◐', cls: 'is-icon' }; }
+  },
+  // Key completion — must come LAST so value modes take priority
+  {
+    id: 'key', label: 'PROPERTY',
+    re: /(?:[{,][ \t]*\n?[ \t]*)"([^":\n\r]*)$/,
+    items(q) {
+      const ql = q.toLowerCase();
+      const seen = new Set();
+      return VL_KEYS
+        .filter(([k]) => k.toLowerCase().startsWith(ql) && !seen.has(k) && seen.add(k))
+        .map(([k]) => k);
+    },
+    icon(item) {
+      const entry = VL_KEYS.find(([k]) => k === item);
+      return { text: entry ? entry[1] : '{}', cls: 'is-icon' };
+    },
+    desc(item) {
+      const entry = VL_KEYS.find(([k]) => k === item);
+      return entry ? entry[2] : '';
+    }
+  },
+];
+
+let isState = { visible: false, mode: null, items: [], activeIdx: 0, query: '', insertStart: 0, insertEnd: 0 };
+let isNavigatingIS = false; // suppresses checkIntellisense during arrow key navigation
+const isPopup = document.getElementById('intellisense');
+let ftMapCache = null;
+
+function buildFTMap() {
+  if (ftMapCache) return ftMapCache;
+  if (!userData?.length) return {};
+  ftMapCache = {};
+  Object.keys(userData[0]).forEach(f => { ftMapCache[f] = guessType(userData.map(r => r[f])); });
+  return ftMapCache;
+}
+
+function checkIntellisense() {
+  if (!cmEditor) return;
+  const cursor = cmEditor.getCursor();
+  const pos    = cmEditor.indexFromPos(cursor);
+  const val    = cmEditor.getValue();
+  const before = val.slice(0, pos);
+
+  for (const mode of IS_MODES) {
+    const match = before.match(mode.re);
+    if (!match) continue;
+
+    const query = match[1] || '';
+    const list  = mode.items(query);
+    if (!list.length) { hideIS(); return; }
+
+    const after = val.slice(pos);
+    const trailMatch = after.match(/^([^",}\]\s]*)/);
+    const trail = trailMatch ? trailMatch[1] : '';
+
+    isState = {
+      visible: true, mode,
+      items: list, activeIdx: 0, query,
+      insertStart: pos - query.length,
+      insertEnd: pos + trail.length
+    };
+    renderIS();
+    positionIS();
+    return;
+  }
+  hideIS();
+}
+
+function positionIS() {
+  const coords = cmEditor.cursorCoords(true, 'window');
+  const x = coords.left;
+  let   y = coords.bottom + 3;
+  const popH = Math.min(315, isState.items.length * 35 + 42);
+  if (y + popH > window.innerHeight - 8) y = coords.top - popH - 3;
+  isPopup.style.left = Math.max(4, Math.min(x, window.innerWidth - 270)) + 'px';
+  isPopup.style.top  = Math.max(4, y) + 'px';
+}
+
+function commitIS(item) {
+  const { insertStart, insertEnd, mode } = isState;
+  const val   = cmEditor.getValue();
+  const after = val.slice(insertEnd);
+  let suffix = '';
+  if (mode.id === 'key') suffix = after.startsWith('"') ? '' : '": ';
+
+  const from = cmEditor.posFromIndex(insertStart);
+  const to   = cmEditor.posFromIndex(insertEnd);
+  cmEditor.replaceRange(item + suffix, from, to);
+  hideIS();
+  clearTimeout(renderTimer);
+  dot('spin');
+  renderTimer = setTimeout(renderSpec, 950);
+}
+
+function renderIS() {
+  const { mode, items, activeIdx, query } = isState;
+  const shown = items.slice(0, 20);
+  const matchType = mode.id === 'field' ? 'contains' : 'starts';
+  const moreCount = items.length - 20;
+
+  isPopup.innerHTML =
+    `<div class="is-head">
+       <span>${mode.label}</span>
+       <span class="is-head-count">${items.length > 20 ? '20 of ' + items.length : items.length} match${items.length !== 1 ? 'es' : ''}</span>
+     </div>` +
+    shown.map((item, i) => {
+      const { text, cls } = mode.icon(item);
+      const hl = hlIS(item, query, matchType);
+      const desc = mode.desc ? mode.desc(item) : '';
+      const right = desc
+        ? `<span class="is-desc">${desc}</span>`
+        : `<span class="is-keys">↵ Tab</span>`;
+      return `<div class="is-item${i === activeIdx ? ' active' : ''}" data-idx="${i}" data-item="${escAttr(item)}">
+        <span class="${cls}">${text}</span>
+        <span>${hl}</span>
+        ${right}
+      </div>`;
+    }).join('') +
+    (moreCount > 0 ? `<div class="is-item" style="color:var(--muted);font-size:9px;justify-content:center">+${moreCount} more — keep typing</div>` : '');
+
+  isPopup.querySelectorAll('.is-item[data-item]').forEach(el => {
+    el.addEventListener('mousedown', e => { e.preventDefault(); commitIS(el.dataset.item); });
+  });
+
+  isPopup.classList.remove('hidden');
+  // Ensure active item is visible
+  const activeEl = isPopup.querySelector('.is-item.active');
+  if (activeEl) activeEl.scrollIntoView({ block: 'nearest' });
+}
+
+function hlIS(text, query, matchType) {
+  if (!query) return text;
+  const idx = matchType === 'contains'
+    ? text.toLowerCase().indexOf(query.toLowerCase())
+    : text.toLowerCase().startsWith(query.toLowerCase()) ? 0 : -1;
+  if (idx === -1) return text;
+  return text.slice(0, idx) +
+    `<span class="is-match">${text.slice(idx, idx + query.length)}</span>` +
+    text.slice(idx + query.length);
+}
+
+function escAttr(s) { return s.replace(/"/g, '&quot;'); }
+
+function hideIS() {
+  if (!isState.visible) return;
+  isState.visible = false;
+  isPopup.classList.add('hidden');
+}
+
+// ─────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────
+async function renderSpec() {
+  // Ensure buffers are current
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  else configBuffer = cmEditor.getValue();
+
+  if (!specBuffer.trim()) return;
+
+  let spec, config;
+  try { spec = JSON.parse(specBuffer); }
+  catch(e) { err("Spec: " + e.message); return; }
+  try { config = JSON.parse(configBuffer); }
+  catch(e) { err("Config: " + e.message); return; }
+
+  let renderableSpec = JSON.parse(JSON.stringify(spec));
+  renderableSpec.config = config;
+
+  if (userData && renderableSpec.data && renderableSpec.data.name === 'dataset') {
+    renderableSpec.data = { values: userData };
+  }
+
+  // Preserve fit dimensions if fit mode is active; otherwise fall back to auto-width
+  if (fitState.active) {
+    renderableSpec.width = fitState.width;
+    if (fitState.height !== null) {
+      renderableSpec.height   = fitState.height;
+      renderableSpec.autosize = { type: 'fit', contains: 'padding', resize: true };
+    }
+  } else if (!renderableSpec.width && !renderableSpec.resolve) {
+    const w = document.getElementById('preview-top').clientWidth - 40;
+    renderableSpec.width = Math.max(200, w);
+  }
+
+  try {
+    dot('spin');
+    clearConsole();
+    if (embedResult) { try { embedResult.finalize(); } catch(_){} embedResult = null; }
+    vegaBox.innerHTML = '';
+
+    const result = await vegaEmbed('#vega-container', renderableSpec, {
+      renderer: 'svg',
+      actions: { export: { svg: true, png: true }, source: false, editor: true, compiled: false },
+    });
+    embedResult = result;
+    clearErr();
+    dot('ok');
+
+    // Populate data table from the Vega view for URL/sample specs (no uploaded data)
+    if (!userData) populateDataTableFromView(result.view);
+  } catch(e) {
+    err("Render: " + e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// DATA TABLE FROM VIEW
+// ─────────────────────────────────────────────────────────────
+async function populateDataTableFromView(view) {
+  // First try to get the raw URL from the spec so we fetch ALL columns
+  try {
+    const spec = JSON.parse(specBuffer);
+    const url  = spec.data && spec.data.url;
+    if (url) {
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error('fetch failed');
+      const txt = await resp.text();
+      let rows, fields;
+      if (url.endsWith('.csv') || url.includes('.csv?')) {
+        const r = Papa.parse(txt, { header: true, dynamicTyping: true, skipEmptyLines: true });
+        rows   = r.data;
+        fields = r.meta.fields || Object.keys(rows[0] || {});
+      } else {
+        const d = JSON.parse(txt);
+        rows   = Array.isArray(d) ? d : [d];
+        fields = rows.length ? Object.keys(rows[0]) : [];
+      }
+      if (rows.length && fields.length) {
+        renderDataTable(rows, fields);
+        return;
+      }
+    }
+  } catch(_) {}
+
+  // Fallback: pull from Vega view (only used fields, but better than nothing)
+  try {
+    const candidates = ['source_0', 'source_1', 'data_0', 'data_1'];
+    let rows = null;
+    for (const name of candidates) {
+      try {
+        const d = view.data(name);
+        if (Array.isArray(d) && d.length) { rows = d; break; }
+      } catch(_) {}
+    }
+    if (!rows || !rows.length) return;
+    const fields = Object.keys(rows[0]).filter(k => !k.startsWith('_vg'));
+    renderDataTable(rows, fields);
+  } catch(_) {}
+}
+
+// ─────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────
+function formatJSON() {
+  try {
+    const formatted = JSON.stringify(JSON.parse(cmEditor.getValue()), null, 2);
+    suppressRender = true;
+    cmEditor.setValue(formatted);
+    suppressRender = false;
+    // Keep buffer in sync
+    if (activeEditorView === 'spec') specBuffer = formatted;
+    else configBuffer = formatted;
+    clearErr();
+  } catch(e) { err("JSON: " + e.message); }
+}
+
+function dot(state) {
+  statusDot.className = 'dot dot-' + state;
+}
+
+// ── Error line tracking ──
+let _errLine = null; // currently marked line handle
+
+function _getErrorCMPos(msg) {
+  // V8/Chrome: "at position N" or "... at position N of ..."
+  let m = msg.match(/at position (\d+)/i);
+  if (m) {
+    const idx = Math.min(parseInt(m[1]), cmEditor.getValue().length - 1);
+    return cmEditor.posFromIndex(idx);
+  }
+  // Firefox: "line N column N"
+  m = msg.match(/line (\d+) column (\d+)/i);
+  if (m) return { line: parseInt(m[1]) - 1, ch: parseInt(m[2]) - 1 };
+  return null;
+}
+
+function _markErrorLine(pos) {
+  if (!cmEditor || pos === null) return;
+  const line = Math.max(0, Math.min(pos.line, cmEditor.lineCount() - 1));
+  _errLine = line;
+  cmEditor.addLineClass(line, 'background', 'cm-error-line-bg');
+  cmEditor.addLineClass(line, 'wrap',       'cm-error-line-wrap');
+  const marker = document.createElement('div');
+  marker.className = 'cm-error-gutter-marker';
+  marker.title = 'Format error on this line';
+  cmEditor.setGutterMarker(line, 'CodeMirror-error-gutter', marker);
+  // Scroll the error line into view
+  cmEditor.scrollIntoView({ line, ch: 0 }, 80);
+}
+
+function _clearErrorLine() {
+  if (!cmEditor || _errLine === null) return;
+  cmEditor.removeLineClass(_errLine, 'background', 'cm-error-line-bg');
+  cmEditor.removeLineClass(_errLine, 'wrap',       'cm-error-line-wrap');
+  cmEditor.setGutterMarker(_errLine, 'CodeMirror-error-gutter', null);
+  _errLine = null;
+}
+
+function err(msg) {
+  errorBar.textContent = msg;
+  errorBar.classList.remove('hidden');
+  dot('err');
+  _clearErrorLine();
+  if (msg.startsWith('Spec:') || msg.startsWith('Config:')) {
+    _markErrorLine(_getErrorCMPos(msg));
+  }
+}
+
+function clearErr() {
+  errorBar.textContent = '';
+  errorBar.classList.add('hidden');
+  _clearErrorLine();
+}
+</script>
+</body>
+</html>
