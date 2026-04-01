@@ -1,0 +1,259 @@
+================================================================================
+                    POWER BI UNUSED MEASURES ANALYSIS REPORT
+                          Generated: 2026-01-16
+================================================================================
+
+PROJECT: Deneb.pbip
+LOCATION: C:\Users\ferry\Documents\Power BI Ferry Tales\Claude
+
+================================================================================
+EXECUTIVE SUMMARY
+================================================================================
+
+Total Measures Defined:              113
+Measures Used in Visuals:            50
+Measures Referenced by Other Measures: 111
+Unique Used Measures:                85
+UNUSED MEASURES:                     33
+
+Usage Rate:                          70.8%
+Unused Rate:                         29.2%
+
+================================================================================
+DETAILED LIST OF UNUSED MEASURES
+================================================================================
+
+A measure is considered UNUSED if:
+1. It is NOT used in any visual in the report
+2. It is NOT referenced by any other measure
+3. It is NOT used as a visual or page-level filter
+
+--------------------------------------------------------------------------------
+TABLE: Current Age
+--------------------------------------------------------------------------------
+1. Current_Age
+   - Not in visuals
+   - Not referenced by other measures
+
+2. LE Param Value
+   - Not in visuals
+   - Not referenced by other measures
+
+--------------------------------------------------------------------------------
+TABLE: DAX (26 unused measures)
+--------------------------------------------------------------------------------
+1. Actual2
+   - Not in visuals
+   - Not referenced by other measures
+
+2. Appearances last 10 GW
+   - Not in visuals
+   - Not referenced by other measures
+
+3. Count of Pos
+   - Not in visuals
+   - Not referenced by other measures
+
+4. ctest
+   - Not in visuals
+   - Not referenced by other measures
+
+5. ctest2
+   - Not in visuals
+   - Not referenced by other measures
+
+6. Form Base
+   - Not in visuals
+   - Not referenced by other measures
+
+7. IsAfterOrEqualSelectedRound
+   - Not in visuals
+   - Not referenced by other measures
+
+8. MapMeasure
+   - Not in visuals
+   - Not referenced by other measures
+
+9. MapMeasure2
+   - Not in visuals
+   - Not referenced by other measures
+
+10. MapMeasure4
+    - Not in visuals
+    - Not referenced by other measures
+
+11. MapMeasureKPI
+    - Not in visuals
+    - Not referenced by other measures
+
+12. Played in Prev 10 GW TopN
+    - Not in visuals
+    - Not referenced by other measures
+
+13. Points
+    - Not in visuals
+    - Not referenced by other measures
+
+14. POS MAX
+    - Not in visuals
+    - Not referenced by other measures
+
+15. PPG last 10 GW
+    - Not in visuals
+    - Not referenced by other measures
+
+16. Price per Point
+    - Not in visuals
+    - Not referenced by other measures
+
+17. Pts vs Target
+    - Not in visuals
+    - Not referenced by other measures
+
+18. Total pts by GW ALL round2
+    - Not in visuals
+    - Not referenced by other measures
+
+19. Total pts by GW Av
+    - Not in visuals
+    - Not referenced by other measures
+
+20. Total pts by GW Max
+    - Not in visuals
+    - Not referenced by other measures
+
+21. Total Pts by GW No Bonus
+    - Not in visuals
+    - Not referenced by other measures
+
+22. total pts diff
+    - Not in visuals
+    - Not referenced by other measures
+
+23. Total Pts_MaxRound
+    - Not in visuals
+    - Not referenced by other measures
+
+24. Total Pts_MaxRoundcum
+    - Not in visuals
+    - Not referenced by other measures
+
+--------------------------------------------------------------------------------
+TABLE: DAX Formatting
+--------------------------------------------------------------------------------
+1. SizeTextFilter
+   - Not in visuals
+   - Not referenced by other measures
+
+--------------------------------------------------------------------------------
+TABLE: FakeVis
+--------------------------------------------------------------------------------
+1. X_max
+   - Not in visuals
+   - Not referenced by other measures
+
+2. X_min
+   - Not in visuals
+   - Not referenced by other measures
+
+--------------------------------------------------------------------------------
+TABLE: GW Target
+--------------------------------------------------------------------------------
+1. GW Target Value
+   - Not in visuals
+   - Not referenced by other measures
+
+--------------------------------------------------------------------------------
+TABLE: Player by GW
+--------------------------------------------------------------------------------
+1. Goals Threshold
+   - Not in visuals
+   - Not referenced by other measures
+
+2. goals_conceded  1
+   - Not in visuals
+   - Not referenced by other measures
+
+--------------------------------------------------------------------------------
+TABLE: World Map
+--------------------------------------------------------------------------------
+1. Reg Max
+   - Not in visuals
+   - Not referenced by other measures
+
+================================================================================
+UNUSED MEASURES BREAKDOWN BY TABLE
+================================================================================
+
+TABLE                      UNUSED MEASURES
+-------------------------------------------------
+DAX                        24
+FakeVis                    2
+Player by GW               2
+Current Age                2
+World Map                  1
+DAX Formatting             1
+GW Target                  1
+-------------------------------------------------
+TOTAL                      33
+
+================================================================================
+RECOMMENDATIONS
+================================================================================
+
+1. SAFE TO DELETE:
+   All 33 unused measures listed above can be safely deleted from the model
+   as they are not being used anywhere in the report.
+
+2. PERFORMANCE IMPACT:
+   Removing unused measures will:
+   - Reduce model size
+   - Improve refresh performance
+   - Simplify model maintenance
+   - Reduce cognitive load for developers
+
+3. BEFORE DELETION:
+   - Review the DAX expressions to ensure no hidden dependencies
+   - Check if any measures are used in external tools (Excel, etc.)
+   - Consider documenting the purpose of complex measures before deletion
+   - Create a backup of the .pbix/.pbip file
+
+4. PRIORITY FOR DELETION:
+   - High Priority: Test measures (ctest, ctest2)
+   - High Priority: Experimental measures (MapMeasure*, Actual2)
+   - Medium Priority: Alternative calculations no longer used
+   - Low Priority: Review measures that might be work-in-progress
+
+================================================================================
+ANALYSIS METHODOLOGY
+================================================================================
+
+This analysis was performed using the following steps:
+
+1. Extracted all measure definitions from .tmdl files in:
+   Deneb.SemanticModel/definition/tables/*.tmdl
+
+2. Scanned all visual.json files in:
+   Deneb.Report/definition/pages/**/visuals/**/visual.json
+
+3. Analyzed DAX expressions in all measures to find [MeasureName] references
+
+4. Cross-referenced measures against:
+   - Visual queries (Measure fields)
+   - Other measure DAX expressions
+   - Filter definitions
+
+5. Identified measures with zero references
+
+================================================================================
+FILES ANALYZED
+================================================================================
+
+Table Definition Files: 37
+Visual Files: 89
+Total Measures Found: 113
+Unused Measures: 33
+
+================================================================================
+END OF REPORT
+================================================================================
