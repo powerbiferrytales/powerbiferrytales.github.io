@@ -61,14 +61,14 @@ nav a.active { font-weight: 700; }
 
 .avatar-wrap {
   position: absolute;
-  top: -52px;
+  top: -75px;
   left: 50%;
   transform: translateX(-50%);
 }
 
 .avatar-wrap img {
-  width: 100px;
-  height: 100px;
+  width: 150px;
+  height: 150px;
   border-radius: 50%;
   border: 3px solid #fff;
   display: block;
@@ -86,7 +86,7 @@ nav a.active { font-weight: 700; }
   font-size: 3rem;
 }
 
-.card-spacer { height: 56px; }
+.card-spacer { height: 80px; }
 
 .card p {
   color: #4a3a8a;
