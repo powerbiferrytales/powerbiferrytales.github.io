@@ -647,7 +647,6 @@ select {
             <button class="btn btn-primary" id="btn-live-toggle" title="Toggle live vs manual rendering">⚡ LIVE</button>
             <button class="btn" id="btn-format">FORMAT</button>
             <button class="btn" id="btn-add-layer" title="Convert spec to layered or add a new layer">+ LAYER</button>
-            <button class="btn btn-primary" id="btn-inject">↓ DATA</button>
             <div class="zoom-ctrl">
               <button class="zoom-btn" id="btn-edz-out" title="Decrease font size">−</button>
               <span class="zoom-lbl" id="edz-label">14px</span>
@@ -977,8 +976,6 @@ function switchEditorView(view) {
   document.getElementById('tab-btn-spec').classList.toggle('active', view === 'spec');
   document.getElementById('tab-btn-config').classList.toggle('active', view === 'config');
 
-  // Show/hide ↓ DATA button (only meaningful in spec view)
-  document.getElementById('btn-inject').style.display = view === 'spec' ? '' : 'none';
 
   // Load the target buffer into CM without triggering a render
   suppressRender = true;
@@ -1460,8 +1457,7 @@ function bindEvents() {
     }
   });
   document.getElementById('btn-format').onclick  = formatJSON;
-  document.getElementById('btn-inject').onclick   = injectData;
-  document.getElementById('btn-fit').onclick      = fitToFrame;
+document.getElementById('btn-fit').onclick      = fitToFrame;
   document.getElementById('btn-pvz-in').onclick   = () => setPreviewZoom(previewZoomIdx + 1);
   document.getElementById('btn-pvz-out').onclick  = () => setPreviewZoom(previewZoomIdx - 1);
   document.getElementById('btn-edz-in').onclick   = () => setCodeZoom(codeZoomIdx + 1);
@@ -1586,16 +1582,20 @@ function injectData() {
   if (!userData) return;
   try {
     const spec = JSON.parse(specBuffer);
+
+    // Set data at top level and remove any layer-level data references
     spec.data = { name: 'dataset' };
     if (spec.transform) delete spec.transform;
-    specBuffer = JSON.stringify(spec, null, 2);
-    if (activeEditorView === 'spec') {
-      suppressRender = true;
-      cmEditor.setValue(specBuffer);
-      suppressRender = false;
+    if (spec.layer) {
+      spec.layer.forEach(l => { delete l.data; delete l.transform; });
     }
+
+    specBuffer = JSON.stringify(spec, null, 2);
+    suppressRender = true;
+    cmEditor.setValue(specBuffer);
+    suppressRender = false;
     renderSpec();
-  } catch(e) { /* spec not valid yet */ }
+  } catch(e) { err("Could not inject data: " + e.message); }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1941,8 +1941,13 @@ async function renderSpec() {
   let renderableSpec = JSON.parse(JSON.stringify(spec));
   renderableSpec.config = config;
 
-  if (userData && renderableSpec.data && renderableSpec.data.name === 'dataset') {
-    renderableSpec.data = { values: userData };
+  if (userData) {
+    if (renderableSpec.data && renderableSpec.data.name === 'dataset') {
+      renderableSpec.data = { values: userData };
+    } else if (!renderableSpec.data) {
+      // No data at top level — inject directly
+      renderableSpec.data = { values: userData };
+    }
   }
 
   // Preserve fit dimensions if fit mode is active; otherwise fall back to auto-width
