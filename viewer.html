@@ -48,7 +48,8 @@
       overflow: auto;
     }
 
-    #chart-wrap > div { max-width: 100%; }
+    #chart { width: 100%; height: 100%; }
+    #chart-wrap > div { width: 100%; height: 100%; }
 
     #error {
       font-family: sans-serif;
@@ -82,6 +83,17 @@
       if (!decoded) throw new Error('Decompression failed');
 
       const spec = JSON.parse(decoded);
+
+      // Override fixed dimensions so chart fills the viewer
+      spec.width   = 'container';
+      spec.height  = 'container';
+      delete spec.autosize;
+
+      const wrap = document.getElementById('chart-wrap');
+      const availW = wrap.clientWidth  - 48;
+      const availH = wrap.clientHeight - 48;
+      spec.width  = Math.round(availW * 0.75);
+      spec.height = Math.round(availH * 0.75);
 
       vegaEmbed('#chart', spec, {
         renderer: 'svg',
