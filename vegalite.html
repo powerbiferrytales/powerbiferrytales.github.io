@@ -2621,9 +2621,8 @@ function applyTitleProps() {
     if (sub)             spec.title.subtitle          = sub;
     if (sz)              spec.title.fontSize          = parseInt(sz);
     if (col)             spec.title.color             = col;
-    // Only write subtitleColor if it differs from title colour
-    if (sub && subSz)    spec.title.subtitleFontSize  = parseInt(subSz);
-    if (sub && subCol && subCol !== col) spec.title.subtitleColor = subCol;
+    if (sub && subSz)  spec.title.subtitleFontSize = parseInt(subSz);
+    if (sub && subCol) spec.title.subtitleColor   = subCol;
     if (anc !== 'start') spec.title.anchor            = anc;
   });
 }
