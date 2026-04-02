@@ -568,6 +568,76 @@ select {
   display: inline-block;
 }
 
+/* ─── PROPERTIES PANEL ─── */
+#props-panel {
+  width: 220px; min-width: 220px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden; transition: width 0.2s, min-width 0.2s;
+}
+#props-panel.collapsed { width: 32px; min-width: 32px; }
+#props-toggle {
+  height: 42px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 10px; cursor: pointer; flex-shrink: 0;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted);
+  user-select: none; white-space: nowrap; overflow: hidden;
+}
+#props-toggle:hover { color: var(--text); }
+#props-toggle-icon { font-size: 14px; flex-shrink: 0; }
+#props-body {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 8px 0;
+}
+#props-panel.collapsed #props-body { display: none; }
+#props-panel.collapsed #props-toggle-label { display: none; }
+
+.props-section { margin-bottom: 2px; }
+.props-section-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px; cursor: pointer;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent);
+  user-select: none;
+  border-bottom: 1px solid var(--border);
+}
+.props-section-head:hover { color: var(--text); }
+.props-section-arrow { font-size: 10px; transition: transform 0.15s; }
+.props-section.open .props-section-arrow { transform: rotate(90deg); }
+.props-section-body { display: none; padding: 9px 10px; }
+.props-section.open .props-section-body { display: block; }
+
+.prop-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px; margin-bottom: 8px;
+}
+.prop-row:last-child { margin-bottom: 0; }
+.prop-label {
+  font-size: 12px; color: var(--muted); letter-spacing: 0.03em;
+  white-space: nowrap; flex-shrink: 0; min-width: 72px;
+}
+.prop-ctrl { flex: 1; min-width: 0; }
+.prop-ctrl input[type="text"],
+.prop-ctrl input[type="number"],
+.prop-ctrl select {
+  width: 100%; background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 3px;
+  padding: 4px 7px; font-size: 12px; font-family: var(--font);
+}
+.prop-ctrl input[type="text"]:focus,
+.prop-ctrl input[type="number"]:focus,
+.prop-ctrl select:focus {
+  outline: none; border-color: var(--accent);
+}
+.prop-ctrl input[type="color"] {
+  width: 100%; height: 24px; border: 1px solid var(--border2);
+  border-radius: 3px; background: none; cursor: pointer; padding: 1px;
+}
+.prop-ctrl input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); }
+.prop-ctrl input[type="range"] {
+  width: 100%; accent-color: var(--accent);
+}
+
 /* ─── LEFT PANEL & TABS ─── */
 .left-panel { width: 50%; min-width: 200px; flex-shrink: 0; }
 
@@ -623,6 +693,176 @@ select {
 
   <!-- ─── WORKSPACE ─── -->
   <div class="workspace">
+
+    <!-- ─── PROPERTIES PANEL ─── -->
+    <div id="props-panel">
+      <div id="props-toggle">
+        <span id="props-toggle-label">PROPERTIES</span>
+        <span id="props-toggle-icon">◀</span>
+      </div>
+      <div id="props-body">
+
+        <!-- TITLE -->
+        <div class="props-section open" id="ps-title">
+          <div class="props-section-head" onclick="toggleSection('ps-title')">
+            <span>TITLE</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Text</span>
+              <div class="prop-ctrl"><input type="text" id="pp-title-text" placeholder="Chart title"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Subtitle</span>
+              <div class="prop-ctrl"><input type="text" id="pp-title-sub" placeholder="Subtitle"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Size</span>
+              <div class="prop-ctrl"><input type="number" id="pp-title-size" min="8" max="48" placeholder="14"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Colour</span>
+              <div class="prop-ctrl"><input type="color" id="pp-title-color" value="#e4e4e8"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Anchor</span>
+              <div class="prop-ctrl">
+                <select id="pp-title-anchor">
+                  <option value="start">Left</option>
+                  <option value="middle">Centre</option>
+                  <option value="end">Right</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- X AXIS -->
+        <div class="props-section open" id="ps-xaxis">
+          <div class="props-section-head" onclick="toggleSection('ps-xaxis')">
+            <span>X AXIS</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Show axis</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-x-show" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Show labels</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-x-labels" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Show title</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-x-title" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Grid lines</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-x-grid" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Title text</span>
+              <div class="prop-ctrl"><input type="text" id="pp-x-title-text" placeholder="auto"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Y AXIS -->
+        <div class="props-section open" id="ps-yaxis">
+          <div class="props-section-head" onclick="toggleSection('ps-yaxis')">
+            <span>Y AXIS</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Show axis</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-y-show" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Show labels</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-y-labels" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Show title</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-y-title" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Grid lines</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-y-grid" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Title text</span>
+              <div class="prop-ctrl"><input type="text" id="pp-y-title-text" placeholder="auto"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MARKS -->
+        <div class="props-section open" id="ps-marks">
+          <div class="props-section-head" onclick="toggleSection('ps-marks')">
+            <span>MARKS</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Colour</span>
+              <div class="prop-ctrl"><input type="color" id="pp-mark-color" value="#00b4d8"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Opacity</span>
+              <div class="prop-ctrl"><input type="range" id="pp-mark-opacity" min="0" max="1" step="0.05" value="1"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Tooltip</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-mark-tooltip" checked></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LEGEND -->
+        <div class="props-section open" id="ps-legend">
+          <div class="props-section-head" onclick="toggleSection('ps-legend')">
+            <span>LEGEND</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Show</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-legend-show" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Orient</span>
+              <div class="prop-ctrl">
+                <select id="pp-legend-orient">
+                  <option value="right">Right</option>
+                  <option value="left">Left</option>
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="top-right">Top Right</option>
+                  <option value="top-left">Top Left</option>
+                  <option value="bottom-right">Bottom Right</option>
+                  <option value="bottom-left">Bottom Left</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LAYOUT -->
+        <div class="props-section" id="ps-layout">
+          <div class="props-section-head" onclick="toggleSection('ps-layout')">
+            <span>LAYOUT</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Padding</span>
+              <div class="prop-ctrl"><input type="number" id="pp-padding" min="0" max="100" placeholder="5"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Background</span>
+              <div class="prop-ctrl"><input type="color" id="pp-bg-color" value="#020d18"></div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /props-body -->
+    </div><!-- /props-panel -->
 
     <!-- ─── LEFT PANEL (tabbed) ─── -->
     <div class="panel left-panel">
@@ -1535,6 +1775,7 @@ function bindEvents() {
       suppressRender = false;
     }
     renderSpec();
+    setTimeout(syncPropsFromSpec, 80);
   });
 
   document.getElementById('btn-add-layer').onclick    = addLayer;
@@ -1639,6 +1880,7 @@ function setSpec(spec) {
   suppressRender = false;
 
   renderSpec();
+  setTimeout(syncPropsFromSpec, 80);
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2249,6 +2491,222 @@ function clearErr() {
   errorBar.classList.add('hidden');
   _clearErrorLine();
 }
+
+// ─────────────────────────────────────────────────────────────
+// PROPERTIES PANEL
+// ─────────────────────────────────────────────────────────────
+
+function toggleSection(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+// Collapse/expand the whole panel
+document.getElementById('props-toggle').addEventListener('click', () => {
+  const panel = document.getElementById('props-panel');
+  panel.classList.toggle('collapsed');
+  document.getElementById('props-toggle-icon').textContent =
+    panel.classList.contains('collapsed') ? '▶' : '◀';
+});
+
+// Patch the spec in-place, update the editor, and re-render
+function patchSpec(fn) {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  let spec;
+  try { spec = JSON.parse(specBuffer); } catch(e) { return; }
+  fn(spec);
+  specBuffer = JSON.stringify(spec, null, 2);
+  suppressRender = true;
+  cmEditor.setValue(specBuffer);
+  suppressRender = false;
+  if (liveMode) renderSpec(); else dot('idle');
+}
+
+// Read the current spec + active theme and populate every control
+function syncPropsFromSpec() {
+  let spec;
+  try { spec = JSON.parse(specBuffer); } catch(e) { return; }
+  const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+
+  // ── TITLE ────────────────────────────────────
+  const tv = spec.title;
+  if (typeof tv === 'string') {
+    document.getElementById('pp-title-text').value   = tv;
+    document.getElementById('pp-title-sub').value    = '';
+    document.getElementById('pp-title-size').value   = '';
+    document.getElementById('pp-title-color').value  = cfg.title && cfg.title.color  ? cfg.title.color  : '#e4e4e8';
+    document.getElementById('pp-title-anchor').value = cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start';
+  } else if (tv && typeof tv === 'object') {
+    document.getElementById('pp-title-text').value   = tv.text     || '';
+    document.getElementById('pp-title-sub').value    = tv.subtitle || '';
+    document.getElementById('pp-title-size').value   = tv.fontSize || '';
+    document.getElementById('pp-title-color').value  = tv.color  || (cfg.title && cfg.title.color  ? cfg.title.color  : '#e4e4e8');
+    document.getElementById('pp-title-anchor').value = tv.anchor || (cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start');
+  } else {
+    document.getElementById('pp-title-text').value   = '';
+    document.getElementById('pp-title-sub').value    = '';
+    document.getElementById('pp-title-size').value   = '';
+    document.getElementById('pp-title-color').value  = cfg.title && cfg.title.color  ? cfg.title.color  : '#e4e4e8';
+    document.getElementById('pp-title-anchor').value = cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start';
+  }
+
+  // ── X AXIS ────────────────────────────────────
+  const xEnc = (spec.encoding && spec.encoding.x) ? spec.encoding.x : {};
+  const xA   = xEnc.axis;
+  document.getElementById('pp-x-show').checked     = (xA !== null && xA !== false);
+  const xAO  = (xA && typeof xA === 'object') ? xA : {};
+  document.getElementById('pp-x-labels').checked   = xAO.labels !== false;
+  document.getElementById('pp-x-title').checked    = (xAO.title !== null && xAO.title !== false);
+  document.getElementById('pp-x-grid').checked     = xAO.grid   !== false;
+  document.getElementById('pp-x-title-text').value = typeof xAO.title === 'string' ? xAO.title : '';
+
+  // ── Y AXIS ────────────────────────────────────
+  const yEnc = (spec.encoding && spec.encoding.y) ? spec.encoding.y : {};
+  const yA   = yEnc.axis;
+  document.getElementById('pp-y-show').checked     = (yA !== null && yA !== false);
+  const yAO  = (yA && typeof yA === 'object') ? yA : {};
+  document.getElementById('pp-y-labels').checked   = yAO.labels !== false;
+  document.getElementById('pp-y-title').checked    = (yAO.title !== null && yAO.title !== false);
+  document.getElementById('pp-y-grid').checked     = yAO.grid   !== false;
+  document.getElementById('pp-y-title-text').value = typeof yAO.title === 'string' ? yAO.title : '';
+
+  // ── MARKS ────────────────────────────────────
+  const mk = (typeof spec.mark === 'object' && spec.mark !== null) ? spec.mark : {};
+  document.getElementById('pp-mark-color').value     = mk.color   || (cfg.mark && cfg.mark.color ? cfg.mark.color : '#00b4d8');
+  document.getElementById('pp-mark-opacity').value   = mk.opacity != null ? mk.opacity : 1;
+  document.getElementById('pp-mark-tooltip').checked = mk.tooltip !== false;
+
+  // ── LEGEND ────────────────────────────────────
+  const colEnc = (spec.encoding && spec.encoding.color) ? spec.encoding.color : {};
+  const leg    = colEnc.legend;
+  document.getElementById('pp-legend-show').checked   = (leg !== null && leg !== false);
+  const legO   = (leg && typeof leg === 'object') ? leg : {};
+  document.getElementById('pp-legend-orient').value   = legO.orient || 'right';
+
+  // ── LAYOUT ────────────────────────────────────
+  document.getElementById('pp-padding').value  = spec.padding != null ? spec.padding : '';
+  document.getElementById('pp-bg-color').value = cfg.background || '#020d18';
+}
+
+// ── Apply helpers ─────────────────────────────────────────────
+function applyTitleProps() {
+  patchSpec(spec => {
+    const text = document.getElementById('pp-title-text').value.trim();
+    const sub  = document.getElementById('pp-title-sub').value.trim();
+    const sz   = document.getElementById('pp-title-size').value;
+    const col  = document.getElementById('pp-title-color').value;
+    const anc  = document.getElementById('pp-title-anchor').value;
+    if (!text && !sub) { delete spec.title; return; }
+    spec.title = { text: text || '' };
+    if (sub)             spec.title.subtitle = sub;
+    if (sz)              spec.title.fontSize = parseInt(sz);
+    if (col)             spec.title.color    = col;
+    if (anc !== 'start') spec.title.anchor   = anc;
+  });
+}
+
+function applyAxisProps(axis) {
+  patchSpec(spec => {
+    if (!spec.encoding || !spec.encoding[axis]) return;
+    const enc  = spec.encoding[axis];
+    const show = document.getElementById('pp-' + axis + '-show').checked;
+    if (!show) { enc.axis = null; return; }
+    const labels    = document.getElementById('pp-' + axis + '-labels').checked;
+    const showTitle = document.getElementById('pp-' + axis + '-title').checked;
+    const grid      = document.getElementById('pp-' + axis + '-grid').checked;
+    const ttxt      = document.getElementById('pp-' + axis + '-title-text').value.trim();
+    const axObj = {};
+    if (!labels)   axObj.labels = false;
+    if (!showTitle) axObj.title = null;
+    else if (ttxt) axObj.title  = ttxt;
+    if (!grid)     axObj.grid   = false;
+    if (Object.keys(axObj).length === 0) delete enc.axis;
+    else enc.axis = axObj;
+  });
+}
+
+function applyMarkProps() {
+  patchSpec(spec => {
+    if (spec.layer || !spec.mark) return;
+    const col     = document.getElementById('pp-mark-color').value;
+    const opacity = parseFloat(document.getElementById('pp-mark-opacity').value);
+    const tooltip = document.getElementById('pp-mark-tooltip').checked;
+    if (typeof spec.mark === 'string') spec.mark = { type: spec.mark };
+    spec.mark.color   = col;
+    spec.mark.opacity = opacity;
+    spec.mark.tooltip = tooltip;
+  });
+}
+
+function applyLegendProps() {
+  patchSpec(spec => {
+    if (!spec.encoding || !spec.encoding.color) return;
+    const show   = document.getElementById('pp-legend-show').checked;
+    const orient = document.getElementById('pp-legend-orient').value;
+    if (!show) { spec.encoding.color.legend = null; return; }
+    if (!spec.encoding.color.legend || typeof spec.encoding.color.legend !== 'object') {
+      spec.encoding.color.legend = {};
+    }
+    spec.encoding.color.legend.orient = orient;
+  });
+}
+
+function applyLayoutProps() {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  let spec;
+  try { spec = JSON.parse(specBuffer); } catch(e) { return; }
+
+  const p = document.getElementById('pp-padding').value;
+  if (p !== '') spec.padding = parseInt(p); else delete spec.padding;
+  specBuffer = JSON.stringify(spec, null, 2);
+  suppressRender = true;
+  cmEditor.setValue(specBuffer);
+  suppressRender = false;
+
+  // Background: mutate the active CONFIGS entry so renderSpec picks it up
+  const bg = document.getElementById('pp-bg-color').value;
+  const entry = CONFIGS.find(c => c.id === activeConfigId);
+  if (entry) {
+    entry.cfg.background = bg;
+    configBuffer = JSON.stringify(entry.cfg, null, 2);
+    if (activeEditorView === 'config') {
+      suppressRender = true;
+      cmEditor.setValue(configBuffer);
+      suppressRender = false;
+    }
+  }
+  if (liveMode) renderSpec(); else dot('idle');
+}
+
+// ── Wire up all controls ──────────────────────────────────────
+(function initPropsPanel() {
+  // Title — use 'change' on text/number so we don't re-render mid-typing
+  ['pp-title-text', 'pp-title-sub', 'pp-title-size', 'pp-title-anchor'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyTitleProps));
+  document.getElementById('pp-title-color').addEventListener('input', applyTitleProps);
+
+  // X axis
+  ['pp-x-show', 'pp-x-labels', 'pp-x-title', 'pp-x-grid'].forEach(id =>
+    document.getElementById(id).addEventListener('change', () => applyAxisProps('x')));
+  document.getElementById('pp-x-title-text').addEventListener('change', () => applyAxisProps('x'));
+
+  // Y axis
+  ['pp-y-show', 'pp-y-labels', 'pp-y-title', 'pp-y-grid'].forEach(id =>
+    document.getElementById(id).addEventListener('change', () => applyAxisProps('y')));
+  document.getElementById('pp-y-title-text').addEventListener('change', () => applyAxisProps('y'));
+
+  // Marks
+  document.getElementById('pp-mark-color').addEventListener('input', applyMarkProps);
+  document.getElementById('pp-mark-opacity').addEventListener('input', applyMarkProps);
+  document.getElementById('pp-mark-tooltip').addEventListener('change', applyMarkProps);
+
+  // Legend
+  document.getElementById('pp-legend-show').addEventListener('change', applyLegendProps);
+  document.getElementById('pp-legend-orient').addEventListener('change', applyLegendProps);
+
+  // Layout
+  document.getElementById('pp-padding').addEventListener('change', applyLayoutProps);
+  document.getElementById('pp-bg-color').addEventListener('input', applyLayoutProps);
+})();
 </script>
 </body>
 </html>
