@@ -978,7 +978,7 @@ const TEMPLATES = [
     spec: { "$schema":SCHEMA, "title":"Faceted Scatter", "data":{"url":DS+"cars.json"},
       "mark":{"type":"point","filled":true,"opacity":0.7},
       "encoding":{ "x":{"field":"Horsepower","type":"quantitative"}, "y":{"field":"Miles_per_Gallon","type":"quantitative","title":"MPG"}, "facet":{"field":"Origin","type":"nominal","columns":3} },
-      "spec":{}
+      "spec":{ "width": 120, "height": 100 }
     }
   },
   { id:"repeat", name:"REPEAT", icon:"⊡⊡",
