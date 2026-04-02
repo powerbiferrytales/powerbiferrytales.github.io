@@ -1293,7 +1293,8 @@ async function fitToFrame() {
 
   let rs = JSON.parse(JSON.stringify(spec));
   if (userData && rs.data && rs.data.name === 'dataset') rs.data = { values: userData };
-  if (!rs.config) rs.config = DARK_CFG;
+  const activeFitCfg = CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0];
+  rs.config = activeFitCfg.cfg;
 
   rs.width = fitState.width;
   if (!isMulti) {
@@ -1621,11 +1622,16 @@ function applyTemplate(t) {
 
 function setSpec(spec) {
   // Split config from spec into separate buffers
-  const cfg = spec.config || DARK_CFG;
   const specOnly = Object.assign({}, spec);
   delete specOnly.config;
 
-  configBuffer = JSON.stringify(cfg, null, 2);
+  // Always use the currently selected theme — don't let the spec overwrite the user's choice
+  const activeCfg = CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0];
+  configBuffer = JSON.stringify(activeCfg.cfg, null, 2);
+
+  // Keep dropdown in sync
+  const cfgSelect = document.getElementById('cfg-preset-select');
+  if (cfgSelect) cfgSelect.value = activeConfigId;
   specBuffer   = JSON.stringify(specOnly, null, 2);
 
   suppressRender = true;
@@ -2056,17 +2062,24 @@ function hideIS() {
 // RENDER
 // ─────────────────────────────────────────────────────────────
 async function renderSpec() {
-  // Ensure buffers are current
+  // Sync whichever buffer the user is actively editing
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
   else configBuffer = cmEditor.getValue();
 
   if (!specBuffer.trim()) return;
 
-  let spec, config;
+  let spec;
   try { spec = JSON.parse(specBuffer); }
   catch(e) { err("Spec: " + e.message); return; }
-  try { config = JSON.parse(configBuffer); }
-  catch(e) { err("Config: " + e.message); return; }
+
+  // Always render with the active theme — configBuffer is only used when
+  // the user is in config view AND has made manual edits
+  const activeCfg = CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0];
+  let config = activeCfg.cfg;
+  if (activeEditorView === 'config') {
+    try { config = JSON.parse(configBuffer); }
+    catch(e) { /* fall back to active theme if config is mid-edit and invalid */ }
+  }
 
   let renderableSpec = JSON.parse(JSON.stringify(spec));
   renderableSpec.config = config;
