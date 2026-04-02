@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/5.16.3/vega-lite.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/6.24.0/vega-embed.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
@@ -1257,12 +1258,14 @@ function shareSpec() {
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
   try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
 
-  const combined = JSON.stringify({ ...spec, config }, null, 2);
+  const combined = JSON.stringify({ ...spec, config });
+  const encoded = LZString.compressToEncodedURIComponent(combined);
+  const url = `${location.origin}${location.pathname}#spec=${encoded}`;
 
-  navigator.clipboard.writeText(combined).then(() => {
+  navigator.clipboard.writeText(url).then(() => {
     const btn = document.getElementById('btn-share');
     const orig = btn.innerHTML;
-    btn.innerHTML = '✓ COPIED!';
+    btn.innerHTML = '✓ LINK COPIED!';
     btn.style.borderColor = 'var(--green)';
     btn.style.color = 'var(--green)';
     setTimeout(() => {
@@ -1271,7 +1274,7 @@ function shareSpec() {
       btn.style.color = '';
     }, 2200);
   }).catch(() => {
-    prompt('Copy your Vega-Lite spec:', combined);
+    prompt('Copy your shareable link:', url);
   });
 }
 
@@ -1280,7 +1283,15 @@ function loadSpecFromHash() {
     const hash = location.hash;
     if (!hash.startsWith('#spec=')) return false;
     const encoded = hash.slice(6);
-    const decoded = decodeURIComponent(escape(atob(encoded)));
+
+    // Try LZ decompression first, fall back to legacy base64
+    let decoded;
+    try {
+      decoded = LZString.decompressFromEncodedURIComponent(encoded);
+    } catch(_) {
+      decoded = decodeURIComponent(escape(atob(encoded)));
+    }
+
     const spec = JSON.parse(decoded);
     setSpec(spec.config ? spec : { ...spec, config: DARK_CFG });
     switchEditorView('spec');
