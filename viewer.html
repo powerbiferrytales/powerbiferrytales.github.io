@@ -11,6 +11,10 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body { height: 100%; background: #0a0a0b; display: flex; flex-direction: column; }
+    body.light { background: #f0f0f5; }
+    body.light #header { background: #ffffff; border-bottom-color: #d0d0dc; }
+    body.light #header a { color: #b87200; }
+    body.light #title { color: #6e6e88; }
 
     #header {
       display: flex;
@@ -78,7 +82,12 @@
       const hash = location.hash;
       if (!hash.startsWith('#spec=')) throw new Error('No spec in URL');
 
-      const encoded = hash.slice(6);
+      // Parse light mode flag from hash (after the encoded spec)
+      const hashStr = hash.slice(6);
+      const lightMatch = hashStr.match(/&light=1$/);
+      const encoded = lightMatch ? hashStr.slice(0, hashStr.length - lightMatch[0].length) : hashStr;
+      if (lightMatch) document.body.classList.add('light');
+
       const decoded = LZString.decompressFromEncodedURIComponent(encoded);
       if (!decoded) throw new Error('Decompression failed');
 
@@ -98,7 +107,7 @@
       vegaEmbed('#chart', spec, {
         renderer: 'svg',
         actions: false,
-        theme: 'dark'
+        theme: lightMatch ? 'default' : 'dark'
       }).catch(e => { throw e; });
 
     } catch (e) {
