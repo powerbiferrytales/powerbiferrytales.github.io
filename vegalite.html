@@ -616,7 +616,8 @@ select {
     </div>
     <div class="divider"></div>
     <div class="template-rail" id="template-rail"></div>
-    <button class="btn" id="btn-share" title="Copy shareable link with current spec">⬡ SHARE SPEC</button>
+    <button class="btn" id="btn-share" title="Copy spec JSON to clipboard">⬡ SHARE SPEC</button>
+    <button class="btn" id="btn-share-visual" title="Copy shareable link to visual-only viewer">⬡ SHARE VISUAL</button>
     <div class="header-btns"></div>
   </header>
 
@@ -1258,12 +1259,38 @@ function shareSpec() {
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
   try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
 
+  const combined = JSON.stringify({ ...spec, config }, null, 2);
+
+  navigator.clipboard.writeText(combined).then(() => {
+    const btn = document.getElementById('btn-share');
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✓ COPIED!';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => {
+      btn.innerHTML = orig;
+      btn.style.borderColor = '';
+      btn.style.color = '';
+    }, 2200);
+  }).catch(() => {
+    prompt('Copy your Vega-Lite spec:', combined);
+  });
+}
+
+function shareVisual() {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  else configBuffer = cmEditor.getValue();
+
+  let spec, config;
+  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
+  try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
+
   const combined = JSON.stringify({ ...spec, config });
   const encoded = LZString.compressToEncodedURIComponent(combined);
-  const url = `${location.origin}${location.pathname}#spec=${encoded}`;
+  const url = `${location.origin}/viewer.html#spec=${encoded}`;
 
   navigator.clipboard.writeText(url).then(() => {
-    const btn = document.getElementById('btn-share');
+    const btn = document.getElementById('btn-share-visual');
     const orig = btn.innerHTML;
     btn.innerHTML = '✓ LINK COPIED!';
     btn.style.borderColor = 'var(--green)';
@@ -1274,7 +1301,7 @@ function shareSpec() {
       btn.style.color = '';
     }, 2200);
   }).catch(() => {
-    prompt('Copy your shareable link:', url);
+    prompt('Copy your shareable visual link:', url);
   });
 }
 
@@ -1362,7 +1389,8 @@ function bindEvents() {
   });
 
   document.getElementById('btn-console-clear').onclick = clearConsole;
-  document.getElementById('btn-share').onclick   = shareSpec;
+  document.getElementById('btn-share').onclick        = shareSpec;
+  document.getElementById('btn-share-visual').onclick = shareVisual;
   document.getElementById('btn-format').onclick  = formatJSON;
   document.getElementById('btn-inject').onclick   = injectData;
   document.getElementById('btn-fit').onclick      = fitToFrame;

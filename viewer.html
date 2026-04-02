@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ferry Tales Studio — Visual Viewer</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vega/5.25.0/vega.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/5.16.3/vega-lite.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/6.24.0/vega-embed.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; background: #0a0a0b; display: flex; flex-direction: column; }
+
+    #header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 18px;
+      background: #111113;
+      border-bottom: 1px solid #222226;
+      flex-shrink: 0;
+    }
+
+    #header a {
+      color: #f59e0b;
+      text-decoration: none;
+      font-family: sans-serif;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+    }
+
+    #header a:hover { opacity: 0.75; }
+
+    #title {
+      font-family: sans-serif;
+      font-size: 0.85rem;
+      color: #7e7e92;
+      letter-spacing: 0.08em;
+    }
+
+    #chart-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow: auto;
+    }
+
+    #chart-wrap > div { max-width: 100%; }
+
+    #error {
+      font-family: sans-serif;
+      color: #ef4444;
+      text-align: center;
+      padding: 40px;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <span id="title">⬡ FERRY TALES STUDIO — VISUAL VIEWER</span>
+  <a href="vegalite.html">← Open in Editor</a>
+</div>
+
+<div id="chart-wrap">
+  <div id="chart"></div>
+  <div id="error">Could not load chart. The link may be invalid or corrupted.</div>
+</div>
+
+<script>
+  (function () {
+    try {
+      const hash = location.hash;
+      if (!hash.startsWith('#spec=')) throw new Error('No spec in URL');
+
+      const encoded = hash.slice(6);
+      const decoded = LZString.decompressFromEncodedURIComponent(encoded);
+      if (!decoded) throw new Error('Decompression failed');
+
+      const spec = JSON.parse(decoded);
+
+      vegaEmbed('#chart', spec, {
+        renderer: 'svg',
+        actions: false,
+        theme: 'dark'
+      }).catch(e => { throw e; });
+
+    } catch (e) {
+      document.getElementById('chart').style.display = 'none';
+      document.getElementById('error').style.display = 'block';
+    }
+  })();
+</script>
+
+</body>
+</html>
