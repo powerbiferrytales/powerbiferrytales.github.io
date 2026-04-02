@@ -581,7 +581,7 @@ select {
   height: 42px; background: var(--surface); border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 10px; cursor: pointer; flex-shrink: 0;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--muted);
+  font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--dim);
   user-select: none; white-space: nowrap; overflow: hidden;
 }
 #props-toggle:hover { color: var(--text); }
@@ -597,7 +597,7 @@ select {
 .props-section-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 7px 10px; cursor: pointer;
-  font-size: 12px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent);
+  font-size: 13px; font-weight: 700; letter-spacing: 0.12em; color: var(--accent);
   user-select: none;
   border-bottom: 1px solid var(--border);
 }
@@ -613,7 +613,7 @@ select {
 }
 .prop-row:last-child { margin-bottom: 0; }
 .prop-label {
-  font-size: 12px; color: var(--muted); letter-spacing: 0.03em;
+  font-size: 13px; color: var(--dim); letter-spacing: 0.03em;
   white-space: nowrap; flex-shrink: 0; min-width: 72px;
 }
 .prop-ctrl { flex: 1; min-width: 0; }
@@ -622,7 +622,7 @@ select {
 .prop-ctrl select {
   width: 100%; background: var(--surface2); color: var(--text);
   border: 1px solid var(--border2); border-radius: 3px;
-  padding: 4px 7px; font-size: 12px; font-family: var(--font);
+  padding: 4px 7px; font-size: 13px; font-family: var(--font);
 }
 .prop-ctrl input[type="text"]:focus,
 .prop-ctrl input[type="number"]:focus,
@@ -723,6 +723,14 @@ select {
             <div class="prop-row">
               <span class="prop-label">Colour</span>
               <div class="prop-ctrl"><input type="color" id="pp-title-color" value="#e4e4e8"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Sub size</span>
+              <div class="prop-ctrl"><input type="number" id="pp-title-sub-size" min="8" max="48" placeholder="12"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Sub colour</span>
+              <div class="prop-ctrl"><input type="color" id="pp-title-sub-color" value="#e4e4e8"></div>
             </div>
             <div class="prop-row">
               <span class="prop-label">Anchor</span>
@@ -2529,25 +2537,36 @@ function syncPropsFromSpec() {
 
   // ── TITLE ────────────────────────────────────
   const tv = spec.title;
+  const defaultTitleColor = cfg.title && cfg.title.color ? cfg.title.color : '#e4e4e8';
+  let syncedTitleColor = defaultTitleColor;
   if (typeof tv === 'string') {
-    document.getElementById('pp-title-text').value   = tv;
-    document.getElementById('pp-title-sub').value    = '';
-    document.getElementById('pp-title-size').value   = '';
-    document.getElementById('pp-title-color').value  = cfg.title && cfg.title.color  ? cfg.title.color  : '#e4e4e8';
-    document.getElementById('pp-title-anchor').value = cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start';
+    document.getElementById('pp-title-text').value         = tv;
+    document.getElementById('pp-title-sub').value          = '';
+    document.getElementById('pp-title-size').value         = '';
+    document.getElementById('pp-title-color').value        = defaultTitleColor;
+    document.getElementById('pp-title-sub-size').value     = '';
+    document.getElementById('pp-title-sub-color').value    = defaultTitleColor;
+    document.getElementById('pp-title-anchor').value       = cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start';
   } else if (tv && typeof tv === 'object') {
-    document.getElementById('pp-title-text').value   = tv.text     || '';
-    document.getElementById('pp-title-sub').value    = tv.subtitle || '';
-    document.getElementById('pp-title-size').value   = tv.fontSize || '';
-    document.getElementById('pp-title-color').value  = tv.color  || (cfg.title && cfg.title.color  ? cfg.title.color  : '#e4e4e8');
-    document.getElementById('pp-title-anchor').value = tv.anchor || (cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start');
+    syncedTitleColor = tv.color || defaultTitleColor;
+    document.getElementById('pp-title-text').value         = tv.text     || '';
+    document.getElementById('pp-title-sub').value          = tv.subtitle || '';
+    document.getElementById('pp-title-size').value         = tv.fontSize || '';
+    document.getElementById('pp-title-color').value        = syncedTitleColor;
+    document.getElementById('pp-title-sub-size').value     = tv.subtitleFontSize || '';
+    document.getElementById('pp-title-sub-color').value    = tv.subtitleColor || syncedTitleColor;
+    document.getElementById('pp-title-anchor').value       = tv.anchor || (cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start');
   } else {
-    document.getElementById('pp-title-text').value   = '';
-    document.getElementById('pp-title-sub').value    = '';
-    document.getElementById('pp-title-size').value   = '';
-    document.getElementById('pp-title-color').value  = cfg.title && cfg.title.color  ? cfg.title.color  : '#e4e4e8';
-    document.getElementById('pp-title-anchor').value = cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start';
+    document.getElementById('pp-title-text').value         = '';
+    document.getElementById('pp-title-sub').value          = '';
+    document.getElementById('pp-title-size').value         = '';
+    document.getElementById('pp-title-color').value        = defaultTitleColor;
+    document.getElementById('pp-title-sub-size').value     = '';
+    document.getElementById('pp-title-sub-color').value    = defaultTitleColor;
+    document.getElementById('pp-title-anchor').value       = cfg.title && cfg.title.anchor ? cfg.title.anchor : 'start';
   }
+  // Reset the sync tracker so the title→subtitle colour link works correctly after a template switch
+  document.getElementById('pp-title-color').dataset.lastSync = syncedTitleColor;
 
   // ── X AXIS ────────────────────────────────────
   const xEnc = (spec.encoding && spec.encoding.x) ? spec.encoding.x : {};
@@ -2590,17 +2609,22 @@ function syncPropsFromSpec() {
 // ── Apply helpers ─────────────────────────────────────────────
 function applyTitleProps() {
   patchSpec(spec => {
-    const text = document.getElementById('pp-title-text').value.trim();
-    const sub  = document.getElementById('pp-title-sub').value.trim();
-    const sz   = document.getElementById('pp-title-size').value;
-    const col  = document.getElementById('pp-title-color').value;
-    const anc  = document.getElementById('pp-title-anchor').value;
+    const text    = document.getElementById('pp-title-text').value.trim();
+    const sub     = document.getElementById('pp-title-sub').value.trim();
+    const sz      = document.getElementById('pp-title-size').value;
+    const col     = document.getElementById('pp-title-color').value;
+    const subSz   = document.getElementById('pp-title-sub-size').value;
+    const subCol  = document.getElementById('pp-title-sub-color').value;
+    const anc     = document.getElementById('pp-title-anchor').value;
     if (!text && !sub) { delete spec.title; return; }
     spec.title = { text: text || '' };
-    if (sub)             spec.title.subtitle = sub;
-    if (sz)              spec.title.fontSize = parseInt(sz);
-    if (col)             spec.title.color    = col;
-    if (anc !== 'start') spec.title.anchor   = anc;
+    if (sub)             spec.title.subtitle          = sub;
+    if (sz)              spec.title.fontSize          = parseInt(sz);
+    if (col)             spec.title.color             = col;
+    // Only write subtitleColor if it differs from title colour
+    if (sub && subSz)    spec.title.subtitleFontSize  = parseInt(subSz);
+    if (sub && subCol && subCol !== col) spec.title.subtitleColor = subCol;
+    if (anc !== 'start') spec.title.anchor            = anc;
   });
 }
 
@@ -2680,9 +2704,19 @@ function applyLayoutProps() {
 // ── Wire up all controls ──────────────────────────────────────
 (function initPropsPanel() {
   // Title — use 'change' on text/number so we don't re-render mid-typing
-  ['pp-title-text', 'pp-title-sub', 'pp-title-size', 'pp-title-anchor'].forEach(id =>
+  ['pp-title-text', 'pp-title-sub', 'pp-title-size', 'pp-title-sub-size', 'pp-title-anchor'].forEach(id =>
     document.getElementById(id).addEventListener('change', applyTitleProps));
-  document.getElementById('pp-title-color').addEventListener('input', applyTitleProps);
+  document.getElementById('pp-title-color').addEventListener('input', () => {
+    // Keep sub colour in sync unless the user has already diverged it
+    const titleCol = document.getElementById('pp-title-color').value;
+    const subCol   = document.getElementById('pp-title-sub-color').value;
+    if (subCol === document.getElementById('pp-title-color').dataset.lastSync || !document.getElementById('pp-title-color').dataset.lastSync) {
+      document.getElementById('pp-title-sub-color').value = titleCol;
+    }
+    document.getElementById('pp-title-color').dataset.lastSync = titleCol;
+    applyTitleProps();
+  });
+  document.getElementById('pp-title-sub-color').addEventListener('input', applyTitleProps);
 
   // X axis
   ['pp-x-show', 'pp-x-labels', 'pp-x-title', 'pp-x-grid'].forEach(id =>
