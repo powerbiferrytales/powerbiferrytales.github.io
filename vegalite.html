@@ -1539,7 +1539,6 @@ const CONFIGS = [
   }
 ];
 
-const DARK_CFG = CONFIGS[0].cfg; // Arctic Blue default
 
 const SAMPLES = [
   { name: "Cars",       file: "cars.json" },
@@ -2060,11 +2059,11 @@ async function fitToFrame() {
   const _warn = console.warn.bind(console);
   console.warn = (...args) => {
     _warn(...args);
-    addConsoleMsg('warn', args.join(' '));
+    addConsoleMsg(args.join(' '));
   };
 })();
 
-function addConsoleMsg(type, text) {
+function addConsoleMsg(text) {
   // Filter to Vega/render related messages only
   if (!text.includes('WARN') && !text.includes('vega') && !text.includes('Vega')) return;
   const panel    = document.getElementById('console-panel');
