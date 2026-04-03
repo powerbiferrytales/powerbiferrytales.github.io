@@ -800,9 +800,12 @@ body.light-mode .resizer-h::after { background: #bebece; }
         <span id="props-toggle-icon">◀</span>
       </div>
       <div id="props-body">
+        <div style="padding:6px 10px 4px;border-bottom:1px solid var(--border);">
+          <button class="btn" id="btn-collapse-all" style="width:100%;font-size:11px;padding:4px 8px;" title="Collapse all sections">COLLAPSE ALL</button>
+        </div>
 
         <!-- TITLE -->
-        <div class="props-section open" id="ps-title">
+        <div class="props-section" id="ps-title">
           <div class="props-section-head" onclick="toggleSection('ps-title')">
             <span>TITLE</span><span class="props-section-arrow">▶</span>
           </div>
@@ -845,7 +848,7 @@ body.light-mode .resizer-h::after { background: #bebece; }
         </div>
 
         <!-- X AXIS -->
-        <div class="props-section open" id="ps-xaxis">
+        <div class="props-section" id="ps-xaxis">
           <div class="props-section-head" onclick="toggleSection('ps-xaxis')">
             <span>X AXIS</span><span class="props-section-arrow">▶</span>
           </div>
@@ -874,7 +877,7 @@ body.light-mode .resizer-h::after { background: #bebece; }
         </div>
 
         <!-- Y AXIS -->
-        <div class="props-section open" id="ps-yaxis">
+        <div class="props-section" id="ps-yaxis">
           <div class="props-section-head" onclick="toggleSection('ps-yaxis')">
             <span>Y AXIS</span><span class="props-section-arrow">▶</span>
           </div>
@@ -903,7 +906,7 @@ body.light-mode .resizer-h::after { background: #bebece; }
         </div>
 
         <!-- MARKS — body is built dynamically by rebuildMarkSection() -->
-        <div class="props-section open" id="ps-marks">
+        <div class="props-section" id="ps-marks">
           <div class="props-section-head" onclick="toggleSection('ps-marks')">
             <span>MARKS</span><span class="props-section-arrow">▶</span>
           </div>
@@ -911,7 +914,7 @@ body.light-mode .resizer-h::after { background: #bebece; }
         </div>
 
         <!-- LEGEND -->
-        <div class="props-section open" id="ps-legend">
+        <div class="props-section" id="ps-legend">
           <div class="props-section-head" onclick="toggleSection('ps-legend')">
             <span>LEGEND</span><span class="props-section-arrow">▶</span>
           </div>
@@ -3118,6 +3121,9 @@ function applyLayoutProps() {
 
 // ── Wire up all controls ──────────────────────────────────────
 (function initPropsPanel() {
+  document.getElementById('btn-collapse-all').onclick = () => {
+    document.querySelectorAll('.props-section').forEach(s => s.classList.remove('open'));
+  };
   // Title — use 'change' on text/number so we don't re-render mid-typing
   ['pp-title-text', 'pp-title-sub', 'pp-title-size', 'pp-title-sub-size', 'pp-title-anchor'].forEach(id =>
     document.getElementById(id).addEventListener('change', applyTitleProps));
