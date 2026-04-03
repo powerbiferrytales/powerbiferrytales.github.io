@@ -673,6 +673,21 @@ select {
 /* Hidden */
 .hidden { display: none !important; }
 
+/* ─── MARK LAYER TABS ─── */
+.mark-layer-tabs {
+  display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px;
+}
+.mark-layer-tab {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
+  font-family: var(--font); font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 3px 8px; cursor: pointer; border-radius: 2px; transition: all 0.12s;
+}
+.mark-layer-tab:hover { border-color: var(--accent); color: var(--accent); }
+.mark-layer-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.mark-type-badge {
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent);
+}
+
 /* ─── LIGHT MODE ─── */
 html.light-mode, body.light-mode { background: #f0f0f5 !important; }
 body.light-mode {
@@ -887,25 +902,12 @@ body.light-mode .resizer-h::after { background: #bebece; }
           </div>
         </div>
 
-        <!-- MARKS -->
+        <!-- MARKS — body is built dynamically by rebuildMarkSection() -->
         <div class="props-section open" id="ps-marks">
           <div class="props-section-head" onclick="toggleSection('ps-marks')">
             <span>MARKS</span><span class="props-section-arrow">▶</span>
           </div>
-          <div class="props-section-body">
-            <div class="prop-row">
-              <span class="prop-label">Colour</span>
-              <div class="prop-ctrl"><input type="color" id="pp-mark-color" value="#00b4d8"></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Opacity</span>
-              <div class="prop-ctrl"><input type="range" id="pp-mark-opacity" min="0" max="1" step="0.05" value="1"></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Tooltip</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-mark-tooltip" checked></div>
-            </div>
-          </div>
+          <div class="props-section-body"></div>
         </div>
 
         <!-- LEGEND -->
@@ -1435,6 +1437,72 @@ const TEMPLATES = [
 ];
 
 // ─────────────────────────────────────────────────────────────
+// MARK CONTROL DEFINITIONS
+// ─────────────────────────────────────────────────────────────
+const MARK_CTRL_DEFS = {
+  _common: [
+    { prop:'color',   label:'Colour',  ctrl:'color',    default:'#00b4d8' },
+    { prop:'opacity', label:'Opacity', ctrl:'range',    min:0, max:1, step:0.05, default:1 },
+    { prop:'tooltip', label:'Tooltip', ctrl:'checkbox', default:true },
+  ],
+  bar: [
+    { prop:'cornerRadius', label:'Corner radius', ctrl:'number', min:0, max:30, placeholder:'0' },
+  ],
+  line: [
+    { prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0.5, max:20, step:0.5, placeholder:'2' },
+    { prop:'point',       label:'Show points',  ctrl:'checkbox', default:false },
+    { prop:'interpolate', label:'Curve',        ctrl:'select',
+      options:['linear','monotone','step','step-before','step-after','basis','cardinal','catmull-rom'] },
+  ],
+  area: [
+    { prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0, max:20, step:0.5, placeholder:'0' },
+    { prop:'fillOpacity', label:'Fill opacity', ctrl:'range',  min:0, max:1, step:0.05, default:1 },
+    { prop:'interpolate', label:'Curve',        ctrl:'select',
+      options:['linear','monotone','step','step-before','step-after','basis'] },
+  ],
+  point: [
+    { prop:'size',   label:'Size',   ctrl:'number',   min:1, max:1000, placeholder:'30' },
+    { prop:'filled', label:'Filled', ctrl:'checkbox', default:true },
+    { prop:'shape',  label:'Shape',  ctrl:'select',
+      options:['circle','square','cross','diamond','triangle-up','triangle-down','triangle-right','triangle-left','stroke'] },
+  ],
+  circle: [
+    { prop:'size', label:'Size', ctrl:'number', min:1, max:1000, placeholder:'30' },
+  ],
+  square: [
+    { prop:'size', label:'Size', ctrl:'number', min:1, max:1000, placeholder:'30' },
+  ],
+  text: [
+    { prop:'fontSize',   label:'Font size', ctrl:'number', min:6, max:72, placeholder:'11' },
+    { prop:'fontWeight', label:'Weight',    ctrl:'select', options:['normal','bold','300','400','500','600','700'] },
+    { prop:'align',      label:'Align',     ctrl:'select', options:['left','center','right'] },
+    { prop:'baseline',   label:'Baseline',  ctrl:'select', options:['top','middle','bottom','alphabetic','line-top','line-bottom'] },
+    { prop:'dx',         label:'Offset X',  ctrl:'number', placeholder:'0' },
+    { prop:'dy',         label:'Offset Y',  ctrl:'number', placeholder:'0' },
+  ],
+  rect: [
+    { prop:'cornerRadius', label:'Corner radius', ctrl:'number', min:0, max:30, placeholder:'0' },
+  ],
+  arc: [
+    { prop:'innerRadius', label:'Inner radius', ctrl:'number', min:0, placeholder:'0' },
+    { prop:'outerRadius', label:'Outer radius', ctrl:'number', min:0, placeholder:'auto' },
+    { prop:'padAngle',    label:'Pad angle',    ctrl:'number', min:0, max:0.5, step:0.01, placeholder:'0' },
+  ],
+  tick: [
+    { prop:'thickness', label:'Thickness', ctrl:'number', min:1, max:20, placeholder:'1' },
+    { prop:'bandSize',  label:'Band size', ctrl:'number', min:0, max:50, placeholder:'auto' },
+  ],
+  rule:      [{ prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0.5, max:20, step:0.5, placeholder:'1' }],
+  boxplot:   [],
+  errorband: [],
+  errorbar:  [],
+  geoshape:  [],
+  trail:     [
+    { prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0.5, max:20, step:0.5, placeholder:'2' },
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────
 // STATE
 // ─────────────────────────────────────────────────────────────
 let userData = null;
@@ -1450,6 +1518,8 @@ let specBuffer  = '';
 let activeConfigId = 'arctic';
 let configBuffer = JSON.stringify(DARK_CFG, null, 2);
 let isLightMode = false;
+let selectedLayerIdx = 0;
+let _lastMarkSig = '';
 
 // ─────────────────────────────────────────────────────────────
 // DOM
@@ -2580,6 +2650,7 @@ async function renderSpec() {
     embedResult = result;
     clearErr();
     dot('ok');
+    _autoSyncMarkSection();
 
     // Populate data table from the Vega view for URL/sample specs (no uploaded data)
     if (!userData) populateDataTableFromView(result.view);
@@ -2795,11 +2866,8 @@ function syncPropsFromSpec() {
   document.getElementById('pp-y-grid').checked     = yAO.grid   !== false;
   document.getElementById('pp-y-title-text').value = typeof yAO.title === 'string' ? yAO.title : '';
 
-  // ── MARKS ────────────────────────────────────
-  const mk = (typeof spec.mark === 'object' && spec.mark !== null) ? spec.mark : {};
-  document.getElementById('pp-mark-color').value     = mk.color   || (cfg.mark && cfg.mark.color ? cfg.mark.color : '#00b4d8');
-  document.getElementById('pp-mark-opacity').value   = mk.opacity != null ? mk.opacity : 1;
-  document.getElementById('pp-mark-tooltip').checked = mk.tooltip !== false;
+  // ── MARKS ─ dynamic rebuild ───────────────────
+  rebuildMarkSection(spec);
 
   // ── LEGEND ────────────────────────────────────
   const colEnc = (spec.encoding && spec.encoding.color) ? spec.encoding.color : {};
@@ -2854,17 +2922,158 @@ function applyAxisProps(axis) {
   });
 }
 
-function applyMarkProps() {
-  patchSpec(spec => {
-    if (spec.layer || !spec.mark) return;
-    const col     = document.getElementById('pp-mark-color').value;
-    const opacity = parseFloat(document.getElementById('pp-mark-opacity').value);
-    const tooltip = document.getElementById('pp-mark-tooltip').checked;
-    if (typeof spec.mark === 'string') spec.mark = { type: spec.mark };
-    spec.mark.color   = col;
-    spec.mark.opacity = opacity;
-    spec.mark.tooltip = tooltip;
+// ── Dynamic mark helpers ───────────────────────────────────────
+function _markType(mark) {
+  return (typeof mark === 'string' ? mark : (mark && mark.type)) || 'bar';
+}
+function _markObj(mark) {
+  return (typeof mark === 'object' && mark !== null) ? mark : {};
+}
+function _markSig(spec) {
+  if (spec && spec.layer) return 'layer:' + spec.layer.map(l => _markType(l.mark)).join(',');
+  return spec ? _markType(spec.mark) : '';
+}
+
+function _buildLayerTabs(layers) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mark-layer-tabs';
+  layers.forEach((layer, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'mark-layer-tab' + (i === selectedLayerIdx ? ' active' : '');
+    btn.textContent = `L${i + 1}: ${_markType(layer.mark)}`;
+    btn.onclick = () => {
+      selectedLayerIdx = i;
+      try { rebuildMarkSection(JSON.parse(specBuffer)); } catch(_) {}
+    };
+    wrap.appendChild(btn);
   });
+  return wrap;
+}
+
+function _buildCtrlEl(def, markObj) {
+  const wrap = document.createElement('div');
+  wrap.className = 'prop-ctrl';
+  let el;
+  const val = markObj[def.prop];
+
+  if (def.ctrl === 'color') {
+    el = document.createElement('input');
+    el.type = 'color';
+    el.value = val || def.default || '#00b4d8';
+  } else if (def.ctrl === 'range') {
+    el = document.createElement('input');
+    el.type = 'range';
+    el.min = def.min ?? 0; el.max = def.max ?? 1; el.step = def.step ?? 0.05;
+    el.value = val != null ? val : (def.default ?? 1);
+    el.style.accentColor = 'var(--accent)';
+  } else if (def.ctrl === 'checkbox') {
+    el = document.createElement('input');
+    el.type = 'checkbox';
+    el.style.accentColor = 'var(--accent)';
+    if (def.prop === 'point') el.checked = val === true || (typeof val === 'object' && val !== null);
+    else                      el.checked = val != null ? !!val : def.default !== false;
+  } else if (def.ctrl === 'select') {
+    el = document.createElement('select');
+    (def.options || []).forEach(o => {
+      const opt = document.createElement('option');
+      opt.value = o; opt.textContent = o;
+      if ((val || def.default || def.options[0]) === o) opt.selected = true;
+      el.appendChild(opt);
+    });
+  } else {                          // number
+    el = document.createElement('input');
+    el.type = 'number';
+    if (def.min  != null) el.min  = def.min;
+    if (def.max  != null) el.max  = def.max;
+    if (def.step != null) el.step = def.step;
+    if (def.placeholder)  el.placeholder = def.placeholder;
+    if (val != null)      el.value = val;
+  }
+  wrap.appendChild(el);
+  return { wrap, el };
+}
+
+function rebuildMarkSection(spec) {
+  const body = document.querySelector('#ps-marks .props-section-body');
+  if (!body) return;
+  body.innerHTML = '';
+
+  let markType, markObj, layerIdx = null;
+
+  if (spec.layer && spec.layer.length) {
+    selectedLayerIdx = Math.min(selectedLayerIdx, spec.layer.length - 1);
+    body.appendChild(_buildLayerTabs(spec.layer));
+    const lyr = spec.layer[selectedLayerIdx] || spec.layer[0];
+    markType = _markType(lyr.mark);
+    markObj  = _markObj(lyr.mark);
+    layerIdx = selectedLayerIdx;
+  } else {
+    markType = _markType(spec.mark);
+    markObj  = _markObj(spec.mark);
+  }
+
+  // Mark type badge
+  const typeRow = document.createElement('div');
+  typeRow.className = 'prop-row';
+  typeRow.innerHTML = `<span class="prop-label">Type</span><div class="prop-ctrl"><span class="mark-type-badge">${markType.toUpperCase()}</span></div>`;
+  body.appendChild(typeRow);
+
+  // Controls
+  const defs = [...(MARK_CTRL_DEFS._common || []), ...(MARK_CTRL_DEFS[markType] || [])];
+  defs.forEach(def => {
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const lbl = document.createElement('span');
+    lbl.className = 'prop-label';
+    lbl.textContent = def.label;
+    row.appendChild(lbl);
+
+    const { wrap, el } = _buildCtrlEl(def, markObj);
+    const evtName = (def.ctrl === 'color' || def.ctrl === 'range') ? 'input' : 'change';
+    el.addEventListener(evtName, () => {
+      let value;
+      if (def.ctrl === 'checkbox') {
+        value = def.prop === 'point' ? el.checked : el.checked;
+      } else if (def.ctrl === 'number') {
+        value = el.value !== '' ? parseFloat(el.value) : null;
+      } else if (def.ctrl === 'range') {
+        value = parseFloat(el.value);
+      } else {
+        value = el.value;
+      }
+      _applyMarkProp(def.prop, value, layerIdx);
+    });
+    row.appendChild(wrap);
+    body.appendChild(row);
+  });
+
+  _lastMarkSig = _markSig(spec);
+}
+
+function _applyMarkProp(prop, value, layerIdx) {
+  patchSpec(spec => {
+    let mark;
+    if (layerIdx !== null && spec.layer && spec.layer[layerIdx]) {
+      if (typeof spec.layer[layerIdx].mark === 'string')
+        spec.layer[layerIdx].mark = { type: spec.layer[layerIdx].mark };
+      mark = spec.layer[layerIdx].mark;
+    } else {
+      if (spec.layer) return;
+      if (typeof spec.mark === 'string') spec.mark = { type: spec.mark };
+      if (!spec.mark) spec.mark = { type: 'bar' };
+      mark = spec.mark;
+    }
+    if (value === null || value === undefined) delete mark[prop];
+    else mark[prop] = value;
+  });
+}
+
+function _autoSyncMarkSection() {
+  try {
+    const sp = JSON.parse(specBuffer);
+    const sig = _markSig(sp);
+    if (sig !== _lastMarkSig) rebuildMarkSection(sp);
+  } catch(_) {}
 }
 
 function applyLegendProps() {
@@ -2934,10 +3143,7 @@ function applyLayoutProps() {
     document.getElementById(id).addEventListener('change', () => applyAxisProps('y')));
   document.getElementById('pp-y-title-text').addEventListener('change', () => applyAxisProps('y'));
 
-  // Marks
-  document.getElementById('pp-mark-color').addEventListener('input', applyMarkProps);
-  document.getElementById('pp-mark-opacity').addEventListener('input', applyMarkProps);
-  document.getElementById('pp-mark-tooltip').addEventListener('change', applyMarkProps);
+  // Marks — events are wired dynamically by rebuildMarkSection()
 
   // Legend
   document.getElementById('pp-legend-show').addEventListener('change', applyLegendProps);
