@@ -1725,7 +1725,7 @@ const TEMPLATES = [
     spec: { "$schema":SCHEMA, "title":"Line Chart", "data":{"url":DS+"stocks.csv"},
       "transform":[{"filter":"datum.symbol === 'GOOG'"}],
       "mark":{"type":"line","point":{"filled":true,"size":40}},
-      "encoding":{ "x":{"field":"date","type":"temporal"}, "y":{"field":"price","type":"quantitative"} }
+      "encoding":{ "x":{"field":"date","type":"temporal","timeUnit":"yearmonthdate"}, "y":{"field":"price","type":"quantitative"} }
     }
   },
   { id:"multiline", name:"MULTI-LINE", icon:"≈≈≈",
