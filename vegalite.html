@@ -644,15 +644,15 @@ select {
 .panel + .panel { border-left: none; }
 
 .tab-bar {
-  height: 42px; background: var(--surface); border-bottom: 1px solid var(--border);
-  display: flex; align-items: stretch; flex-shrink: 0;
+  min-height: 42px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: stretch; flex-shrink: 0; flex-wrap: wrap;
 }
 .tab-btn {
   display: flex; align-items: center; gap: 7px; padding: 0 20px;
   cursor: pointer; border: none; border-right: 1px solid var(--border);
   background: transparent; font-family: var(--font); font-size: 11px; font-weight: 700;
   letter-spacing: 0.15em; color: var(--muted); transition: all 0.13s; position: relative;
-  white-space: nowrap;
+  white-space: nowrap; height: 42px;
 }
 .tab-btn:hover { color: var(--text); background: var(--surface2); }
 .tab-btn.active { color: var(--accent); background: var(--bg); }
@@ -664,9 +664,10 @@ select {
 
 .tab-bar-right {
   flex: 1; display: flex; align-items: center; justify-content: flex-end;
-  padding: 0 10px; gap: 8px; overflow: hidden;
+  padding: 4px 10px; gap: 8px; overflow: visible;
+  flex-wrap: wrap; min-height: 42px;
 }
-.tab-actions { display: flex; align-items: center; gap: 8px; }
+.tab-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 
 .tab-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
 
@@ -1047,7 +1048,7 @@ body.light-mode .resizer-h::after { background: #bebece; }
         <button class="tab-btn" id="tab-btn-config" onclick="switchEditorView('config')">
           <span class="tab-icon">⚙</span> CONFIG
         </button>
-        <select id="cfg-preset-select" title="Switch theme" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:3px 6px;font-size:11px;font-family:var(--font);cursor:pointer;align-self:center;margin-left:6px;"></select>
+        <select id="cfg-preset-select" title="Switch theme" style="background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:3px;padding:3px 6px;font-size:13px;font-weight:400;font-family:var(--font);cursor:pointer;align-self:center;margin-left:6px;"></select>
         <div class="tab-bar-right">
           <div class="tab-actions hidden" id="tab-actions-data">
             <button class="btn" id="btn-paste">PASTE</button>
