@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Ferry Tales Studio — Generate OG Image</title>
+<style>
+  body { margin: 0; background: #050506; display: flex; flex-direction: column; align-items: center; padding: 30px; font-family: system-ui, Arial, sans-serif; }
+  canvas { border: 1px solid #2e2e34; border-radius: 8px; max-width: 100%; }
+  button {
+    margin-top: 20px; padding: 12px 36px; font-size: 15px; font-weight: 700;
+    letter-spacing: 0.08em; background: #f59e0b; color: #0a0a0b;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+  button:hover { background: #fbbf24; }
+  p { color: #7e7e92; font-size: 13px; margin-top: 12px; text-align: center; max-width: 700px; line-height: 1.6; }
+  strong { color: #e4e4e8; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1200" height="630"></canvas>
+<button onclick="download()">⬇ Download og-image.png</button>
+<p>
+  Save <strong>og-image.png</strong>, drop it into the root of the repo alongside <strong>vegalite.html</strong>, and push.
+  The social card will then work on Bluesky, Twitter/X, LinkedIn and Facebook.
+  You only need to run this once (or again if you update the branding).
+</p>
+
+<script>
+// ─── palette ───────────────────────────────────────────────────────────────
+const C = {
+  bg:       '#0a0a0b',
+  surface:  '#111113',
+  surface2: '#19191d',
+  border:   '#222226',
+  border2:  '#2e2e34',
+  text:     '#e4e4e8',
+  muted:    '#7e7e92',
+  dim:      '#8888a0',
+  accent:   '#f59e0b',
+  accent2:  '#fb923c',
+  blue:     '#60a5fa',
+  teal:     '#34d399',
+  green:    '#86efac',
+  blueK:    '#7dd3fc',
+};
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+function rr(ctx, x, y, w, h, r, fill, stroke, sw, alpha) {
+  const tl = Array.isArray(r) ? r[0] : r;
+  const tr = Array.isArray(r) ? r[1] : r;
+  const br = Array.isArray(r) ? r[2] : r;
+  const bl = Array.isArray(r) ? r[3] : r;
+  ctx.beginPath();
+  ctx.moveTo(x + tl, y);
+  ctx.lineTo(x + w - tr, y);  ctx.arcTo(x + w, y,     x + w, y + tr,     tr);
+  ctx.lineTo(x + w, y + h - br); ctx.arcTo(x + w, y + h, x + w - br, y + h, br);
+  ctx.lineTo(x + bl, y + h);  ctx.arcTo(x,     y + h, x,     y + h - bl, bl);
+  ctx.lineTo(x, y + tl);      ctx.arcTo(x,     y,     x + tl, y,         tl);
+  ctx.closePath();
+  if (alpha !== undefined) ctx.globalAlpha = alpha;
+  if (fill)   { ctx.fillStyle   = fill;  ctx.fill(); }
+  ctx.globalAlpha = 1;
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = sw || 1; ctx.stroke(); }
+}
+
+function txt(ctx, str, x, y, font, color, align) {
+  ctx.font      = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = align || 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(str, x, y);
+}
+
+// ─── draw ───────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+// Background
+ctx.fillStyle = C.bg;
+ctx.fillRect(0, 0, 1200, 630);
+
+// Outer border
+rr(ctx, 18, 18, 1164, 594, 14, null, C.border2, 1.5);
+
+// Left amber accent stripe
+rr(ctx, 18, 18, 6, 594, [14, 0, 0, 14], C.accent);
+
+// ── subtle diagonal noise texture (very faint grid) ──
+ctx.strokeStyle = 'rgba(255,255,255,0.018)';
+ctx.lineWidth = 1;
+for (let i = -630; i < 1200; i += 38) {
+  ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i + 630, 630); ctx.stroke();
+}
+
+// ─────────────────────────────────────────────────────
+// RIGHT: styled chart preview box
+// ─────────────────────────────────────────────────────
+const cX = 655, cY = 52, cW = 502, cH = 526;
+rr(ctx, cX, cY, cW, cH, 10, C.surface, C.border2, 1.5);
+
+// Panel title bar
+rr(ctx, cX, cY, cW, 34, [10, 10, 0, 0], C.surface2);
+// traffic-light dots
+[14, 28, 42].forEach((ox, i) => {
+  ctx.fillStyle = [C.border2, C.border2, C.border2][i];
+  ctx.beginPath(); ctx.arc(cX + ox, cY + 17, 5, 0, Math.PI * 2); ctx.fill();
+});
+txt(ctx, 'CHART PREVIEW', cX + cW / 2, cY + 22, '700 11px system-ui', C.muted, 'center');
+
+// Grid lines inside chart
+ctx.strokeStyle = C.border;
+ctx.lineWidth = 1;
+const plotY1 = cY + 44, plotY2 = cY + cH - 60;
+for (let i = 1; i <= 4; i++) {
+  const gy = plotY1 + i * ((plotY2 - plotY1) / 5);
+  ctx.beginPath(); ctx.moveTo(cX + 22, gy); ctx.lineTo(cX + cW - 22, gy); ctx.stroke();
+}
+
+// Bars
+const bars = [
+  { v: 0.58, col: C.blue },
+  { v: 0.82, col: C.blue },
+  { v: 0.38, col: C.accent2, min: true },
+  { v: 0.70, col: C.blue },
+  { v: 0.93, col: C.blue, max: true },
+  { v: 0.52, col: C.blue },
+  { v: 0.75, col: C.blue },
+];
+const bpX = cX + 36, bpW = cW - 72, bpH = plotY2 - plotY1;
+const barW = (bpW - (bars.length - 1) * 10) / bars.length;
+
+bars.forEach((b, i) => {
+  const bh = b.v * bpH;
+  const bx = bpX + i * (barW + 10);
+  const by = plotY1 + bpH - bh;
+  rr(ctx, bx, by, barW, bh, [4, 4, 0, 0], b.col, null, 0, b.min ? 0.70 : 0.85);
+
+  // highlight dot
+  if (b.max) {
+    ctx.fillStyle = C.teal;
+    ctx.beginPath(); ctx.arc(bx + barW / 2, by - 1, 9, 0, Math.PI * 2); ctx.fill();
+    // label
+    txt(ctx, 'MAX', bx + barW / 2, by - 16, '700 10px system-ui', C.teal, 'center');
+  }
+  if (b.min) {
+    ctx.fillStyle = C.accent;
+    ctx.beginPath(); ctx.arc(bx + barW / 2, by - 1, 9, 0, Math.PI * 2); ctx.fill();
+    txt(ctx, 'MIN', bx + barW / 2, by - 16, '700 10px system-ui', C.accent, 'center');
+  }
+});
+
+// x-axis
+ctx.strokeStyle = C.border2; ctx.lineWidth = 1;
+ctx.beginPath(); ctx.moveTo(bpX, plotY2); ctx.lineTo(bpX + bpW, plotY2); ctx.stroke();
+
+// axis tick labels (fake)
+['Jan','Feb','Mar','Apr','May','Jun','Jul'].forEach((lbl, i) => {
+  const lx = bpX + i * (barW + 10) + barW / 2;
+  txt(ctx, lbl, lx, plotY2 + 18, '400 10px system-ui', C.muted, 'center');
+});
+
+// ─────────────────────────────────────────────────────
+// LEFT: branding + code snippet
+// ─────────────────────────────────────────────────────
+
+// Title — two lines so it reads big and bold
+txt(ctx, 'FERRY TALES', 58, 138, '900 72px system-ui', C.accent);
+txt(ctx, 'STUDIO', 58, 212, '900 72px system-ui', C.accent);
+
+// Tagline
+txt(ctx, 'Build Vega-Lite charts in your browser', 60, 256, '400 20px system-ui', C.dim);
+txt(ctx, 'Export specs directly to Deneb for Power BI', 60, 282, '400 20px system-ui', C.dim);
+
+// Divider
+ctx.strokeStyle = C.border2; ctx.lineWidth = 1;
+ctx.beginPath(); ctx.moveTo(60, 302); ctx.lineTo(608, 302); ctx.stroke();
+
+// ── Code snippet box ──────────────────────────────────
+const kX = 60, kY = 316, kW = 560, kH = 232;
+rr(ctx, kX, kY, kW, kH, 8, C.surface, C.border2, 1);
+
+// editor chrome: tab bar
+rr(ctx, kX, kY, kW, 28, [8, 8, 0, 0], C.surface2);
+const tabs = [['SPEC', true], ['CONFIG', false], ['DATA', false]];
+let tabX = kX + 10;
+tabs.forEach(([label, active]) => {
+  const tw = ctx.measureText(label).width + 20;
+  if (active) {
+    rr(ctx, tabX, kY, tw, 28, [8, 8, 0, 0], C.surface2);
+    // active underline
+    ctx.fillStyle = C.accent;
+    ctx.fillRect(tabX, kY + 25, tw, 2);
+  }
+  txt(ctx, label, tabX + tw / 2, kY + 18, '700 10px system-ui', active ? C.accent : C.muted, 'center');
+  tabX += tw + 4;
+});
+
+// code lines
+const mono = '400 13px Consolas, "Courier New", monospace';
+const bold = '700 13px Consolas, "Courier New", monospace';
+const lh = 28;
+let ly = kY + 52;
+const cx = kX + 16;
+
+function codeLine(items, highlight) {
+  if (highlight) {
+    ctx.fillStyle = 'rgba(245,158,11,0.13)';
+    ctx.fillRect(kX, ly - 18, kW, lh);
+    ctx.fillStyle = 'rgba(245,158,11,0.75)';
+    ctx.fillRect(kX, ly - 18, 3, lh);
+  }
+  let px = cx;
+  items.forEach(([text, color]) => {
+    ctx.font = mono; ctx.fillStyle = color; ctx.textAlign = 'left';
+    ctx.fillText(text, px, ly);
+    px += ctx.measureText(text).width;
+  });
+  ly += lh;
+}
+
+codeLine([['{ ', C.muted]]);
+codeLine([['  "mark"', C.blueK], [': ', C.dim], ['"bar"', C.green], [',', C.dim]]);
+codeLine([['  "width"', C.blueK], [': ', C.dim], ['320', C.accent2], [',', C.dim]], true);
+codeLine([['  "encoding"', C.blueK], [': {', C.dim]]);
+codeLine([['    "x"', C.blueK], [': { ', C.dim], ['"field"', C.blueK], [': ', C.dim], ['"category"', C.green], [' },', C.dim]]);
+codeLine([['    "y"', C.blueK], [': { ', C.dim], ['"field"', C.blueK], [': ', C.dim], ['"value"', C.green], ['   }', C.dim]]);
+codeLine([['  }', C.dim]]);
+codeLine([['}', C.muted]]);
+
+// ── Bottom strip: feature pills + URL ────────────────
+const pillY = 574;
+const pillDefs = [
+  { label: 'Live Preview',     bg: 'rgba(34,197,94,0.10)',        border: 'rgba(34,197,94,0.35)', col: '#4ade80' },
+  { label: 'Properties Panel', bg: C.surface2,                    border: C.border2,              col: C.text   },
+  { label: 'Smart Intellisense',bg: C.surface2,                   border: C.border2,              col: C.text   },
+  { label: 'Share → Deneb',    bg: 'rgba(245,158,11,0.12)',       border: 'rgba(245,158,11,0.4)', col: C.accent },
+];
+
+ctx.font = '700 12px system-ui';
+let px = 60;
+pillDefs.forEach(p => {
+  const tw = ctx.measureText(p.label).width + 26;
+  const ph = 30, py = pillY - ph / 2;
+  rr(ctx, px, py, tw, ph, 15, p.bg, p.border, 1);
+  txt(ctx, p.label, px + tw / 2, pillY + 4, '700 12px system-ui', p.col, 'center');
+  px += tw + 8;
+});
+
+// URL right-aligned
+txt(ctx, 'powerbiferrytales.github.io', 1140, pillY + 4, '400 13px system-ui', C.muted, 'right');
+
+// ─────────────────────────────────────────────────────
+function download() {
+  const a = document.createElement('a');
+  a.download = 'og-image.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+</script>
+</body>
+</html>
