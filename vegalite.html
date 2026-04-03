@@ -3278,11 +3278,12 @@ const HL_MARKS      = new Set(['bar','line']); // bar = bar & column charts
 const HL_LINE_MARKS = new Set(['line','area','trail']); // use point-overlay layer approach
 const HL_MAX = '__hl_max__', HL_MIN = '__hl_min__', HL_NRM = '__hl_normal__';
 
-// Detect the quantitative field (and groupby fields) from the spec encoding
+// Detect the quantitative field (and groupby fields) from the spec encoding.
+// For layered specs, root encoding is inherited by all layers, so merge both.
 function _detectHlInfo(spec, layerIdx) {
-  const enc = (layerIdx !== null && spec.layer?.[layerIdx])
-    ? (spec.layer[layerIdx].encoding || spec.encoding || {})
-    : (spec.encoding || {});
+  const rootEnc  = spec.encoding || {};
+  const layerEnc = (layerIdx !== null && spec.layer?.[layerIdx]?.encoding) || {};
+  const enc = { ...rootEnc, ...layerEnc }; // layer-specific overrides root
   for (const ch of ['x','y','theta','radius','size']) {
     const e = enc[ch];
     if (e && e.type === 'quantitative' && e.field) {
@@ -3392,8 +3393,9 @@ function _applyHlBarStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info
   if (hlMin) { domain.push(HL_MIN); range.push(minColor); }
   domain.push(HL_NRM); range.push(normalColor);
   enc.color = { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null };
-  // Suppress stacking warning for non-summative aggregates
-  if (enc[info.channel]) enc[info.channel].stack = null;
+  // Suppress stacking warning — set stack:null on whichever encoding owns the quantitative channel
+  const quantEnc = enc[info.channel] ? enc : (spec.encoding || {});
+  if (quantEnc[info.channel]) quantEnc[info.channel].stack = null;
 }
 
 // Line/area/trail style: inject a point overlay layer so the line stays unbroken
