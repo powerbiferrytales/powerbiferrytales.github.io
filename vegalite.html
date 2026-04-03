@@ -2344,10 +2344,13 @@ function addLayer(type) {
     }
   }
 
+  const oldText = cmEditor.getValue();
   specBuffer = JSON.stringify(spec, null, 2);
+  _clearPatchHighlight();
   suppressRender = true;
   cmEditor.setValue(specBuffer);
   suppressRender = false;
+  _applyPatchHighlight(oldText, specBuffer);
   renderSpec();
 }
 
