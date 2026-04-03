@@ -1299,7 +1299,7 @@ const DS = "https://cdn.jsdelivr.net/npm/vega-datasets@2/data/";
 const CONFIGS = [
   {
     id: "arctic",
-    name: "Arctic Blue (Default)",
+    name: "Arctic Blue",
     cfg: {
       background: "#020d18",
       view: { stroke: "transparent" },
@@ -1351,7 +1351,7 @@ const CONFIGS = [
     cfg: {
       background: "#0f172a",
       view: { stroke: "transparent" },
-      font: "Georgia, serif",
+      font: "Gill Sans, Gill Sans MT, sans-serif",
       axis: {
         labelColor: "#94a3b8", titleColor: "#94a3b8",
         gridColor: "#1e293b", domainColor: "#334155", tickColor: "#334155",
@@ -1420,11 +1420,11 @@ const CONFIGS = [
   },
   {
     id: "warm-sand",
-    name: "Warm Sand",
+    name: "Warm Sand (Default)",
     cfg: {
       background: "#fdf6ed",
       view: { stroke: "#e8ddc8" },
-      font: "Georgia, serif",
+      font: "Verdana, sans-serif",
       axis: {
         labelColor: "#6b5744", titleColor: "#6b5744",
         gridColor: "#ede4d4", domainColor: "#d4c4aa", tickColor: "#d4c4aa",
@@ -1472,7 +1472,7 @@ const CONFIGS = [
     cfg: {
       background: "#f1f5f9",
       view: { stroke: "#cbd5e1" },
-      font: "Verdana, sans-serif",
+      font: "Optima, Candara, sans-serif",
       axis: {
         labelColor: "#475569", titleColor: "#475569",
         gridColor: "#e2e8f0", domainColor: "#cbd5e1", tickColor: "#cbd5e1",
@@ -1700,8 +1700,8 @@ let suppressRender = false;
 let liveMode = true;
 let activeEditorView = 'spec'; // 'spec' | 'config'
 let specBuffer  = '';
-let activeConfigId = 'arctic';
-let configBuffer = JSON.stringify(DARK_CFG, null, 2);
+let activeConfigId = 'warm-sand';
+let configBuffer = JSON.stringify(CONFIGS.find(c => c.id === 'warm-sand').cfg, null, 2);
 let isLightMode = true;
 let selectedLayerIdx = 0;
 let _lastMarkSig = '';
@@ -2143,7 +2143,7 @@ function loadSpecFromHash() {
     }
 
     const spec = JSON.parse(decoded);
-    setSpec(spec.config ? spec : { ...spec, config: DARK_CFG });
+    setSpec(spec.config ? spec : { ...spec, config: CONFIGS.find(c => c.id === 'warm-sand').cfg });
     switchEditorView('spec');
     return true;
   } catch(_) {
