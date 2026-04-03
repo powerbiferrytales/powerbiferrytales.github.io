@@ -1872,6 +1872,30 @@ function initCM() {
   });
   cmEditor.on('blur',   () => setTimeout(hideIS, 160));
   cmEditor.on('scroll', () => { if (isState.visible) positionIS(); });
+
+  // Double-click on a populated "field" value → show ALL dataset fields (not just matching ones)
+  cmEditor.getWrapperElement().addEventListener('dblclick', () => {
+    if (!userData?.length) return;
+    setTimeout(() => {
+      const cursor = cmEditor.getCursor();
+      const pos    = cmEditor.indexFromPos(cursor);
+      const val    = cmEditor.getValue();
+      const before = val.slice(0, pos);
+      const after  = val.slice(pos);
+      const m = before.match(/"field"\s*:\s*"([^"]*)$/);
+      if (!m) return;
+      const trail = (after.match(/^([^"]*)/) || [])[1] || '';
+      isState = {
+        visible: true, mode: IS_MODES[0],
+        items: Object.keys(userData[0]),
+        activeIdx: 0, query: '',
+        insertStart: pos - m[1].length,
+        insertEnd:   pos + trail.length
+      };
+      renderIS();
+      positionIS();
+    }, 0);
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
