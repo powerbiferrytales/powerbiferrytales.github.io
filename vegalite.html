@@ -395,6 +395,23 @@ body.light-mode .cm-patch-highlight-wrap {
 .btn-primary { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
 .btn-primary:hover { background: rgba(245,158,11,0.2); }
 
+/* Add-layer dropdown */
+.add-layer-wrap { position: relative; }
+.add-layer-menu {
+  display: none; position: absolute; top: calc(100% + 4px); right: 0; z-index: 200;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 4px;
+  min-width: 148px; box-shadow: 0 6px 18px rgba(0,0,0,0.25); overflow: hidden;
+}
+.add-layer-menu.open { display: block; }
+.add-layer-opt {
+  display: block; width: 100%; padding: 8px 13px; text-align: left;
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 12px; font-family: var(--font); cursor: pointer;
+  letter-spacing: 0.02em;
+}
+.add-layer-opt:last-child { border-bottom: none; }
+.add-layer-opt:hover { background: var(--surface2); color: var(--accent); }
+
 select {
   background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
   font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0.06em;
@@ -1080,7 +1097,16 @@ body.light-mode .resizer-h::after { background: #bebece; }
             <button class="btn" id="btn-run" title="Render chart (Ctrl+Enter)" style="display:none">▶ RUN</button>
             <button class="btn btn-primary" id="btn-live-toggle" title="Toggle live vs manual rendering">⚡ LIVE</button>
             <button class="btn" id="btn-format">FORMAT</button>
-            <button class="btn" id="btn-add-layer" title="Convert spec to layered or add a new layer">+ LAYER</button>
+            <div class="add-layer-wrap" id="add-layer-wrap">
+              <button class="btn" id="btn-add-layer" title="Add a new layer">+ LAYER ▾</button>
+              <div class="add-layer-menu" id="add-layer-menu">
+                <button class="add-layer-opt" data-type="text">📝 Text labels</button>
+                <button class="add-layer-opt" data-type="bar">▐ Bar</button>
+                <button class="add-layer-opt" data-type="line">╱ Line</button>
+                <button class="add-layer-opt" data-type="point">● Point</button>
+                <button class="add-layer-opt" data-type="rule">— Rule</button>
+              </div>
+            </div>
             <div class="zoom-ctrl">
               <button class="zoom-btn" id="btn-edz-out" title="Decrease font size">−</button>
               <span class="zoom-lbl" id="edz-label">14px</span>
@@ -2060,24 +2086,46 @@ function clearConsole() {
   if (panel)    panel.classList.remove('has-messages');
 }
 // ─────────────────────────────────────────────────────────────
-function addLayer() {
+const LAYER_TEMPLATES = {
+  text: {
+    mark: { type: "text", fontSize: 11, align: "center" },
+    encoding: { text: { field: "", type: "quantitative", aggregate: "sum", format: ",.0f" } }
+  },
+  bar: {
+    mark: { type: "bar" },
+    encoding: {}
+  },
+  line: {
+    mark: { type: "line", strokeWidth: 2 },
+    encoding: {}
+  },
+  point: {
+    mark: { type: "point", filled: true, size: 60 },
+    encoding: {}
+  },
+  rule: {
+    mark: { type: "rule", strokeWidth: 1, strokeDash: [4, 4] },
+    encoding: {}
+  }
+};
+
+function addLayer(type) {
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
 
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
 
+  const template = JSON.parse(JSON.stringify(LAYER_TEMPLATES[type] || LAYER_TEMPLATES.point));
+
   if (spec.layer) {
-    // Already layered — just append a new empty layer
-    spec.layer.push({ "mark": { "type": "point" }, "encoding": {} });
+    // Already layered — append the new template layer
+    spec.layer.push(template);
   } else {
-    // Pull only mark-level keys into the first layer; encoding stays top-level (shared across all layers)
+    // Convert flat spec: pull mark-level keys into the first layer; encoding stays top-level
     const layerKeys = ['mark', 'transform', 'selection', 'params'];
     const firstLayer = {};
     layerKeys.forEach(k => { if (spec[k] !== undefined) { firstLayer[k] = spec[k]; delete spec[k]; } });
-    spec.layer = [
-      firstLayer,
-      { "mark": { "type": "point" }, "encoding": {} }
-    ];
+    spec.layer = [firstLayer, template];
   }
 
   specBuffer = JSON.stringify(spec, null, 2);
@@ -2273,7 +2321,19 @@ function bindEvents() {
     setTimeout(syncPropsFromSpec, 80);
   });
 
-  document.getElementById('btn-add-layer').onclick    = addLayer;
+  document.getElementById('btn-add-layer').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('add-layer-menu').classList.toggle('open');
+  });
+  document.querySelectorAll('.add-layer-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      addLayer(btn.dataset.type);
+      document.getElementById('add-layer-menu').classList.remove('open');
+    });
+  });
+  document.addEventListener('click', () => {
+    document.getElementById('add-layer-menu')?.classList.remove('open');
+  });
   document.getElementById('btn-share').onclick        = shareSpec;
   document.getElementById('btn-share-visual').onclick = shareVisual;
   document.getElementById('btn-theme-toggle').onclick = toggleStudioTheme;
