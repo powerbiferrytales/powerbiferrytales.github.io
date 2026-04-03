@@ -278,6 +278,22 @@ html, body { height: 100%; overflow: hidden; background: #050506; color: var(--t
   box-shadow: inset 3px 0 0 #ff2255, inset 4px 0 8px rgba(255,34,85,0.18) !important;
 }
 
+/* Properties-panel patch highlight */
+.cm-patch-highlight-bg {
+  background: rgba(245, 158, 11, 0.13) !important;
+  transition: background 0.4s ease;
+}
+.cm-patch-highlight-wrap {
+  box-shadow: inset 3px 0 0 rgba(245, 158, 11, 0.75) !important;
+  transition: box-shadow 0.4s ease;
+}
+body.light-mode .cm-patch-highlight-bg {
+  background: rgba(184, 114, 0, 0.11) !important;
+}
+body.light-mode .cm-patch-highlight-wrap {
+  box-shadow: inset 3px 0 0 rgba(184, 114, 0, 0.65) !important;
+}
+
 /* Fold placeholder widget */
 .CodeMirror-foldmarker {
   background: var(--accent-glow);
@@ -1779,6 +1795,8 @@ window.addEventListener('load', () => {
   // Apply default light mode
   document.body.classList.add('light-mode');
   document.getElementById('btn-theme-toggle').textContent = '🌙 DARK';
+  // Clear properties-panel patch highlights on any click
+  document.addEventListener('mousedown', () => _clearPatchHighlight());
   // Load spec from URL hash if present, otherwise default template
   if (!loadSpecFromHash()) {
     applyTemplate(TEMPLATES[0]); // bar default
@@ -2919,7 +2937,8 @@ function dot(state) {
 }
 
 // ── Error line tracking ──
-let _errLine = null; // currently marked line handle
+let _errLine = null;          // currently marked line handle
+let _patchHighlightLines = []; // lines highlighted from last properties-panel patch
 
 function _getErrorCMPos(msg) {
   // V8/Chrome: "at position N" or "... at position N of ..."
@@ -2954,6 +2973,64 @@ function _clearErrorLine() {
   cmEditor.removeLineClass(_errLine, 'wrap',       'cm-error-line-wrap');
   cmEditor.setGutterMarker(_errLine, 'CodeMirror-error-gutter', null);
   _errLine = null;
+}
+
+function _clearPatchHighlight() {
+  if (!cmEditor || _patchHighlightLines.length === 0) return;
+  _patchHighlightLines.forEach(line => {
+    cmEditor.removeLineClass(line, 'background', 'cm-patch-highlight-bg');
+    cmEditor.removeLineClass(line, 'wrap',       'cm-patch-highlight-wrap');
+  });
+  _patchHighlightLines = [];
+}
+
+function _applyPatchHighlight(oldText, newText) {
+  if (!cmEditor) return;
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+  const m = oldLines.length, n = newLines.length;
+  let toHighlight;
+
+  if (m <= 400 && n <= 400) {
+    // LCS diff: only mark lines that are genuinely new/changed, not just shifted.
+    // Normalise by stripping trailing commas so JSON formatting artefacts
+    // (e.g. a comma added to the line above a new property) are not flagged.
+    const norm = s => (s ? s.trimEnd().replace(/,$/, '') : s);
+    const oldN = oldLines.map(norm);
+    const newN = newLines.map(norm);
+    const dp = Array.from({ length: m + 1 }, () => new Int16Array(n + 1));
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i][j] = oldN[i - 1] === newN[j - 1]
+          ? dp[i - 1][j - 1] + 1
+          : Math.max(dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    const inLCS = new Set();
+    let i = m, j = n;
+    while (i > 0 && j > 0) {
+      if (oldN[i - 1] === newN[j - 1]) { inLCS.add(j - 1); i--; j--; }
+      else if (dp[i - 1][j] >= dp[i][j - 1]) i--;
+      else j--;
+    }
+    toHighlight = new Set();
+    for (let k = 0; k < n; k++) { if (!inLCS.has(k)) toHighlight.add(k); }
+  } else {
+    // Fallback for very large specs: simple positional diff
+    toHighlight = new Set();
+    for (let i = 0; i < n; i++) { if (oldLines[i] !== newLines[i]) toHighlight.add(i); }
+  }
+
+  toHighlight.forEach(line => {
+    if (line < cmEditor.lineCount()) {
+      cmEditor.addLineClass(line, 'background', 'cm-patch-highlight-bg');
+      cmEditor.addLineClass(line, 'wrap',       'cm-patch-highlight-wrap');
+      _patchHighlightLines.push(line);
+    }
+  });
+  if (_patchHighlightLines.length > 0) {
+    cmEditor.scrollIntoView({ line: _patchHighlightLines[0], ch: 0 }, 80);
+  }
 }
 
 function err(msg) {
@@ -2994,10 +3071,13 @@ function patchSpec(fn) {
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { return; }
   fn(spec);
+  const oldText = cmEditor.getValue();
   specBuffer = JSON.stringify(spec, null, 2);
+  _clearPatchHighlight();
   suppressRender = true;
   cmEditor.setValue(specBuffer);
   suppressRender = false;
+  _applyPatchHighlight(oldText, specBuffer);
   if (liveMode) renderSpec(); else dot('idle');
 }
 
