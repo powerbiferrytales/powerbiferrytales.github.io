@@ -770,6 +770,77 @@ body.light-mode .full-tbl tr:hover td { background: rgba(184,114,0,0.07); color:
 /* Resizers */
 body.light-mode .resizer-v::after { background: #bebece; }
 body.light-mode .resizer-h::after { background: #bebece; }
+
+/* ─── HELP OVERLAY ─── */
+.help-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.55);
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px; backdrop-filter: blur(7px);
+}
+.help-modal {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 8px; width: 100%; max-width: 1100px; max-height: 78vh;
+  display: flex; flex-direction: column;
+  box-shadow: 0 28px 90px rgba(0,0,0,0.55);
+  overflow: hidden;
+  font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+}
+.help-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 26px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.help-head-left { display: flex; flex-direction: column; gap: 4px; }
+.help-head-title { font-size: 18px; font-weight: 800; letter-spacing: 0.08em; color: var(--accent); font-family: system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; }
+.help-head-sub { font-size: 14px; color: var(--muted); }
+.help-close {
+  width: 38px; height: 38px; flex-shrink: 0;
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
+  font-size: 18px; font-weight: 700;
+  cursor: pointer; border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+.help-close:hover { border-color: var(--red); color: var(--red); background: rgba(239,68,68,0.08); }
+.help-body {
+  flex: 1; overflow-y: auto; padding: 24px 26px;
+  scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+}
+.help-intro {
+  font-size: 15px; color: var(--dim); line-height: 1.8;
+  padding-bottom: 20px; margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.help-intro strong { color: var(--text); font-weight: 700; }
+.help-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-bottom: 22px;
+}
+.help-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-left: 4px solid var(--accent); border-radius: 4px; padding: 15px 17px;
+}
+.help-card-title {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.help-card-icon { font-size: 15px; opacity: 0.9; }
+.help-card-body { font-size: 13px; color: var(--dim); line-height: 1.72; }
+.help-card-body strong { color: var(--text); font-weight: 600; }
+.help-links-title {
+  font-size: 13px; font-weight: 700; letter-spacing: 0.1em; color: var(--muted);
+  margin-bottom: 12px; padding-top: 20px; border-top: 1px solid var(--border);
+}
+.help-link {
+  display: flex; align-items: center; gap: 15px;
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 13px 18px; text-decoration: none;
+  color: var(--text); transition: all 0.13s; margin-bottom: 10px;
+}
+.help-link:last-child { margin-bottom: 0; }
+.help-link:hover { border-color: var(--accent); background: var(--accent-glow); }
+.help-link-icon { font-size: 24px; flex-shrink: 0; }
+.help-link-label { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent); }
+.help-link-desc { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -787,6 +858,7 @@ body.light-mode .resizer-h::after { background: #bebece; }
     <button class="btn" id="btn-theme-toggle" title="Switch between dark and light mode">☀ LIGHT</button>
     <button class="btn" id="btn-share" title="Copy spec JSON to clipboard">⬡ SHARE SPEC</button>
     <button class="btn" id="btn-share-visual" title="Copy shareable link to visual-only viewer">⬡ SHARE VISUAL</button>
+    <button class="btn" id="btn-help" title="Open help guide">? HELP</button>
     <div class="header-btns"></div>
   </header>
 
@@ -1087,6 +1159,115 @@ body.light-mode .resizer-h::after { background: #bebece; }
 
 <!-- Intellisense popup -->
 <div class="intellisense hidden" id="intellisense"></div>
+
+<!-- ─── HELP OVERLAY ─── -->
+<div class="help-overlay hidden" id="help-overlay">
+  <div class="help-modal">
+    <div class="help-head">
+      <div class="help-head-left">
+        <div class="help-head-title">FERRY TALES STUDIO — HELP</div>
+        <div class="help-head-sub">A plain-English guide to every feature in the studio</div>
+      </div>
+      <button class="help-close" id="btn-help-close" title="Close help">✕</button>
+    </div>
+    <div class="help-body">
+
+      <p class="help-intro">
+        Ferry Tales Studio is a browser-based editor for building <strong>Vega-Lite</strong> charts — the same charting language used by the <strong>Deneb</strong> custom visual in Power BI.
+        Write or adjust the JSON specification on the left and your chart updates live on the right. No sign-in or installation required.
+      </p>
+
+      <div class="help-grid">
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">▐▌</span> CHART TEMPLATES</div>
+          <div class="help-card-body">The row of buttons along the top (Bar, Line, Scatter, Facet…) loads a ready-made example chart. Think of them as starting points — you are free to edit the JSON in any way after loading one. Clicking a template replaces your current chart.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">{ }</span> SPEC EDITOR</div>
+          <div class="help-card-body">This is the main JSON text editor. You describe your chart here using the Vega-Lite format. In <strong>Live</strong> mode the chart updates automatically as you type. Press <strong>Ctrl + Enter</strong> to force a render at any time. The <strong>FORMAT</strong> button tidies up the layout of the JSON.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">⚙</span> CONFIG &amp; THEME</div>
+          <div class="help-card-body">The <strong>CONFIG</strong> tab lets you edit the visual theme — colours, fonts, axis styles — in JSON. The <strong>theme dropdown</strong> gives you quick access to preset dark and light colour schemes. Switching theme applies it immediately to the current chart.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">⊡</span> YOUR OWN DATA</div>
+          <div class="help-card-body">Open the <strong>USE YOUR OWN DATA</strong> tab to load your data. You can <strong>upload</strong> a CSV, JSON or TSV file, <strong>paste</strong> data directly, or choose one of the built-in <strong>sample datasets</strong>. Your data appears in the table at the bottom and replaces the sample data in the spec.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">◀</span> PROPERTIES PANEL</div>
+          <div class="help-card-body">The collapsible panel on the far left gives you point-and-click controls for common chart settings: title, axis labels, mark colours and sizes, legend position, padding and background. Every change writes directly into the JSON spec, so you can always see what is happening under the hood.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">⧉</span> ADD LAYER</div>
+          <div class="help-card-body">Converts your chart into a <strong>layered</strong> spec and adds a new mark layer. Layering lets you combine different chart types — for example bars with a line on top, or bars with text labels. The shared encoding (axes, data bindings) stays at the top level and applies to all layers.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">⚡</span> LIVE vs MANUAL MODE</div>
+          <div class="help-card-body"><strong>Live</strong> mode re-renders the chart automatically every time you stop typing. Switch to <strong>Manual</strong> mode if you want to make several edits before seeing the result — the chart only updates when you click <strong>RUN</strong> or press <strong>Ctrl + Enter</strong>.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">⤢</span> FIT &amp; ZOOM</div>
+          <div class="help-card-body">The <strong>FIT</strong> button resizes the chart to fill the preview area neatly. The <strong>+ / −</strong> zoom controls in the preview panel let you scale the chart up or down without changing the spec. The code editor has its own separate font-size zoom controls.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">⬡</span> SHARE SPEC</div>
+          <div class="help-card-body">Copies the full Vega-Lite JSON — including the active theme config — to your clipboard. You can paste this directly into the <strong>Deneb</strong> visual in Power BI, or send it to a colleague so they can open and edit the same chart.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">🔗</span> SHARE VISUAL</div>
+          <div class="help-card-body">Generates a shareable link that opens just the finished chart — no editor, no controls. The entire spec is encoded in the link itself, so nothing is stored on a server. Anyone with the link can view the chart in a browser. <strong>Links do not expire.</strong></div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">☀</span> LIGHT / DARK MODE</div>
+          <div class="help-card-body">Toggles the studio interface between a light and dark colour scheme. This is independent of the chart theme — you can use a dark chart config on a light studio background, or any other combination. The Share Visual link remembers which mode you were using.</div>
+        </div>
+
+        <div class="help-card">
+          <div class="help-card-title"><span class="help-card-icon">⚠</span> CONSOLE MESSAGES</div>
+          <div class="help-card-body">If Vega-Lite produces any warnings when rendering your chart (for example, a missing field or an unrecognised value), they appear in the yellow console strip at the bottom of the preview panel. This helps you spot and fix issues in your spec.</div>
+        </div>
+
+      </div><!-- /help-grid -->
+
+      <div class="help-links-title">USEFUL LINKS</div>
+
+      <a class="help-link" href="https://vega.github.io/vega-lite/docs/" target="_blank" rel="noopener">
+        <span class="help-link-icon">📖</span>
+        <div>
+          <div class="help-link-label">VEGA-LITE DOCUMENTATION</div>
+          <div class="help-link-desc">The complete reference for every property, mark type, encoding channel and transform available in Vega-Lite</div>
+        </div>
+      </a>
+      <a class="help-link" href="https://deneb-viz.github.io/" target="_blank" rel="noopener">
+        <span class="help-link-icon">⭐</span>
+        <div>
+          <div class="help-link-label">DENEB FOR POWER BI</div>
+          <div class="help-link-desc">The Power BI custom visual that renders Vega-Lite charts — use SHARE SPEC to copy your spec straight into Deneb</div>
+        </div>
+      </a>
+      <a class="help-link" href="https://vega.github.io/vega-lite/examples/" target="_blank" rel="noopener">
+        <span class="help-link-icon">🎨</span>
+        <div>
+          <div class="help-link-label">VEGA-LITE EXAMPLE GALLERY</div>
+          <div class="help-link-desc">A large library of ready-made chart specs you can copy, paste into the editor and adapt to your own data</div>
+        </div>
+      </a>
+
+    </div><!-- /help-body -->
+  </div><!-- /help-modal -->
+</div><!-- /help-overlay -->
 
 <!-- ─── PASTE MODAL ─── -->
 <div class="modal-overlay hidden" id="paste-modal">
@@ -2072,6 +2253,11 @@ function bindEvents() {
   document.getElementById('btn-share').onclick        = shareSpec;
   document.getElementById('btn-share-visual').onclick = shareVisual;
   document.getElementById('btn-theme-toggle').onclick = toggleStudioTheme;
+  document.getElementById('btn-help').onclick         = () => document.getElementById('help-overlay').classList.remove('hidden');
+  document.getElementById('btn-help-close').onclick   = () => document.getElementById('help-overlay').classList.add('hidden');
+  document.getElementById('help-overlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('help-overlay')) document.getElementById('help-overlay').classList.add('hidden');
+  });
 
   // Live / Manual toggle
   const btnLive = document.getElementById('btn-live-toggle');
@@ -2100,6 +2286,7 @@ function bindEvents() {
 
   // Ctrl+Enter to run in manual mode
   document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') document.getElementById('help-overlay').classList.add('hidden');
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
