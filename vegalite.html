@@ -2302,9 +2302,26 @@ function addLayer(type) {
     spec.layer.push(template);
   } else {
     // Convert flat spec: pull mark-level keys into the first layer; encoding stays top-level
-    const layerKeys = ['mark', 'transform', 'selection', 'params'];
     const firstLayer = {};
-    layerKeys.forEach(k => { if (spec[k] !== undefined) { firstLayer[k] = spec[k]; delete spec[k]; } });
+    ['mark', 'selection', 'params'].forEach(k => {
+      if (spec[k] !== undefined) { firstLayer[k] = spec[k]; delete spec[k]; }
+    });
+    // _hl_* transforms must stay at root so every layer can read the computed fields.
+    // Non-hl transforms move to layer 0 as normal.
+    if (spec.transform) {
+      const isHl = t => t.joinaggregate?.some(j => j.as?.startsWith('_hl_')) || t.as === '_hl_cat';
+      const hlT   = spec.transform.filter(t =>  isHl(t));
+      const normT = spec.transform.filter(t => !isHl(t));
+      if (normT.length) firstLayer.transform = normT;
+      if (hlT.length) spec.transform = hlT; else delete spec.transform;
+    }
+    // If the root colour encoding references _hl_cat, move it to layer 0 only —
+    // otherwise text/rule layers inherit it and fail to resolve the field.
+    if (spec.encoding?.color?.field === '_hl_cat') {
+      firstLayer.encoding = firstLayer.encoding || {};
+      firstLayer.encoding.color = spec.encoding.color;
+      delete spec.encoding.color;
+    }
     spec.layer = [firstLayer, template];
   }
 
@@ -3311,11 +3328,35 @@ document.getElementById('props-toggle').addEventListener('click', () => {
 });
 
 // Patch the spec in-place, update the editor, and re-render
+// After any patchSpec mutation, keep the HL_NRM colour entry in sync with the
+// current mark colour so bar colour changes work while highlight is active.
+function _syncHlNormalColor(spec) {
+  // Find whichever encoding object holds the _hl_cat bar-style colour scale
+  let hlEnc = null, markSrc = null;
+  if (spec.layer) {
+    const idx = spec.layer.findIndex(l => l.name !== '_hl_layer' && l.encoding?.color?.field === '_hl_cat');
+    if (idx >= 0) { hlEnc = spec.layer[idx].encoding; markSrc = spec.layer[idx]; }
+  }
+  if (!hlEnc && spec.encoding?.color?.field === '_hl_cat') {
+    hlEnc = spec.encoding; markSrc = spec;
+  }
+  if (!hlEnc) return;
+  const domain = hlEnc.color.scale?.domain;
+  const range  = hlEnc.color.scale?.range;
+  if (!domain || !range) return;
+  const nrmIdx = domain.indexOf(HL_NRM);
+  if (nrmIdx < 0) return;
+  const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+  const markObj = _markObj(markSrc?.mark);
+  range[nrmIdx] = markObj?.color || cfg.mark?.color || '#4a90d9';
+}
+
 function patchSpec(fn) {
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { return; }
   fn(spec);
+  _syncHlNormalColor(spec);   // keep HL_NRM in sync with any mark colour change
   const oldText = cmEditor.getValue();
   specBuffer = JSON.stringify(spec, null, 2);
   _clearPatchHighlight();
