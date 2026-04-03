@@ -85,7 +85,7 @@ rr(ctx, 18, 18, 1164, 594, 14, null, C.border2, 1.5);
 // Left amber accent stripe
 rr(ctx, 18, 18, 6, 594, [14, 0, 0, 14], C.accent);
 
-// ── subtle diagonal noise texture (very faint grid) ──
+// Subtle diagonal texture
 ctx.strokeStyle = 'rgba(255,255,255,0.018)';
 ctx.lineWidth = 1;
 for (let i = -630; i < 1200; i += 38) {
@@ -100,14 +100,13 @@ rr(ctx, cX, cY, cW, cH, 10, C.surface, C.border2, 1.5);
 
 // Panel title bar
 rr(ctx, cX, cY, cW, 34, [10, 10, 0, 0], C.surface2);
-// traffic-light dots
-[14, 28, 42].forEach((ox, i) => {
-  ctx.fillStyle = [C.border2, C.border2, C.border2][i];
+[14, 28, 42].forEach(ox => {
+  ctx.fillStyle = C.border2;
   ctx.beginPath(); ctx.arc(cX + ox, cY + 17, 5, 0, Math.PI * 2); ctx.fill();
 });
 txt(ctx, 'CHART PREVIEW', cX + cW / 2, cY + 22, '700 11px system-ui', C.muted, 'center');
 
-// Grid lines inside chart
+// Grid lines
 ctx.strokeStyle = C.border;
 ctx.lineWidth = 1;
 const plotY1 = cY + 44, plotY2 = cY + cH - 60;
@@ -134,12 +133,9 @@ bars.forEach((b, i) => {
   const bx = bpX + i * (barW + 10);
   const by = plotY1 + bpH - bh;
   rr(ctx, bx, by, barW, bh, [4, 4, 0, 0], b.col, null, 0, b.min ? 0.70 : 0.85);
-
-  // highlight dot
   if (b.max) {
     ctx.fillStyle = C.teal;
     ctx.beginPath(); ctx.arc(bx + barW / 2, by - 1, 9, 0, Math.PI * 2); ctx.fill();
-    // label
     txt(ctx, 'MAX', bx + barW / 2, by - 16, '700 10px system-ui', C.teal, 'center');
   }
   if (b.min) {
@@ -153,86 +149,33 @@ bars.forEach((b, i) => {
 ctx.strokeStyle = C.border2; ctx.lineWidth = 1;
 ctx.beginPath(); ctx.moveTo(bpX, plotY2); ctx.lineTo(bpX + bpW, plotY2); ctx.stroke();
 
-// axis tick labels (fake)
 ['Jan','Feb','Mar','Apr','May','Jun','Jul'].forEach((lbl, i) => {
   const lx = bpX + i * (barW + 10) + barW / 2;
   txt(ctx, lbl, lx, plotY2 + 18, '400 10px system-ui', C.muted, 'center');
 });
 
 // ─────────────────────────────────────────────────────
-// LEFT: branding + code snippet
+// LEFT: branding — big title + taglines
 // ─────────────────────────────────────────────────────
 
-// Title — two lines so it reads big and bold
-txt(ctx, 'FERRY TALES', 58, 138, '900 72px system-ui', C.accent);
-txt(ctx, 'STUDIO', 58, 212, '900 72px system-ui', C.accent);
+// Title
+txt(ctx, 'FERRY TALES', 58, 210, '900 90px system-ui', C.accent);
+txt(ctx, 'STUDIO', 58, 312, '900 90px system-ui', C.accent);
 
-// Tagline
-txt(ctx, 'Build Vega-Lite charts in your browser', 60, 268, '400 20px system-ui', C.dim);
-
-// Divider
+// Separator
 ctx.strokeStyle = C.border2; ctx.lineWidth = 1;
-ctx.beginPath(); ctx.moveTo(60, 294); ctx.lineTo(608, 294); ctx.stroke();
+ctx.beginPath(); ctx.moveTo(60, 346); ctx.lineTo(600, 346); ctx.stroke();
 
-// ── Code snippet box ──────────────────────────────────
-const kX = 60, kY = 308, kW = 560, kH = 232;
-rr(ctx, kX, kY, kW, kH, 8, C.surface, C.border2, 1);
+// Taglines
+txt(ctx, 'Build Vega-Lite charts in your browser', 60, 400, '400 23px system-ui', C.dim);
+txt(ctx, 'Properties panel auto-generates the JSON spec', 60, 444, '400 23px system-ui', C.dim);
 
-// editor chrome: tab bar
-rr(ctx, kX, kY, kW, 28, [8, 8, 0, 0], C.surface2);
-const tabs = [['SPEC', true], ['CONFIG', false], ['DATA', false]];
-let tabX = kX + 10;
-tabs.forEach(([label, active]) => {
-  const tw = ctx.measureText(label).width + 20;
-  if (active) {
-    rr(ctx, tabX, kY, tw, 28, [8, 8, 0, 0], C.surface2);
-    // active underline
-    ctx.fillStyle = C.accent;
-    ctx.fillRect(tabX, kY + 25, tw, 2);
-  }
-  txt(ctx, label, tabX + tw / 2, kY + 18, '700 10px system-ui', active ? C.accent : C.muted, 'center');
-  tabX += tw + 4;
-});
-
-// code lines
-const mono = '400 13px Consolas, "Courier New", monospace';
-const bold = '700 13px Consolas, "Courier New", monospace';
-const lh = 28;
-let ly = kY + 52;
-const cx = kX + 16;
-
-function codeLine(items, highlight) {
-  if (highlight) {
-    ctx.fillStyle = 'rgba(245,158,11,0.13)';
-    ctx.fillRect(kX, ly - 18, kW, lh);
-    ctx.fillStyle = 'rgba(245,158,11,0.75)';
-    ctx.fillRect(kX, ly - 18, 3, lh);
-  }
-  let px = cx;
-  items.forEach(([text, color]) => {
-    ctx.font = mono; ctx.fillStyle = color; ctx.textAlign = 'left';
-    ctx.fillText(text, px, ly);
-    px += ctx.measureText(text).width;
-  });
-  ly += lh;
-}
-
-codeLine([['{ ', C.muted]]);
-codeLine([['  "mark"', C.blueK], [': ', C.dim], ['"bar"', C.green], [',', C.dim]]);
-codeLine([['  "width"', C.blueK], [': ', C.dim], ['320', C.accent2], [',', C.dim]], true);
-codeLine([['  "encoding"', C.blueK], [': {', C.dim]]);
-codeLine([['    "x"', C.blueK], [': { ', C.dim], ['"field"', C.blueK], [': ', C.dim], ['"category"', C.green], [' },', C.dim]]);
-codeLine([['    "y"', C.blueK], [': { ', C.dim], ['"field"', C.blueK], [': ', C.dim], ['"value"', C.green], ['   }', C.dim]]);
-codeLine([['  }', C.dim]]);
-codeLine([['}', C.muted]]);
-
-// ── Bottom strip: feature pills + URL ────────────────
-const pillY = 574;
+// ── Bottom: feature pills + URL ──────────────────────
+const pillY = 560;
 const pillDefs = [
-  { label: 'Live Preview',     bg: 'rgba(34,197,94,0.10)',        border: 'rgba(34,197,94,0.35)', col: '#4ade80' },
-  { label: 'Properties Panel', bg: C.surface2,                    border: C.border2,              col: C.text   },
-  { label: 'Smart Intellisense',bg: C.surface2,                   border: C.border2,              col: C.text   },
-  { label: 'Share → Deneb',    bg: 'rgba(245,158,11,0.12)',       border: 'rgba(245,158,11,0.4)', col: C.accent },
+  { label: 'Live Preview',      bg: 'rgba(34,197,94,0.10)',  border: 'rgba(34,197,94,0.35)', col: '#4ade80' },
+  { label: 'Properties Panel',  bg: C.surface2,              border: C.border2,              col: C.text   },
+  { label: 'Share → Deneb',     bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.4)', col: C.accent },
 ];
 
 ctx.font = '700 12px system-ui';
@@ -245,7 +188,7 @@ pillDefs.forEach(p => {
   px += tw + 8;
 });
 
-// URL right-aligned
+// URL
 txt(ctx, 'powerbiferrytales.github.io', 1140, pillY + 4, '400 13px system-ui', C.muted, 'right');
 
 // ─────────────────────────────────────────────────────
