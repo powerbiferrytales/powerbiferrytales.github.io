@@ -1520,7 +1520,7 @@ let activeEditorView = 'spec'; // 'spec' | 'config'
 let specBuffer  = '';
 let activeConfigId = 'arctic';
 let configBuffer = JSON.stringify(DARK_CFG, null, 2);
-let isLightMode = false;
+let isLightMode = true;
 let selectedLayerIdx = 0;
 let _lastMarkSig = '';
 
@@ -1594,6 +1594,9 @@ window.addEventListener('load', () => {
   initCM();
   initResizers();
   bindEvents();
+  // Apply default light mode
+  document.body.classList.add('light-mode');
+  document.getElementById('btn-theme-toggle').textContent = '🌙 DARK';
   // Load spec from URL hash if present, otherwise default template
   if (!loadSpecFromHash()) {
     applyTemplate(TEMPLATES[0]); // bar default
@@ -1860,15 +1863,15 @@ function addLayer() {
 
   if (spec.layer) {
     // Already layered — just append a new empty layer
-    spec.layer.push({ "mark": "point", "encoding": {} });
+    spec.layer.push({ "mark": { "type": "point" }, "encoding": {} });
   } else {
-    // Pull out mark-level keys into the first layer
-    const layerKeys = ['mark', 'encoding', 'transform', 'selection', 'params'];
+    // Pull only mark-level keys into the first layer; encoding stays top-level (shared across all layers)
+    const layerKeys = ['mark', 'transform', 'selection', 'params'];
     const firstLayer = {};
     layerKeys.forEach(k => { if (spec[k] !== undefined) { firstLayer[k] = spec[k]; delete spec[k]; } });
     spec.layer = [
       firstLayer,
-      { "mark": "point", "encoding": {} }
+      { "mark": { "type": "point" }, "encoding": {} }
     ];
   }
 
