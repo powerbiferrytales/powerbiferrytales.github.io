@@ -704,6 +704,11 @@ select {
 .mark-type-badge {
   font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent);
 }
+.props-subsection-divider {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em; color: var(--muted);
+  text-transform: uppercase; padding: 8px 0 4px; margin-top: 6px;
+  border-top: 1px solid var(--border);
+}
 
 /* ─── LIGHT MODE ─── */
 html.light-mode, body.light-mode { background: #f0f0f5 !important; }
@@ -3267,6 +3272,249 @@ function _buildCtrlEl(def, markObj) {
   return { wrap, el };
 }
 
+// ── HIGHLIGHT MAX / MIN ───────────────────────────────────────────────
+
+const HL_MARKS      = new Set(['bar','line']); // bar = bar & column charts
+const HL_LINE_MARKS = new Set(['line','area','trail']); // use point-overlay layer approach
+const HL_MAX = '__hl_max__', HL_MIN = '__hl_min__', HL_NRM = '__hl_normal__';
+
+// Detect the quantitative field (and groupby fields) from the spec encoding
+function _detectHlInfo(spec, layerIdx) {
+  const enc = (layerIdx !== null && spec.layer?.[layerIdx])
+    ? (spec.layer[layerIdx].encoding || spec.encoding || {})
+    : (spec.encoding || {});
+  for (const ch of ['x','y','theta','radius','size']) {
+    const e = enc[ch];
+    if (e && e.type === 'quantitative' && e.field) {
+      const groupby = Object.entries(enc)
+        .filter(([k, v]) => k !== ch && k !== 'color' && v?.field && v.type !== 'quantitative' && !v.aggregate)
+        .map(([, v]) => v.field);
+      return { field: e.field, aggregate: e.aggregate || null, groupby, channel: ch };
+    }
+  }
+  return null;
+}
+
+// Read current highlight state from the root spec (works for both bar and line styles)
+function _readHlState(spec) {
+  // Line-style: highlight lives in a named _hl_layer
+  const hlLayer = spec.layer?.find(l => l.name === '_hl_layer');
+  if (hlLayer?.encoding?.color?.field === '_hl_cat') {
+    const domain = hlLayer.encoding.color.scale?.domain || [];
+    const range  = hlLayer.encoding.color.scale?.range  || [];
+    const pick   = (d, def) => { const i = domain.indexOf(d); return i >= 0 ? range[i] : def; };
+    return { active: true, hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
+             maxColor: pick(HL_MAX, '#e05252'), minColor: pick(HL_MIN, '#5289e0') };
+  }
+  // Bar-style: highlight lives in spec.encoding.color
+  const enc    = spec.encoding || {};
+  const active = enc.color?.field === '_hl_cat';
+  const domain = active ? (enc.color.scale?.domain || []) : [];
+  const range  = active ? (enc.color.scale?.range  || []) : [];
+  const pick   = (d, def) => { const i = domain.indexOf(d); return i >= 0 ? range[i] : def; };
+  return { active, hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
+           maxColor: pick(HL_MAX, '#e05252'), minColor: pick(HL_MIN, '#5289e0') };
+}
+
+// Strip all highlight state from spec (transforms, color encoding, injected layer)
+function _removeHlFromSpec(spec) {
+  // Remove _hl_* transforms
+  if (spec.transform) {
+    spec.transform = spec.transform.filter(t => {
+      if (t.joinaggregate?.some(j => j.as?.startsWith('_hl_'))) return false;
+      if (t.as === '_hl_cat') return false;
+      return true;
+    });
+    if (!spec.transform.length) delete spec.transform;
+  }
+  // Remove stack:null we added to prevent stacking warnings
+  [spec.encoding, ...(spec.layer?.map(l => l.encoding) || [])].forEach(enc => {
+    if (!enc) return;
+    for (const ch of ['x','y','theta','radius','size']) {
+      if (enc[ch]?.stack === null) delete enc[ch].stack;
+    }
+  });
+  // Remove bar-style color encoding
+  if (spec.encoding?.color?.field === '_hl_cat') delete spec.encoding.color;
+  spec.layer?.forEach(l => { if (l.name !== '_hl_layer' && l.encoding?.color?.field === '_hl_cat') delete l.encoding.color; });
+  // Remove line-style injected overlay layer, unwrapping if we created the layer spec
+  if (spec.layer) {
+    const hlIdx = spec.layer.findIndex(l => l.name === '_hl_layer');
+    if (hlIdx >= 0) spec.layer.splice(hlIdx, 1);
+    if (spec._hlWrapped && spec.layer.length === 1) {
+      const only = spec.layer[0];
+      if (only.mark      !== undefined) spec.mark     = only.mark;
+      if (only.encoding  !== undefined) spec.encoding = only.encoding;
+      delete spec.layer;
+      delete spec._hlWrapped;
+    }
+  }
+}
+
+// Bar/point/arc/tick style: colour encoding on the mark itself
+function _applyHlBarStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info) {
+  const enc = (layerIdx !== null && spec.layer?.[layerIdx])
+    ? (spec.layer[layerIdx].encoding = spec.layer[layerIdx].encoding || {})
+    : (spec.encoding = spec.encoding || {});
+  const markObj = (layerIdx !== null && spec.layer?.[layerIdx])
+    ? _markObj(spec.layer[layerIdx].mark) : _markObj(spec.mark);
+  const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+  const normalColor = markObj.color || cfg.mark?.color || '#4a90d9';
+
+  if (!spec.transform) spec.transform = [];
+  let testField;
+  if (info.aggregate && info.groupby.length > 0) {
+    const globalOps = [];
+    if (hlMax) globalOps.push({ op: 'max', field: '_hl_grp', as: '_hl_max' });
+    if (hlMin) globalOps.push({ op: 'min', field: '_hl_grp', as: '_hl_min' });
+    spec.transform.push(
+      { joinaggregate: [{ op: info.aggregate, field: info.field, as: '_hl_grp' }], groupby: info.groupby },
+      { joinaggregate: globalOps }
+    );
+    testField = '_hl_grp';
+  } else {
+    const ops = [];
+    if (hlMax) ops.push({ op: 'max', field: info.field, as: '_hl_max' });
+    if (hlMin) ops.push({ op: 'min', field: info.field, as: '_hl_min' });
+    spec.transform.push({ joinaggregate: ops });
+    testField = info.field;
+  }
+  const tf = `datum['${testField}']`;
+  spec.transform.push({ calculate:
+    hlMax && hlMin
+      ? `${tf}===datum['_hl_max']?'${HL_MAX}':${tf}===datum['_hl_min']?'${HL_MIN}':'${HL_NRM}'`
+      : hlMax ? `${tf}===datum['_hl_max']?'${HL_MAX}':'${HL_NRM}'`
+              : `${tf}===datum['_hl_min']?'${HL_MIN}':'${HL_NRM}'`,
+    as: '_hl_cat' });
+
+  const domain = [], range = [];
+  if (hlMax) { domain.push(HL_MAX); range.push(maxColor); }
+  if (hlMin) { domain.push(HL_MIN); range.push(minColor); }
+  domain.push(HL_NRM); range.push(normalColor);
+  enc.color = { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null };
+  // Suppress stacking warning for non-summative aggregates
+  if (enc[info.channel]) enc[info.channel].stack = null;
+}
+
+// Line/area/trail style: inject a point overlay layer so the line stays unbroken
+function _applyHlLineStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info) {
+  if (!spec.transform) spec.transform = [];
+  const ops = [];
+  if (hlMax) ops.push({ op: 'max', field: info.field, as: '_hl_max' });
+  if (hlMin) ops.push({ op: 'min', field: info.field, as: '_hl_min' });
+  spec.transform.push({ joinaggregate: ops });
+
+  const tf = `datum['${info.field}']`;
+  spec.transform.push({ calculate:
+    hlMax && hlMin
+      ? `${tf}===datum['_hl_max']?'${HL_MAX}':${tf}===datum['_hl_min']?'${HL_MIN}':'${HL_NRM}'`
+      : hlMax ? `${tf}===datum['_hl_max']?'${HL_MAX}':'${HL_NRM}'`
+              : `${tf}===datum['_hl_min']?'${HL_MIN}':'${HL_NRM}'`,
+    as: '_hl_cat' });
+
+  const domain = [], range = [];
+  if (hlMax) { domain.push(HL_MAX); range.push(maxColor); }
+  if (hlMin) { domain.push(HL_MIN); range.push(minColor); }
+
+  // Source encoding for x/y comes from the relevant layer (or root)
+  const srcEnc = (layerIdx !== null && spec.layer?.[layerIdx])
+    ? (spec.layer[layerIdx].encoding || spec.encoding || {})
+    : (spec.encoding || {});
+
+  const hlLayer = {
+    name: '_hl_layer',
+    transform: [{ filter: `datum['_hl_cat'] !== '${HL_NRM}'` }],
+    mark: { type: 'point', filled: true, size: 100 },
+    encoding: {
+      x: srcEnc.x, y: srcEnc.y,
+      color: { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null }
+    }
+  };
+
+  if (layerIdx === null || !spec.layer) {
+    // Flat spec (or layerIdx stale after a previous unwrap) → wrap into a layer spec
+    const mainLayer = {};
+    if (spec.mark     !== undefined) { mainLayer.mark     = spec.mark;     delete spec.mark; }
+    if (spec.encoding !== undefined) { mainLayer.encoding = spec.encoding; delete spec.encoding; }
+    spec.layer = [mainLayer, hlLayer];
+    spec._hlWrapped = true;
+  } else {
+    spec.layer.push(hlLayer);
+  }
+}
+
+// Dispatcher
+function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
+  _removeHlFromSpec(spec);
+  if (!hlMax && !hlMin) return;
+  const info = _detectHlInfo(spec, layerIdx);
+  if (!info) return;
+  const markType = (layerIdx !== null && spec.layer?.[layerIdx])
+    ? _markType(spec.layer[layerIdx].mark) : _markType(spec.mark);
+  if (HL_LINE_MARKS.has(markType)) _applyHlLineStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info);
+  else                              _applyHlBarStyle (spec, layerIdx, hlMax, hlMin, maxColor, minColor, info);
+}
+
+// Build the Highlight sub-section inside the marks panel
+function _buildHighlightControls(spec, layerIdx, body) {
+  const markType = (layerIdx !== null && spec.layer?.[layerIdx])
+    ? _markType(spec.layer[layerIdx].mark) : _markType(spec.mark);
+  if (!HL_MARKS.has(markType) || !_detectHlInfo(spec, layerIdx)) return;
+  // Exclude multi-line charts (line mark with a colour field = multiple series)
+  const enc = (layerIdx !== null && spec.layer?.[layerIdx])
+    ? (spec.layer[layerIdx].encoding || spec.encoding || {}) : (spec.encoding || {});
+  if (markType === 'line' && enc.color?.field && enc.color.field !== '_hl_cat') return;
+
+  const st = _readHlState(spec);   // always reads from root spec
+
+  const divider = document.createElement('div');
+  divider.className = 'props-subsection-divider';
+  divider.textContent = 'Highlight';
+  body.appendChild(divider);
+
+  let maxChk, maxCol, minChk, minCol;
+  function applyHlChange() {
+    patchSpec(s => _applyHlToSpec(s, layerIdx, maxChk.checked, minChk.checked, maxCol.value, minCol.value));
+  }
+
+  function buildHlRow(label, checked, colorVal) {
+    const row = document.createElement('div');
+    row.className = 'prop-row';
+    const lbl = document.createElement('span');
+    lbl.className = 'prop-label';
+    lbl.textContent = label;
+    row.appendChild(lbl);
+
+    const ctrl = document.createElement('div');
+    ctrl.className = 'prop-ctrl';
+    ctrl.style.cssText = 'display:flex;align-items:center;gap:6px;';
+
+    const chk = document.createElement('input');
+    chk.type = 'checkbox'; chk.checked = checked;
+    chk.style.cssText = 'accent-color:var(--accent);flex-shrink:0;';
+
+    const col = document.createElement('input');
+    col.type = 'color'; col.value = colorVal;
+    col.style.cssText = `flex:1;height:24px;opacity:${checked ? 1 : 0.35};`;
+    col.disabled = !checked;
+
+    chk.addEventListener('change', () => {
+      col.disabled = !chk.checked;
+      col.style.opacity = chk.checked ? '1' : '0.35';
+      applyHlChange();
+    });
+    col.addEventListener('input', applyHlChange);
+
+    ctrl.appendChild(chk); ctrl.appendChild(col);
+    row.appendChild(ctrl);
+    body.appendChild(row);
+    return { chk, col };
+  }
+
+  ({ chk: maxChk, col: maxCol } = buildHlRow('Max value', st.hlMax, st.maxColor));
+  ({ chk: minChk, col: minCol } = buildHlRow('Min value', st.hlMin, st.minColor));
+}
+
 function rebuildMarkSection(spec) {
   const body = document.querySelector('#ps-marks .props-section-body');
   if (!body) return;
@@ -3320,6 +3568,9 @@ function rebuildMarkSection(spec) {
     row.appendChild(wrap);
     body.appendChild(row);
   });
+
+  // Highlight max/min controls (shown for supported marks with a quantitative field)
+  _buildHighlightControls(spec, layerIdx, body);
 
   _lastMarkSig = _markSig(spec);
 }
