@@ -2670,7 +2670,7 @@ function clearConsole() {
 const LAYER_TEMPLATES = {
   text: {
     mark: { type: "text", fontSize: 11, align: "center" },
-    encoding: { text: { field: "", type: "quantitative", aggregate: "sum", format: ",.0f" } }
+    encoding: { text: { type: "quantitative", format: ",.0f" } }
   },
   bar: {
     mark: { type: "bar" },
@@ -4289,6 +4289,31 @@ function _buildConcatTabs(views) {
   return wrap;
 }
 
+function _getDataFields() {
+  if (userData?.length) return Object.keys(userData[0]);
+  if (!embedResult?.view) return [];
+  // source_0/source_1 may hold Vega's aggregated pipeline data where field names
+  // have been prefixed (e.g. sum_people, mean_yield).  Strip those prefixes and
+  // deduplicate so we always present raw dataset field names to the user.
+  for (const name of ['source_0', 'source_1']) {
+    try {
+      const d = embedResult.view.data(name);
+      if (Array.isArray(d) && d.length) {
+        const keys = Object.keys(d[0]).filter(k => !k.startsWith('_vg'));
+        return [...new Set(keys.map(k => _rawFieldName(k)))];
+      }
+    } catch(_) {}
+  }
+  return [];
+}
+
+// Strip common Vega-Lite aggregate prefixes (e.g. mean_yield → yield)
+function _rawFieldName(f) {
+  const aggs = ['mean','sum','min','max','count','median','q1','q3','distinct','valid','missing','stderr','stdev','variance'];
+  for (const a of aggs) if (f.startsWith(a + '_')) return f.slice(a.length + 1);
+  return f;
+}
+
 function _buildCtrlEl(def, markObj) {
   const wrap = document.createElement('div');
   wrap.className = 'prop-ctrl';
@@ -5005,6 +5030,27 @@ function rebuildMarkSection(spec) {
         target.mark.type = newType;
       }
 
+      // When converting to a text mark, bootstrap encoding.text from the existing
+      // value channel (y/x with an aggregate) so the spec stays valid and renders
+      // immediately — without this, a text mark with no text channel fails to embed
+      // which leaves embedResult null and the mark section never rebuilds.
+      if (newType === 'text') {
+        const enc = layerIdx !== null
+          ? (target.layer[layerIdx].encoding = target.layer[layerIdx].encoding || {})
+          : (target.encoding = target.encoding || {});
+        if (!enc.text) {
+          // Merge root + layer encodings to find a quantitative value channel
+          const rootEnc = target.encoding || {};
+          const lyrEnc  = (layerIdx !== null && target.layer?.[layerIdx]?.encoding) || {};
+          const merged  = { ...rootEnc, ...lyrEnc };
+          const valCh   = ['y', 'x', 'theta', 'radius'].find(ch => merged[ch]?.field);
+          if (valCh) {
+            enc.text = { field: merged[valCh].field, type: 'quantitative', format: ',.0f' };
+            if (merged[valCh].aggregate) enc.text.aggregate = merged[valCh].aggregate;
+          }
+        }
+      }
+
       // Re-apply highlight under the new strategy if it was active and new type supports it
       if (styleChanged && HL_MARKS.has(newType) && oldHlSt.active && (oldHlSt.hlMax || oldHlSt.hlMin)) {
         _applyHlToSpec(target, layerIdx, oldHlSt.hlMax, oldHlSt.hlMin, oldHlSt.maxColor, oldHlSt.minColor);
@@ -5090,8 +5136,65 @@ function rebuildMarkSection(spec) {
     body.appendChild(row);
   });
 
-  // ── Format select (text marks only) ─────────────────────────
+  // ── Text field + format (text marks only) ────────────────────
   if (markType === 'text') {
+    const txtFields = _getDataFields();
+    if (txtFields.length) {
+      const tfRow = document.createElement('div');
+      tfRow.className = 'prop-row';
+      tfRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Field' }));
+      const tfCtrl = document.createElement('div');
+      tfCtrl.className = 'prop-ctrl';
+      const tfSel = document.createElement('select');
+      const tfEmpty = document.createElement('option');
+      tfEmpty.value = ''; tfEmpty.textContent = '—';
+      tfSel.appendChild(tfEmpty);
+      const curTextField = _rawFieldName(_activeEnc.text?.field || '');
+      txtFields.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f; opt.textContent = f;
+        if (f === curTextField) opt.selected = true;
+        tfSel.appendChild(opt);
+      });
+      tfSel.addEventListener('change', () => {
+        patchSpec(ps => {
+          let t = ps;
+          if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+          const enc = layerIdx !== null
+            ? (t.layer[layerIdx].encoding = t.layer[layerIdx].encoding || {})
+            : (t.encoding = t.encoding || {});
+          if (!enc.text || typeof enc.text !== 'object') enc.text = { type: 'quantitative', format: ',.0f' };
+          if (tfSel.value) {
+            // Always write the raw (de-prefixed) field name into the spec.
+            // The dropdown options are deduplicated raw names, but guard here too
+            // in case the value somehow still carries a Vega aggregate prefix.
+            const rawFieldVal = _rawFieldName(tfSel.value);
+            enc.text.field = rawFieldVal;
+            // Match the aggregate the main encoding uses for this field so text
+            // labels show the same value as the bar/line they annotate.
+            const allEncs = [t.encoding, ...(t.layer || []).map(l => l.encoding)].filter(Boolean);
+            let inferredAgg = null;
+            for (const e of allEncs) {
+              for (const ch of ['y','x','theta','radius','size']) {
+                const f = e[ch]?.field;
+                if (f && (f === tfSel.value || f === rawFieldVal) && e[ch]?.aggregate) {
+                  inferredAgg = e[ch].aggregate; break;
+                }
+              }
+              if (inferredAgg) break;
+            }
+            if (inferredAgg) enc.text.aggregate = inferredAgg;
+            else delete enc.text.aggregate;
+          } else {
+            delete enc.text.field;
+            delete enc.text.aggregate;
+          }
+        });
+      });
+      tfCtrl.appendChild(tfSel);
+      tfRow.appendChild(tfCtrl);
+      body.appendChild(tfRow);
+    }
     const fmtRow = document.createElement('div');
     fmtRow.className = 'prop-row';
     fmtRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Format' }));
