@@ -5076,6 +5076,45 @@ function rebuildMarkSection(spec) {
     body.appendChild(row);
   });
 
+  // ── Format select (text marks only) ─────────────────────────
+  if (markType === 'text') {
+    const fmtRow = document.createElement('div');
+    fmtRow.className = 'prop-row';
+    fmtRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Format' }));
+    const fmtCtrl = document.createElement('div');
+    fmtCtrl.className = 'prop-ctrl';
+    const fmtSel = document.createElement('select');
+    const FMT_OPTIONS = [
+      ['', 'Auto'],
+      [',.0f', '1,234'],
+      [',.1f', '1,234.5'],
+      ['.1%', '12.3%'],
+      ['.2s', '1.2M'],
+    ];
+    const curFmt = _activeEnc.text?.format || '';
+    FMT_OPTIONS.forEach(([val, lbl]) => {
+      const opt = document.createElement('option');
+      opt.value = val; opt.textContent = lbl;
+      if (val === curFmt) opt.selected = true;
+      fmtSel.appendChild(opt);
+    });
+    fmtSel.addEventListener('change', () => {
+      patchSpec(ps => {
+        let t = ps;
+        if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+        const enc = layerIdx !== null
+          ? (t.layer[layerIdx].encoding = t.layer[layerIdx].encoding || {})
+          : (t.encoding = t.encoding || {});
+        if (!enc.text || typeof enc.text !== 'object') enc.text = { field: enc.text?.field || '', type: 'quantitative' };
+        if (fmtSel.value) enc.text.format = fmtSel.value;
+        else delete enc.text.format;
+      });
+    });
+    fmtCtrl.appendChild(fmtSel);
+    fmtRow.appendChild(fmtCtrl);
+    body.appendChild(fmtRow);
+  }
+
   // ── Tooltip select (Off / Basic / Advanced) ──────────────────
   const ttRow = document.createElement('div');
   ttRow.className = 'prop-row';
