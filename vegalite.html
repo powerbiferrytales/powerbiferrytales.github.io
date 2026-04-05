@@ -1765,6 +1765,8 @@ const CONFIGS = [
       line: { color: "#00b4d8" },
       point: { color: "#00b4d8" },
       arc:  { color: "#00b4d8" },
+      rule: { color: "#00b4d8" },
+      tick: { color: "#00b4d8" },
       text: { color: "#90b8d4" }
     }
   },
@@ -1790,6 +1792,8 @@ const CONFIGS = [
       line: { color: "#f59e0b" },
       point: { color: "#f59e0b" },
       arc:  { color: "#f59e0b" },
+      rule: { color: "#f59e0b" },
+      tick: { color: "#f59e0b" },
       text: { color: "#9ca3af" }
     }
   },
@@ -1815,6 +1819,8 @@ const CONFIGS = [
       line: { color: "#fb7185" },
       point: { color: "#fb7185" },
       arc:  { color: "#fb7185" },
+      rule: { color: "#fb7185" },
+      tick: { color: "#fb7185" },
       text: { color: "#94a3b8" }
     }
   },
@@ -1840,6 +1846,8 @@ const CONFIGS = [
       line: { color: "#d4a017" },
       point: { color: "#d4a017" },
       arc:  { color: "#d4a017" },
+      rule: { color: "#d4a017" },
+      tick: { color: "#d4a017" },
       text: { color: "#86a789" }
     }
   },
@@ -1866,6 +1874,8 @@ const CONFIGS = [
       line: { color: "#2563eb" },
       point: { color: "#2563eb" },
       arc:  { color: "#2563eb" },
+      rule: { color: "#2563eb" },
+      tick: { color: "#2563eb" },
       text: { color: "#44445a" }
     }
   },
@@ -1891,6 +1901,8 @@ const CONFIGS = [
       line: { color: "#b45309" },
       point: { color: "#b45309" },
       arc:  { color: "#b45309" },
+      rule: { color: "#b45309" },
+      tick: { color: "#b45309" },
       text: { color: "#6b5744" }
     }
   },
@@ -1916,6 +1928,8 @@ const CONFIGS = [
       line: { color: "#be185d" },
       point: { color: "#be185d" },
       arc:  { color: "#be185d" },
+      rule: { color: "#be185d" },
+      tick: { color: "#be185d" },
       text: { color: "#7a3a50" }
     }
   },
@@ -1941,6 +1955,8 @@ const CONFIGS = [
       line: { color: "#0284c7" },
       point: { color: "#0284c7" },
       arc:  { color: "#0284c7" },
+      rule: { color: "#0284c7" },
+      tick: { color: "#0284c7" },
       text: { color: "#475569" }
     }
   }
@@ -2199,7 +2215,6 @@ const MARK_CTRL_DEFS = {
   _common: [
     { prop:'color',   label:'Colour',  ctrl:'color',    default:'#00b4d8' },
     { prop:'opacity', label:'Opacity', ctrl:'range',    min:0, max:1, step:0.05, default:1 },
-    { prop:'tooltip', label:'Tooltip', ctrl:'checkbox', default:false },
   ],
   bar: [
     { prop:'cornerRadius', label:'Corner radius', ctrl:'number', min:0, max:30, placeholder:'0' },
@@ -4325,7 +4340,7 @@ function _hlDefaultColors() {
   };
 }
 
-const HL_MARKS      = new Set(['bar','line']); // bar = bar & column charts
+const HL_MARKS      = new Set(['bar','line','tick','rule']); // bar = bar & column charts
 const HL_LINE_MARKS = new Set(['line','area','trail']); // use point-overlay layer approach
 const HL_MAX = '__hl_max__', HL_MIN = '__hl_min__', HL_NRM = '__hl_normal__';
 
@@ -4796,7 +4811,22 @@ function rebuildMarkSection(spec) {
     typeSel.appendChild(opt);
   });
   typeSel.addEventListener('change', () => {
-    _applyMarkProp('type', typeSel.value, layerIdx, concatIdx);
+    const newType = typeSel.value;
+    patchSpec(ps => {
+      // Clean up any active highlight when switching to a mark type that doesn't support it
+      if (!HL_MARKS.has(newType)) _removeHlFromSpec(ps);
+      // Apply the type change
+      let target = ps;
+      if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) target = vs[concatIdx]; }
+      if (layerIdx !== null && target.layer?.[layerIdx]) {
+        if (typeof target.layer[layerIdx].mark === 'string') target.layer[layerIdx].mark = { type: target.layer[layerIdx].mark };
+        target.layer[layerIdx].mark.type = newType;
+      } else if (!target.layer) {
+        if (typeof target.mark === 'string') target.mark = { type: target.mark };
+        if (!target.mark) target.mark = { type: 'bar' };
+        target.mark.type = newType;
+      }
+    });
   });
   typeCtrl.appendChild(typeSel);
   typeRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Type' }));
@@ -4874,6 +4904,56 @@ function rebuildMarkSection(spec) {
     row.appendChild(wrap);
     body.appendChild(row);
   });
+
+  // ── Tooltip select (Off / Basic / Advanced) ──────────────────
+  const ttRow = document.createElement('div');
+  ttRow.className = 'prop-row';
+  ttRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Tooltip' }));
+  const ttCtrl = document.createElement('div');
+  ttCtrl.className = 'prop-ctrl';
+  const ttSel = document.createElement('select');
+  [['off','Off'],['basic','Basic'],['advanced','Advanced']].forEach(([val, label]) => {
+    const opt = document.createElement('option');
+    opt.value = val; opt.textContent = label;
+    ttSel.appendChild(opt);
+  });
+  // Determine current state
+  const ttEnc = _activeEnc.tooltip;
+  const ttMark = markObj.tooltip;
+  if (ttEnc !== null && ttEnc !== undefined) ttSel.value = 'advanced';
+  else if (ttMark === true)                  ttSel.value = 'basic';
+  else                                       ttSel.value = 'off';
+
+  ttSel.addEventListener('change', () => {
+    patchSpec(ps => {
+      let t = ps;
+      if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+      const mk = layerIdx !== null ? t.layer?.[layerIdx]?.mark : t.mark;
+      const enc = layerIdx !== null
+        ? (t.layer[layerIdx].encoding = t.layer[layerIdx].encoding || {})
+        : (t.encoding = t.encoding || {});
+      // Clear both first
+      if (mk && typeof mk === 'object') delete mk.tooltip;
+      else if (typeof mk === 'string' && layerIdx !== null) { t.layer[layerIdx].mark = { type: mk }; delete t.layer[layerIdx].mark.tooltip; }
+      delete enc.tooltip;
+      if (ttSel.value === 'basic') {
+        // Ensure mark is an object so we can set tooltip: true
+        if (layerIdx !== null) {
+          if (typeof t.layer[layerIdx].mark === 'string') t.layer[layerIdx].mark = { type: t.layer[layerIdx].mark };
+          t.layer[layerIdx].mark.tooltip = true;
+        } else {
+          if (typeof t.mark === 'string') t.mark = { type: t.mark };
+          t.mark.tooltip = true;
+        }
+      } else if (ttSel.value === 'advanced') {
+        const fields = _buildTooltipFields(ps, layerIdx, concatIdx);
+        enc.tooltip = fields;
+      }
+    });
+  });
+  ttCtrl.appendChild(ttSel);
+  ttRow.appendChild(ttCtrl);
+  body.appendChild(ttRow);
 
   // Highlight max/min controls (only for flat/layered specs, not compound)
   if (!concatViews) {
