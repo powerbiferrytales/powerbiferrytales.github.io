@@ -2605,7 +2605,7 @@ async function fitToFrame() {
     vegaBox.innerHTML = '';
     const result = await vegaEmbed('#vega-container', rs, {
       renderer: 'svg',
-      actions: { export: { svg: true, png: true }, source: false, editor: true, compiled: false },
+      actions: false,
     });
     embedResult = result;
     clearErr();
@@ -3617,7 +3617,7 @@ async function renderSpec(cfgOverride = null) {
 
     const result = await vegaEmbed('#vega-container', renderableSpec, {
       renderer: 'svg',
-      actions: { export: { svg: true, png: true }, source: false, editor: true, compiled: false },
+      actions: false,
     });
     embedResult = result;
     clearErr();
