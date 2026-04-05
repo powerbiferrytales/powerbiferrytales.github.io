@@ -2548,8 +2548,7 @@ function shareVisual() {
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
   try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
 
-  const combined  = JSON.stringify({ ...spec, config });
-  const encoded   = LZString.compressToEncodedURIComponent(combined);
+  const encoded   = LZString.compressToEncodedURIComponent(JSON.stringify(spec));
   const lightFlag = isLightMode ? '&light=1' : '';
   const longUrl   = `${location.origin}/viewer.html#spec=${encoded}${lightFlag}`;
 

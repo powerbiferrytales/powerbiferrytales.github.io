@@ -95,11 +95,10 @@
 
       const spec = JSON.parse(decoded);
 
-      // Override fixed dimensions so chart fills the viewer
-      spec.width   = 'container';
-      spec.height  = 'container';
-      delete spec.autosize;
+      // Strip any embedded config — viewer applies its own clean theme
+      delete spec.config;
 
+      // Override fixed dimensions so chart fills the viewer
       const wrap = document.getElementById('chart-wrap');
       const availW = wrap.clientWidth  - 48;
       const availH = wrap.clientHeight - 48;
