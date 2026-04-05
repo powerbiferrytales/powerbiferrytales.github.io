@@ -733,16 +733,6 @@ select {
   width: 100%; height: 24px; border: 1px solid var(--border2);
   border-radius: 3px; background: none; cursor: pointer; padding: 1px;
 }
-.prop-ctrl.has-hex { display: flex; gap: 5px; align-items: center; }
-.prop-ctrl.has-hex input[type="color"] { width: 36px; flex-shrink: 0; }
-.hex-input {
-  flex: 1; min-width: 0;
-  background: var(--surface2); color: var(--text);
-  border: 1px solid var(--border2); border-radius: 3px;
-  padding: 3px 6px; font-size: 12px; font-family: var(--mono);
-  text-transform: uppercase; letter-spacing: 0.04em;
-}
-.hex-input:focus { outline: none; border-color: var(--accent); }
 .prop-ctrl input[type="checkbox"] { cursor: pointer; accent-color: var(--accent); }
 .prop-ctrl input[type="range"] {
   width: 100%; accent-color: var(--accent);
@@ -2368,7 +2358,6 @@ window.addEventListener('load', () => {
   initCM();
   initResizers();
   bindEvents();
-  enhanceColorPickers(document.getElementById('props-body'));
   // Apply default light mode
   document.body.classList.add('light-mode');
   document.getElementById('btn-theme-toggle').textContent = '🌙 DARK';
@@ -3907,58 +3896,6 @@ function patchConfig(fn) {
   renderSpec();
 }
 
-// Pair every .prop-ctrl colour picker with a live hex text input.
-// Safe to call multiple times — already-enhanced pickers are skipped.
-function enhanceColorPickers(root) {
-  (root || document).querySelectorAll('.prop-ctrl input[type="color"]:not([data-hex-enhanced])').forEach(picker => {
-    picker.dataset.hexEnhanced = '1';
-    picker.closest('.prop-ctrl').classList.add('has-hex');
-
-    const hex = document.createElement('input');
-    hex.type = 'text';
-    hex.className = 'hex-input';
-    hex.value = picker.value.toUpperCase();
-    hex.maxLength = 7;
-    hex.spellcheck = false;
-    hex.placeholder = '#000000';
-
-    // picker → hex (live while dragging)
-    picker.addEventListener('input',  () => { hex.value = picker.value.toUpperCase(); });
-    picker.addEventListener('change', () => { hex.value = picker.value.toUpperCase(); });
-
-    // hex → picker (fires existing onchange handlers via dispatched events)
-    hex.addEventListener('input', () => {
-      let v = hex.value.trim();
-      if (!v.startsWith('#')) v = '#' + v;
-      if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-        picker.value = v;
-        picker.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    });
-    hex.addEventListener('change', () => {
-      let v = hex.value.trim();
-      if (!v.startsWith('#')) v = '#' + v;
-      if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-        picker.value = v;
-        hex.value = v.toUpperCase();
-        picker.dispatchEvent(new Event('change', { bubbles: true }));
-      } else {
-        hex.value = picker.value.toUpperCase(); // revert invalid input
-      }
-    });
-
-    picker.insertAdjacentElement('afterend', hex);
-  });
-}
-
-// Sync hex text inputs to match programmatically updated colour pickers.
-function refreshHexInputs(root) {
-  (root || document).querySelectorAll('.prop-ctrl input[type="color"][data-hex-enhanced]').forEach(picker => {
-    const hex = picker.nextElementSibling;
-    if (hex && hex.classList.contains('hex-input')) hex.value = picker.value.toUpperCase();
-  });
-}
-
 // Read configBuffer and populate the config properties panel controls
 function syncConfigProps() {
   let cfg;
@@ -4032,11 +3969,6 @@ function syncConfigProps() {
   if (tl.fontSize) document.getElementById('cp-title-font-size').value = tl.fontSize;
   else document.getElementById('cp-title-font-size').value = '';
   if (tl.anchor) document.getElementById('cp-title-anchor').value = tl.anchor;
-
-  // Ensure all colour pickers in this panel have a paired hex input,
-  // then sync hex inputs to the values just written above
-  enhanceColorPickers(document.getElementById('config-props-body'));
-  refreshHexInputs(document.getElementById('config-props-body'));
 }
 
 // Build (or rebuild) the palette drag-and-drop colour swatches
