@@ -1271,8 +1271,12 @@ body.light-mode .hd-cn { color: #c2410c; }
             </div>
             <div class="prop-row">
               <span class="prop-label">View border</span>
-              <div class="prop-ctrl"><input type="color" id="cp-view-stroke" value="#020d18"
-                onchange="patchConfig(cfg => { if (!cfg.view) cfg.view = {}; cfg.view.stroke = this.value; })"></div>
+              <div class="prop-ctrl" style="display:flex;align-items:center;gap:6px;">
+                <input type="checkbox" id="chk-view-stroke" title="Enable view border"
+                  onchange="patchConfig(cfg => { if (!cfg.view) cfg.view = {}; cfg.view.stroke = this.checked ? document.getElementById('cp-view-stroke').value : null; })">
+                <input type="color" id="cp-view-stroke" value="#cccccc"
+                  onchange="patchConfig(cfg => { if (!cfg.view) cfg.view = {}; cfg.view.stroke = this.value; document.getElementById('chk-view-stroke').checked = true; })">
+              </div>
             </div>
           </div>
         </div>
@@ -1748,7 +1752,7 @@ const CONFIGS = [
     name: "Arctic Blue",
     cfg: {
       background: "#020d18",
-      view: { stroke: "transparent" },
+      view: { stroke: null },
       font: "Calibri, sans-serif",
       axis: {
         labelColor: "#90b8d4", titleColor: "#90b8d4",
@@ -1775,7 +1779,7 @@ const CONFIGS = [
     name: "Midnight",
     cfg: {
       background: "#0a0a0b",
-      view: { stroke: "transparent" },
+      view: { stroke: null },
       font: "Verdana, sans-serif",
       axis: {
         labelColor: "#9ca3af", titleColor: "#9ca3af",
@@ -1802,7 +1806,7 @@ const CONFIGS = [
     name: "Slate & Coral",
     cfg: {
       background: "#0f172a",
-      view: { stroke: "transparent" },
+      view: { stroke: null },
       font: "Gill Sans, Gill Sans MT, sans-serif",
       axis: {
         labelColor: "#94a3b8", titleColor: "#94a3b8",
@@ -1829,7 +1833,7 @@ const CONFIGS = [
     name: "Forest & Gold",
     cfg: {
       background: "#0d1f0d",
-      view: { stroke: "transparent" },
+      view: { stroke: null },
       font: "Trebuchet MS, sans-serif",
       axis: {
         labelColor: "#86a789", titleColor: "#86a789",
@@ -1857,7 +1861,7 @@ const CONFIGS = [
     name: "Clean Light",
     cfg: {
       background: "#ffffff",
-      view: { stroke: "#e2e2ee" },
+      view: { stroke: null },
       font: "Calibri, sans-serif",
       axis: {
         labelColor: "#44445a", titleColor: "#44445a",
@@ -1884,7 +1888,7 @@ const CONFIGS = [
     name: "Warm Sand (Default)",
     cfg: {
       background: "#fdf6ed",
-      view: { stroke: "#e8ddc8" },
+      view: { stroke: null },
       font: "Verdana, sans-serif",
       axis: {
         labelColor: "#6b5744", titleColor: "#6b5744",
@@ -1911,7 +1915,7 @@ const CONFIGS = [
     name: "Soft Rose",
     cfg: {
       background: "#fff5f7",
-      view: { stroke: "#f0d0d8" },
+      view: { stroke: null },
       font: "Trebuchet MS, sans-serif",
       axis: {
         labelColor: "#7a3a50", titleColor: "#7a3a50",
@@ -1938,7 +1942,7 @@ const CONFIGS = [
     name: "Slate Light",
     cfg: {
       background: "#f1f5f9",
-      view: { stroke: "#cbd5e1" },
+      view: { stroke: null },
       font: "Optima, Candara, sans-serif",
       axis: {
         labelColor: "#475569", titleColor: "#475569",
@@ -3931,8 +3935,13 @@ function syncConfigProps() {
   if (bg && /^#[0-9a-fA-F]{6}$/.test(bg))
     document.getElementById('cp-background').value = bg;
   const vs = cfg.view?.stroke;
-  if (vs && /^#[0-9a-fA-F]{6}$/.test(vs))
+  const chkVs = document.getElementById('chk-view-stroke');
+  if (vs && /^#[0-9a-fA-F]{6}$/.test(vs)) {
     document.getElementById('cp-view-stroke').value = vs;
+    if (chkVs) chkVs.checked = true;
+  } else {
+    if (chkVs) chkVs.checked = false;
+  }
 
   // TYPOGRAPHY
   const fontSel = document.getElementById('cp-font');
