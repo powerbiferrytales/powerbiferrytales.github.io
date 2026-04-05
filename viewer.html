@@ -79,7 +79,7 @@
 </div>
 
 <script>
-  (function () {
+  function loadFromHash() {
     try {
       const hash = location.hash;
       if (!hash.startsWith('#spec=')) throw new Error('No spec in URL');
@@ -112,10 +112,18 @@
       }).catch(e => { throw e; });
 
     } catch (e) {
+      document.getElementById('chart').innerHTML = '';
       document.getElementById('chart').style.display = 'none';
       document.getElementById('error').style.display = 'block';
     }
-  })();
+  }
+
+  loadFromHash();
+  window.addEventListener('hashchange', () => {
+    document.getElementById('chart').style.display = '';
+    document.getElementById('error').style.display = 'none';
+    loadFromHash();
+  });
 </script>
 
 </body>
