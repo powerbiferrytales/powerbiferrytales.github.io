@@ -2550,7 +2550,8 @@ function shareVisual() {
 
   const encoded   = LZString.compressToEncodedURIComponent(JSON.stringify(spec));
   const lightFlag = isLightMode ? '&light=1' : '';
-  const longUrl   = `${location.origin}/viewer.html#spec=${encoded}${lightFlag}`;
+  const themeFlag = `&theme=${activeConfigId}`;
+  const longUrl   = `${location.origin}/viewer.html#spec=${encoded}${lightFlag}${themeFlag}`;
 
   const btn  = document.getElementById('btn-share-visual');
   const orig = btn.innerHTML;

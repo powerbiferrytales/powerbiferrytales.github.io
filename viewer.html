@@ -79,24 +79,47 @@
 </div>
 
 <script>
+  const CONFIGS = [
+    { id:"arctic", name:"Arctic Blue", cfg:{ background:"#020d18", view:{stroke:"transparent"}, font:"Calibri, sans-serif", axis:{labelColor:"#90b8d4",titleColor:"#90b8d4",gridColor:"#0d1f2d",domainColor:"#1a3a52",tickColor:"#1a3a52",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#90b8d4",titleColor:"#90b8d4",labelFontSize:11,titleFontSize:11}, title:{color:"#e0f0ff",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#00b4d8","#48cae4","#90e0ef","#ade8f4","#caf0f8","#0077b6","#0096c7","#7b2d8b","#f72585","#4cc9f0"]}, mark:{color:"#00b4d8"}, bar:{color:"#00b4d8"}, line:{color:"#00b4d8"}, point:{color:"#00b4d8"}, arc:{color:"#00b4d8"} } },
+    { id:"midnight", name:"Midnight", cfg:{ background:"#0a0a0b", view:{stroke:"transparent"}, font:"Verdana, sans-serif", axis:{labelColor:"#9ca3af",titleColor:"#9ca3af",gridColor:"#222226",domainColor:"#2e2e34",tickColor:"#2e2e34",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#9ca3af",titleColor:"#9ca3af",labelFontSize:11,titleFontSize:11}, title:{color:"#e4e4e8",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#f59e0b","#60a5fa","#34d399","#a78bfa","#fb923c","#f87171","#38bdf8","#4ade80","#e879f9","#facc15"]}, mark:{color:"#f59e0b"}, bar:{color:"#f59e0b"}, line:{color:"#f59e0b"}, point:{color:"#f59e0b"}, arc:{color:"#f59e0b"} } },
+    { id:"slate", name:"Slate & Coral", cfg:{ background:"#0f172a", view:{stroke:"transparent"}, font:"Gill Sans, Gill Sans MT, sans-serif", axis:{labelColor:"#94a3b8",titleColor:"#94a3b8",gridColor:"#1e293b",domainColor:"#334155",tickColor:"#334155",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#94a3b8",titleColor:"#94a3b8",labelFontSize:11,titleFontSize:11}, title:{color:"#f1f5f9",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#fb7185","#38bdf8","#34d399","#fbbf24","#a78bfa","#f97316","#22d3ee","#4ade80","#e879f9","#facc15"]}, mark:{color:"#fb7185"}, bar:{color:"#fb7185"}, line:{color:"#fb7185"}, point:{color:"#fb7185"}, arc:{color:"#fb7185"} } },
+    { id:"forest", name:"Forest & Gold", cfg:{ background:"#0d1f0d", view:{stroke:"transparent"}, font:"Trebuchet MS, sans-serif", axis:{labelColor:"#86a789",titleColor:"#86a789",gridColor:"#1a2e1a",domainColor:"#2d4a2d",tickColor:"#2d4a2d",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#86a789",titleColor:"#86a789",labelFontSize:11,titleFontSize:11}, title:{color:"#d4edda",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#d4a017","#52b788","#74c69d","#b7e4c7","#f4a261","#e76f51","#2d6a4f","#95d5b2","#ffd166","#06d6a0"]}, mark:{color:"#d4a017"}, bar:{color:"#d4a017"}, line:{color:"#d4a017"}, point:{color:"#d4a017"}, arc:{color:"#d4a017"} } },
+    { id:"clean-light", name:"Clean Light", cfg:{ background:"#ffffff", view:{stroke:"#e2e2ee"}, font:"Calibri, sans-serif", axis:{labelColor:"#44445a",titleColor:"#44445a",gridColor:"#ebebf5",domainColor:"#c8c8dc",tickColor:"#c8c8dc",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#44445a",titleColor:"#44445a",labelFontSize:11,titleFontSize:11}, title:{color:"#1a1a2e",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#2563eb","#16a34a","#dc2626","#d97706","#7c3aed","#0891b2","#be185d","#65a30d","#ea580c","#0d9488"]}, mark:{color:"#2563eb"}, bar:{color:"#2563eb"}, line:{color:"#2563eb"}, point:{color:"#2563eb"}, arc:{color:"#2563eb"} } },
+    { id:"warm-sand", name:"Warm Sand", cfg:{ background:"#fdf6ed", view:{stroke:"#e8ddc8"}, font:"Verdana, sans-serif", axis:{labelColor:"#6b5744",titleColor:"#6b5744",gridColor:"#ede4d4",domainColor:"#d4c4aa",tickColor:"#d4c4aa",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#6b5744",titleColor:"#6b5744",labelFontSize:11,titleFontSize:11}, title:{color:"#3b2a1a",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#b45309","#b91c1c","#047857","#1d4ed8","#7c2d12","#92400e","#065f46","#1e3a8a","#78350f","#374151"]}, mark:{color:"#b45309"}, bar:{color:"#b45309"}, line:{color:"#b45309"}, point:{color:"#b45309"}, arc:{color:"#b45309"} } },
+    { id:"soft-rose", name:"Soft Rose", cfg:{ background:"#fff5f7", view:{stroke:"#f0d0d8"}, font:"Trebuchet MS, sans-serif", axis:{labelColor:"#7a3a50",titleColor:"#7a3a50",gridColor:"#fce4ea",domainColor:"#f0b8c8",tickColor:"#f0b8c8",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#7a3a50",titleColor:"#7a3a50",labelFontSize:11,titleFontSize:11}, title:{color:"#4a1028",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#be185d","#7c3aed","#0891b2","#b45309","#16a34a","#dc2626","#6d28d9","#0e7490","#92400e","#065f46"]}, mark:{color:"#be185d"}, bar:{color:"#be185d"}, line:{color:"#be185d"}, point:{color:"#be185d"}, arc:{color:"#be185d"} } },
+    { id:"slate-light", name:"Slate Light", cfg:{ background:"#f1f5f9", view:{stroke:"#cbd5e1"}, font:"Optima, Candara, sans-serif", axis:{labelColor:"#475569",titleColor:"#475569",gridColor:"#e2e8f0",domainColor:"#cbd5e1",tickColor:"#cbd5e1",labelFontSize:11,titleFontSize:11,titleFontWeight:600}, legend:{labelColor:"#475569",titleColor:"#475569",labelFontSize:11,titleFontSize:11}, title:{color:"#0f172a",fontSize:14,fontWeight:700,anchor:"start",offset:8}, range:{category:["#0284c7","#0d9488","#7c3aed","#dc2626","#d97706","#16a34a","#be185d","#ea580c","#2563eb","#065f46"]}, mark:{color:"#0284c7"}, bar:{color:"#0284c7"}, line:{color:"#0284c7"}, point:{color:"#0284c7"}, arc:{color:"#0284c7"} } }
+  ];
+
   function loadFromHash() {
     try {
       const hash = location.hash;
       if (!hash.startsWith('#spec=')) throw new Error('No spec in URL');
 
-      // Parse light mode flag from hash (after the encoded spec)
+      // Parse flags from hash — strip &light=1 and &theme=xxx, leaving just the encoded spec
       const hashStr = hash.slice(6);
-      const lightMatch = hashStr.match(/&light=1$/);
-      const encoded = lightMatch ? hashStr.slice(0, hashStr.length - lightMatch[0].length) : hashStr;
-      if (lightMatch) document.body.classList.add('light');
+      const lightMatch = hashStr.match(/&light=1/);
+      const themeMatch = hashStr.match(/&theme=([^&]+)/);
+      const themeId    = themeMatch ? themeMatch[1] : null;
+      const encoded    = hashStr.replace(/&light=1/g, '').replace(/&theme=[^&]*/g, '');
 
       const decoded = LZString.decompressFromEncodedURIComponent(encoded);
       if (!decoded) throw new Error('Decompression failed');
 
       const spec = JSON.parse(decoded);
 
-      // Strip any embedded config — viewer applies its own clean theme
-      delete spec.config;
+      // Apply Ferry Tales config if a theme ID was passed, otherwise drop any embedded config
+      const matchedConfig = themeId ? CONFIGS.find(c => c.id === themeId) : null;
+      if (matchedConfig) {
+        spec.config = matchedConfig.cfg;
+        document.body.style.background = matchedConfig.cfg.background || '';
+        document.getElementById('chart-wrap').style.background = matchedConfig.cfg.background || '';
+      } else {
+        delete spec.config;
+      }
+
+      // Apply light-mode body class if requested
+      if (lightMatch) document.body.classList.add('light');
+      else document.body.classList.remove('light');
 
       // Override fixed dimensions so chart fills the viewer
       const wrap = document.getElementById('chart-wrap');
@@ -105,10 +128,13 @@
       spec.width  = Math.round(availW * 0.75);
       spec.height = Math.round(availH * 0.75);
 
+      // Use no vegaEmbed theme when we supply our own config; fall back to dark/default otherwise
+      const embedTheme = matchedConfig ? null : (lightMatch ? 'default' : 'dark');
+
       vegaEmbed('#chart', spec, {
         renderer: 'svg',
         actions: false,
-        theme: lightMatch ? 'default' : 'dark'
+        theme: embedTheme
       }).catch(e => { throw e; });
 
     } catch (e) {
