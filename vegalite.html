@@ -2828,8 +2828,9 @@ function shareVisual() {
   try { config  = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
   // Embed the live config directly in the spec so the viewer always renders
   // with the exact config the user has set, not just the theme default.
+  // &theme= is kept as a fallback for cached/old viewer instances.
   const encoded = LZString.compressToEncodedURIComponent(JSON.stringify({ ...spec, config }));
-  const longUrl = `${location.origin}/viewer.html#spec=${encoded}${isLightMode ? '&light=1' : ''}`;
+  const longUrl = `${location.origin}/viewer.html#spec=${encoded}${isLightMode ? '&light=1' : ''}&theme=${activeConfigId}`;
   showShareFeedback('… SHORTENING', 'var(--dim)', 30000);
   fetch(`https://api.shrtco.de/v2/shorten?url=${encodeURIComponent(longUrl)}`)
     .then(r => r.json())
