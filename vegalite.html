@@ -2558,20 +2558,26 @@ function shareVisual() {
   btn.innerHTML = '… SHORTENING';
   btn.disabled  = true;
 
-  fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`)
-    .then(r => r.ok ? r.text() : Promise.reject())
-    .then(short => navigator.clipboard.writeText(short.trim()))
-    .catch(() => navigator.clipboard.writeText(longUrl))
+  fetch(`https://api.shrtco.de/v2/shorten?url=${encodeURIComponent(longUrl)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) throw new Error('shorten failed');
+      return data.result.full_short_link;
+    })
+    .then(short => navigator.clipboard.writeText(short))
     .then(() => {
       btn.innerHTML = '✓ LINK COPIED!';
       btn.style.borderColor = 'var(--green)';
       btn.style.color = 'var(--green)';
-      setTimeout(() => {
-        btn.innerHTML = orig;
-        btn.style.borderColor = '';
-        btn.style.color = '';
-        btn.disabled = false;
-      }, 2200);
+      setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2200);
+    })
+    .catch(() => {
+      // Shortening failed — copy long URL and tell the user
+      navigator.clipboard.writeText(longUrl);
+      btn.innerHTML = '⚠ LONG LINK COPIED';
+      btn.style.borderColor = 'var(--accent)';
+      btn.style.color = 'var(--accent)';
+      setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2800);
     });
 }
 
