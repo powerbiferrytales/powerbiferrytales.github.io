@@ -738,6 +738,26 @@ select {
   width: 100%; accent-color: var(--accent);
 }
 
+/* ─── CONFIG PALETTE SWATCHES ─── */
+#config-props-body {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 8px 0;
+}
+#props-panel.collapsed #config-props-body { display: none; }
+.cfg-palette {
+  display: flex; flex-wrap: wrap; gap: 5px; padding: 4px 0;
+}
+.cfg-swatch {
+  width: 28px; height: 28px; border-radius: 4px; cursor: pointer;
+  position: relative; border: 1px solid var(--border2);
+  flex-shrink: 0;
+}
+.cfg-swatch.drag-over { outline: 2px solid var(--accent); }
+.cfg-swatch input[type="color"] {
+  opacity: 0; position: absolute; inset: 0; cursor: pointer;
+  width: 100%; height: 100%; padding: 0; border: none;
+}
+
 /* ─── LEFT PANEL & TABS ─── */
 .left-panel { width: 50%; min-width: 200px; flex-shrink: 0; }
 
@@ -1234,6 +1254,166 @@ body.light-mode .hd-cn { color: #c2410c; }
         </div>
 
       </div><!-- /props-body -->
+
+      <!-- ─── CONFIG PROPERTIES PANEL ─── -->
+      <div id="config-props-body" style="display:none;flex:1;overflow-y:auto;overflow-x:hidden;padding:8px 0;">
+
+        <!-- CANVAS -->
+        <div class="props-section" id="cps-canvas">
+          <div class="props-section-head" onclick="toggleSection('cps-canvas')">
+            <span>CANVAS</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Background</span>
+              <div class="prop-ctrl"><input type="color" id="cp-background" value="#020d18"
+                onchange="patchConfig(cfg => { cfg.background = this.value; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">View border</span>
+              <div class="prop-ctrl"><input type="color" id="cp-view-stroke" value="#020d18"
+                onchange="patchConfig(cfg => { if (!cfg.view) cfg.view = {}; cfg.view.stroke = this.value; })"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TYPOGRAPHY -->
+        <div class="props-section" id="cps-typography">
+          <div class="props-section-head" onclick="toggleSection('cps-typography')">
+            <span>TYPOGRAPHY</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Font</span>
+              <div class="prop-ctrl">
+                <select id="cp-font" onchange="patchConfig(cfg => { cfg.font = this.value; })">
+                  <option value="Calibri, sans-serif">Calibri</option>
+                  <option value="Verdana, sans-serif">Verdana</option>
+                  <option value="Trebuchet MS, sans-serif">Trebuchet MS</option>
+                  <option value="Gill Sans, Gill Sans MT, sans-serif">Gill Sans</option>
+                  <option value="Optima, Candara, sans-serif">Optima</option>
+                  <option value="Georgia, serif">Georgia</option>
+                  <option value="Arial, sans-serif">Arial</option>
+                  <option value="Helvetica Neue, Helvetica, sans-serif">Helvetica Neue</option>
+                  <option value="Monaco, Consolas, monospace">Monaco</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MARKS -->
+        <div class="props-section" id="cps-marks">
+          <div class="props-section-head" onclick="toggleSection('cps-marks')">
+            <span>MARKS</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Default colour</span>
+              <div class="prop-ctrl"><input type="color" id="cp-mark-color" value="#4c9be8"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PALETTE -->
+        <div class="props-section" id="cps-palette">
+          <div class="props-section-head" onclick="toggleSection('cps-palette')">
+            <span>PALETTE</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="cfg-palette" id="cp-palette"></div>
+          </div>
+        </div>
+
+        <!-- AXES -->
+        <div class="props-section" id="cps-axes">
+          <div class="props-section-head" onclick="toggleSection('cps-axes')">
+            <span>AXES</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Label colour</span>
+              <div class="prop-ctrl"><input type="color" id="cp-axis-label-color" value="#e4e4e8"
+                onchange="patchConfig(cfg => { if (!cfg.axis) cfg.axis = {}; cfg.axis.labelColor = this.value; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Title colour</span>
+              <div class="prop-ctrl"><input type="color" id="cp-axis-title-color" value="#e4e4e8"
+                onchange="patchConfig(cfg => { if (!cfg.axis) cfg.axis = {}; cfg.axis.titleColor = this.value; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Grid colour</span>
+              <div class="prop-ctrl"><input type="color" id="cp-axis-grid-color" value="#2a3a4a"
+                onchange="patchConfig(cfg => { if (!cfg.axis) cfg.axis = {}; cfg.axis.gridColor = this.value; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Domain colour</span>
+              <div class="prop-ctrl"><input type="color" id="cp-axis-domain-color" value="#2a3a4a"
+                onchange="patchConfig(cfg => { if (!cfg.axis) cfg.axis = {}; cfg.axis.domainColor = this.value; cfg.axis.tickColor = this.value; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Label size</span>
+              <div class="prop-ctrl"><input type="number" id="cp-axis-label-size" min="6" max="32" placeholder="11"
+                onchange="patchConfig(cfg => { if (!cfg.axis) cfg.axis = {}; cfg.axis.labelFontSize = +this.value || undefined; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Title size</span>
+              <div class="prop-ctrl"><input type="number" id="cp-axis-title-size" min="6" max="32" placeholder="12"
+                onchange="patchConfig(cfg => { if (!cfg.axis) cfg.axis = {}; cfg.axis.titleFontSize = +this.value || undefined; })"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LEGEND -->
+        <div class="props-section" id="cps-legend">
+          <div class="props-section-head" onclick="toggleSection('cps-legend')">
+            <span>LEGEND</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Label colour</span>
+              <div class="prop-ctrl"><input type="color" id="cp-legend-label-color" value="#e4e4e8"
+                onchange="patchConfig(cfg => { if (!cfg.legend) cfg.legend = {}; cfg.legend.labelColor = this.value; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Label size</span>
+              <div class="prop-ctrl"><input type="number" id="cp-legend-label-size" min="6" max="32" placeholder="11"
+                onchange="patchConfig(cfg => { if (!cfg.legend) cfg.legend = {}; cfg.legend.labelFontSize = +this.value || undefined; })"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TITLE -->
+        <div class="props-section" id="cps-title">
+          <div class="props-section-head" onclick="toggleSection('cps-title')">
+            <span>TITLE</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Colour</span>
+              <div class="prop-ctrl"><input type="color" id="cp-title-color" value="#e4e4e8"
+                onchange="patchConfig(cfg => { if (!cfg.title) cfg.title = {}; cfg.title.color = this.value; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Font size</span>
+              <div class="prop-ctrl"><input type="number" id="cp-title-font-size" min="6" max="48" placeholder="14"
+                onchange="patchConfig(cfg => { if (!cfg.title) cfg.title = {}; cfg.title.fontSize = +this.value || undefined; })"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Anchor</span>
+              <div class="prop-ctrl">
+                <select id="cp-title-anchor" onchange="patchConfig(cfg => { if (!cfg.title) cfg.title = {}; cfg.title.anchor = this.value; })">
+                  <option value="start">Left</option>
+                  <option value="middle">Centre</option>
+                  <option value="end">Right</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /config-props-body -->
+
     </div><!-- /props-panel -->
 
     <!-- ─── LEFT PANEL (tabbed) ─── -->
@@ -2148,6 +2328,12 @@ function switchEditorView(view) {
   suppressRender = true;
   cmEditor.setValue(view === 'spec' ? specBuffer : configBuffer);
   suppressRender = false;
+
+  // Show the correct properties panel
+  const isConfig = view === 'config';
+  document.getElementById('props-body').style.display        = isConfig ? 'none' : '';
+  document.getElementById('config-props-body').style.display = isConfig ? ''     : 'none';
+  if (isConfig) syncConfigProps();
 
   // Make sure the spec panel is visible
   switchTab('spec');
@@ -3362,10 +3548,12 @@ function hideIS() {
 // ─────────────────────────────────────────────────────────────
 // RENDER
 // ─────────────────────────────────────────────────────────────
-async function renderSpec() {
-  // Sync whichever buffer the user is actively editing
-  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
-  else configBuffer = cmEditor.getValue();
+async function renderSpec(cfgOverride = null) {
+  // Sync whichever buffer the user is actively editing (skip when cfgOverride provided)
+  if (cfgOverride === null) {
+    if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+    else configBuffer = cmEditor.getValue();
+  }
 
   if (!specBuffer.trim()) return;
 
@@ -3376,8 +3564,8 @@ async function renderSpec() {
   // Always render with the active theme — configBuffer is only used when
   // the user is in config view AND has made manual edits
   const activeCfg = CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0];
-  let config = activeCfg.cfg;
-  if (activeEditorView === 'config') {
+  let config = cfgOverride || activeCfg.cfg;
+  if (cfgOverride === null && activeEditorView === 'config') {
     try { config = JSON.parse(configBuffer); }
     catch(e) { /* fall back to active theme if config is mid-edit and invalid */ }
   }
@@ -3665,6 +3853,195 @@ function patchSpec(fn) {
   suppressRender = false;
   _applyPatchHighlight(oldText, specBuffer);
   if (liveMode) renderSpec(); else dot('idle');
+}
+
+// Lightweight live-preview update for rapid input events (colour pickers while dragging).
+// Updates configBuffer only — does NOT touch the editor so patchConfig (onchange) can
+// compute a proper old→new diff and show highlight marks.
+let _liveConfigTimer = null;
+function _liveConfigUpdate(fn) {
+  try {
+    const cfg = JSON.parse(configBuffer);
+    fn(cfg);
+    configBuffer = JSON.stringify(cfg, null, 2);
+    // Pass cfg directly to renderSpec so it doesn't re-read from the editor
+    clearTimeout(_liveConfigTimer);
+    _liveConfigTimer = setTimeout(() => renderSpec(cfg), 80);
+  } catch(_) {}
+}
+
+function patchConfig(fn) {
+  let cfg;
+  try { cfg = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
+  fn(cfg);
+  const oldText = activeEditorView === 'config' ? cmEditor.getValue() : configBuffer;
+  configBuffer = JSON.stringify(cfg, null, 2);
+  if (activeEditorView === 'config') {
+    _clearPatchHighlight();
+    suppressRender = true;
+    cmEditor.setValue(configBuffer);
+    suppressRender = false;
+    _applyPatchHighlight(oldText, configBuffer);
+  }
+  renderSpec();
+}
+
+// Read configBuffer and populate the config properties panel controls
+function syncConfigProps() {
+  let cfg;
+  try { cfg = JSON.parse(configBuffer); } catch(e) { return; }
+
+  // CANVAS
+  const bg = cfg.background;
+  if (bg && /^#[0-9a-fA-F]{6}$/.test(bg))
+    document.getElementById('cp-background').value = bg;
+  const vs = cfg.view?.stroke;
+  if (vs && /^#[0-9a-fA-F]{6}$/.test(vs))
+    document.getElementById('cp-view-stroke').value = vs;
+
+  // TYPOGRAPHY
+  const fontSel = document.getElementById('cp-font');
+  if (cfg.font) {
+    // Try exact match first, then partial
+    let matched = false;
+    for (const opt of fontSel.options) {
+      if (opt.value === cfg.font) { fontSel.value = cfg.font; matched = true; break; }
+    }
+    if (!matched) {
+      for (const opt of fontSel.options) {
+        if (cfg.font.startsWith(opt.value.split(',')[0])) { fontSel.value = opt.value; break; }
+      }
+    }
+  }
+
+  // MARKS
+  const mc = cfg.mark?.color || cfg.bar?.color || cfg.line?.color || cfg.point?.color || cfg.arc?.color;
+  const mcInput = document.getElementById('cp-mark-color');
+  if (mc && /^#[0-9a-fA-F]{6}$/.test(mc)) mcInput.value = mc;
+  mcInput.oninput = () => {
+    const v = mcInput.value;
+    _liveConfigUpdate(c => { ['mark','bar','line','point','arc'].forEach(k => { if(!c[k])c[k]={}; c[k].color=v; }); });
+  };
+  mcInput.onchange = () => {
+    const v = mcInput.value;
+    patchConfig(c => { ['mark','bar','line','point','arc'].forEach(k => { if(!c[k])c[k]={}; c[k].color=v; }); });
+  };
+
+  // PALETTE
+  buildPaletteSwatches(cfg);
+
+  // AXES
+  const ax = cfg.axis || {};
+  if (ax.labelColor && /^#[0-9a-fA-F]{6}$/.test(ax.labelColor))
+    document.getElementById('cp-axis-label-color').value = ax.labelColor;
+  if (ax.titleColor && /^#[0-9a-fA-F]{6}$/.test(ax.titleColor))
+    document.getElementById('cp-axis-title-color').value = ax.titleColor;
+  if (ax.gridColor && /^#[0-9a-fA-F]{6}$/.test(ax.gridColor))
+    document.getElementById('cp-axis-grid-color').value = ax.gridColor;
+  if (ax.domainColor && /^#[0-9a-fA-F]{6}$/.test(ax.domainColor))
+    document.getElementById('cp-axis-domain-color').value = ax.domainColor;
+  if (ax.labelFontSize) document.getElementById('cp-axis-label-size').value = ax.labelFontSize;
+  else document.getElementById('cp-axis-label-size').value = '';
+  if (ax.titleFontSize) document.getElementById('cp-axis-title-size').value = ax.titleFontSize;
+  else document.getElementById('cp-axis-title-size').value = '';
+
+  // LEGEND
+  const lg = cfg.legend || {};
+  if (lg.labelColor && /^#[0-9a-fA-F]{6}$/.test(lg.labelColor))
+    document.getElementById('cp-legend-label-color').value = lg.labelColor;
+  if (lg.labelFontSize) document.getElementById('cp-legend-label-size').value = lg.labelFontSize;
+  else document.getElementById('cp-legend-label-size').value = '';
+
+  // TITLE
+  const tl = cfg.title || {};
+  if (tl.color && /^#[0-9a-fA-F]{6}$/.test(tl.color))
+    document.getElementById('cp-title-color').value = tl.color;
+  if (tl.fontSize) document.getElementById('cp-title-font-size').value = tl.fontSize;
+  else document.getElementById('cp-title-font-size').value = '';
+  if (tl.anchor) document.getElementById('cp-title-anchor').value = tl.anchor;
+}
+
+// Build (or rebuild) the palette drag-and-drop colour swatches
+function buildPaletteSwatches(cfg) {
+  const container = document.getElementById('cp-palette');
+  container.innerHTML = '';
+
+  let colours = cfg.range?.category;
+  if (!Array.isArray(colours) || colours.length === 0) {
+    colours = ['#4c9be8','#e8834c','#50c878','#e84c4c','#c84ce8',
+                '#4ce8d2','#e8d14c','#7b68ee','#ff7f50','#20b2aa'];
+  }
+
+  let dragSrcIdx = null;
+
+  colours.forEach((col, i) => {
+    const swatch = document.createElement('div');
+    swatch.className = 'cfg-swatch';
+    swatch.style.background = col;
+    swatch.draggable = true;
+    swatch.dataset.idx = i;
+
+    const picker = document.createElement('input');
+    picker.type = 'color';
+    // Coerce colour to 6-digit hex for the input
+    try {
+      const tmp = document.createElement('canvas').getContext('2d');
+      if (tmp) { tmp.fillStyle = col; picker.value = tmp.fillStyle; }
+      else picker.value = /^#[0-9a-fA-F]{6}$/.test(col) ? col : '#4c9be8';
+    } catch(_) {
+      picker.value = /^#[0-9a-fA-F]{6}$/.test(col) ? col : '#4c9be8';
+    }
+
+    picker.addEventListener('input', () => {
+      swatch.style.background = picker.value;
+      const v = picker.value;
+      _liveConfigUpdate(cfg => {
+        if (!cfg.range) cfg.range = {};
+        if (!Array.isArray(cfg.range.category)) cfg.range.category = colours.slice();
+        cfg.range.category[i] = v;
+        colours[i] = v;
+      });
+    });
+    picker.addEventListener('change', () => {
+      swatch.style.background = picker.value;
+      const v = picker.value;
+      patchConfig(cfg => {
+        if (!cfg.range) cfg.range = {};
+        if (!Array.isArray(cfg.range.category)) cfg.range.category = colours.slice();
+        cfg.range.category[i] = v;
+        colours[i] = v;
+      });
+    });
+
+    swatch.addEventListener('dragstart', e => {
+      dragSrcIdx = +swatch.dataset.idx;
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    swatch.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      swatch.classList.add('drag-over');
+    });
+    swatch.addEventListener('dragleave', () => swatch.classList.remove('drag-over'));
+    swatch.addEventListener('drop', e => {
+      e.preventDefault();
+      swatch.classList.remove('drag-over');
+      const destIdx = +swatch.dataset.idx;
+      if (dragSrcIdx === null || dragSrcIdx === destIdx) return;
+      patchConfig(cfg => {
+        if (!cfg.range) cfg.range = {};
+        if (!Array.isArray(cfg.range.category)) cfg.range.category = colours.slice();
+        const arr = cfg.range.category;
+        const [moved] = arr.splice(dragSrcIdx, 1);
+        arr.splice(destIdx, 0, moved);
+      });
+      // Rebuild swatches with the new order
+      syncConfigProps();
+    });
+
+    swatch.appendChild(picker);
+    container.appendChild(swatch);
+  });
 }
 
 // Read the current spec + active theme and populate every control
