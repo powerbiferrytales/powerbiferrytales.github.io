@@ -1519,7 +1519,7 @@ const CONFIGS = [
       range: {
         category: ["#00b4d8","#48cae4","#90e0ef","#ade8f4","#caf0f8","#0077b6","#0096c7","#7b2d8b","#f72585","#4cc9f0"]
       },
-      mark: { tooltip: true, color: "#00b4d8" },
+      mark: { color: "#00b4d8" },
       bar:  { color: "#00b4d8" },
       line: { color: "#00b4d8" },
       point: { color: "#00b4d8" },
@@ -1543,7 +1543,7 @@ const CONFIGS = [
       range: {
         category: ["#f59e0b","#60a5fa","#34d399","#a78bfa","#fb923c","#f87171","#38bdf8","#4ade80","#e879f9","#facc15"]
       },
-      mark: { tooltip: true, color: "#f59e0b" },
+      mark: { color: "#f59e0b" },
       bar:  { color: "#f59e0b" },
       line: { color: "#f59e0b" },
       point: { color: "#f59e0b" },
@@ -1567,7 +1567,7 @@ const CONFIGS = [
       range: {
         category: ["#fb7185","#38bdf8","#34d399","#fbbf24","#a78bfa","#f97316","#22d3ee","#4ade80","#e879f9","#facc15"]
       },
-      mark: { tooltip: true, color: "#fb7185" },
+      mark: { color: "#fb7185" },
       bar:  { color: "#fb7185" },
       line: { color: "#fb7185" },
       point: { color: "#fb7185" },
@@ -1591,7 +1591,7 @@ const CONFIGS = [
       range: {
         category: ["#d4a017","#52b788","#74c69d","#b7e4c7","#f4a261","#e76f51","#2d6a4f","#95d5b2","#ffd166","#06d6a0"]
       },
-      mark: { tooltip: true, color: "#d4a017" },
+      mark: { color: "#d4a017" },
       bar:  { color: "#d4a017" },
       line: { color: "#d4a017" },
       point: { color: "#d4a017" },
@@ -1616,7 +1616,7 @@ const CONFIGS = [
       range: {
         category: ["#2563eb","#16a34a","#dc2626","#d97706","#7c3aed","#0891b2","#be185d","#65a30d","#ea580c","#0d9488"]
       },
-      mark: { tooltip: true, color: "#2563eb" },
+      mark: { color: "#2563eb" },
       bar:  { color: "#2563eb" },
       line: { color: "#2563eb" },
       point: { color: "#2563eb" },
@@ -1640,7 +1640,7 @@ const CONFIGS = [
       range: {
         category: ["#b45309","#b91c1c","#047857","#1d4ed8","#7c2d12","#92400e","#065f46","#1e3a8a","#78350f","#374151"]
       },
-      mark: { tooltip: true, color: "#b45309" },
+      mark: { color: "#b45309" },
       bar:  { color: "#b45309" },
       line: { color: "#b45309" },
       point: { color: "#b45309" },
@@ -1664,7 +1664,7 @@ const CONFIGS = [
       range: {
         category: ["#be185d","#7c3aed","#0891b2","#b45309","#16a34a","#dc2626","#6d28d9","#0e7490","#92400e","#065f46"]
       },
-      mark: { tooltip: true, color: "#be185d" },
+      mark: { color: "#be185d" },
       bar:  { color: "#be185d" },
       line: { color: "#be185d" },
       point: { color: "#be185d" },
@@ -1688,7 +1688,7 @@ const CONFIGS = [
       range: {
         category: ["#0284c7","#0d9488","#7c3aed","#dc2626","#d97706","#16a34a","#be185d","#ea580c","#2563eb","#065f46"]
       },
-      mark: { tooltip: true, color: "#0284c7" },
+      mark: { color: "#0284c7" },
       bar:  { color: "#0284c7" },
       line: { color: "#0284c7" },
       point: { color: "#0284c7" },
@@ -1913,7 +1913,7 @@ const MARK_CTRL_DEFS = {
   _common: [
     { prop:'color',   label:'Colour',  ctrl:'color',    default:'#00b4d8' },
     { prop:'opacity', label:'Opacity', ctrl:'range',    min:0, max:1, step:0.05, default:1 },
-    { prop:'tooltip', label:'Tooltip', ctrl:'checkbox', default:true },
+    { prop:'tooltip', label:'Tooltip', ctrl:'checkbox', default:false },
   ],
   bar: [
     { prop:'cornerRadius', label:'Corner radius', ctrl:'number', min:0, max:30, placeholder:'0' },
@@ -3519,9 +3519,9 @@ function syncPropsFromSpec() {
   document.getElementById('pp-x-show').checked     = (xA !== null && xA !== false);
   const xAO  = (xA && typeof xA === 'object') ? xA : {};
   document.getElementById('pp-x-labels').checked   = xAO.labels !== false;
-  document.getElementById('pp-x-title').checked    = (xAO.title !== null && xAO.title !== false);
+  document.getElementById('pp-x-title').checked    = xEnc.title !== null && xAO.title !== null && xAO.title !== false;
   document.getElementById('pp-x-grid').checked     = xAO.grid   !== false;
-  document.getElementById('pp-x-title-text').value = typeof xAO.title === 'string' ? xAO.title : '';
+  document.getElementById('pp-x-title-text').value = typeof xAO.title === 'string' ? xAO.title : (typeof xEnc.title === 'string' ? xEnc.title : '');
 
   // ── Y AXIS ────────────────────────────────────
   const yEnc = _resolveAxisEnc(spec, 'y') || {};
@@ -3529,9 +3529,9 @@ function syncPropsFromSpec() {
   document.getElementById('pp-y-show').checked     = (yA !== null && yA !== false);
   const yAO  = (yA && typeof yA === 'object') ? yA : {};
   document.getElementById('pp-y-labels').checked   = yAO.labels !== false;
-  document.getElementById('pp-y-title').checked    = (yAO.title !== null && yAO.title !== false);
+  document.getElementById('pp-y-title').checked    = yEnc.title !== null && yAO.title !== null && yAO.title !== false;
   document.getElementById('pp-y-grid').checked     = yAO.grid   !== false;
-  document.getElementById('pp-y-title-text').value = typeof yAO.title === 'string' ? yAO.title : '';
+  document.getElementById('pp-y-title-text').value = typeof yAO.title === 'string' ? yAO.title : (typeof yEnc.title === 'string' ? yEnc.title : '');
 
   // ── MARKS ─ dynamic rebuild ───────────────────
   rebuildMarkSection(spec);
@@ -3587,6 +3587,33 @@ function applyAxisProps(axis) {
     if (Object.keys(axObj).length === 0) delete enc.axis;
     else enc.axis = axObj;
   });
+}
+
+// Build a tooltip fields array from the current spec encoding (for the active layer/view)
+function _buildTooltipFields(spec, layerIdx, concatIdx) {
+  let target = spec;
+  if (concatIdx !== null) {
+    const views = spec.vconcat || spec.hconcat || spec.concat;
+    if (views?.[concatIdx]) target = views[concatIdx];
+  }
+  const rootEnc  = target.encoding || {};
+  const layerEnc = (layerIdx !== null && target.layer?.[layerIdx]?.encoding) || {};
+  const enc = { ...rootEnc, ...layerEnc };
+
+  const fields = [];
+  const seen = new Set();
+  for (const ch of ['x','y','color','size','shape','text','detail']) {
+    const e = enc[ch];
+    if (!e?.field || seen.has(e.field)) continue;
+    seen.add(e.field);
+    const entry = { field: e.field };
+    if (e.type)      entry.type   = e.type;
+    if (e.aggregate) entry.aggregate = e.aggregate;
+    entry.title  = e.title  || e.field;
+    entry.format = e.format || '';
+    fields.push(entry);
+  }
+  return fields.length ? fields : true;
 }
 
 // Resolve the encoding object for a given axis channel, searching root → concat views → layers
@@ -3681,7 +3708,8 @@ function _buildCtrlEl(def, markObj) {
     el = document.createElement('input');
     el.type = 'checkbox';
     el.style.accentColor = 'var(--accent)';
-    if (def.prop === 'point') el.checked = val === true || (typeof val === 'object' && val !== null);
+    if (def.prop === 'point' || def.prop === 'tooltip')
+                              el.checked = val === true || (typeof val === 'object' && val !== null);
     else                      el.checked = val != null ? !!val : def.default !== false;
   } else if (def.ctrl === 'select') {
     el = document.createElement('select');
@@ -4167,13 +4195,28 @@ function rebuildMarkSection(spec) {
   typeRow.innerHTML = `<span class="prop-label">Type</span><div class="prop-ctrl"><span class="mark-type-badge">${markType.toUpperCase()}</span></div>`;
   body.appendChild(typeRow);
 
+  // Fill in config-level mark colour as the display default when not set explicitly
+  const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+  const effectiveMarkObj = Object.assign({}, markObj);
+  if (effectiveMarkObj.color == null) effectiveMarkObj.color = cfg.mark?.color;
+
+  // Resolve active encoding for the current view/layer (used for tooltip state)
+  const _activeEnc = (() => {
+    let t = spec;
+    if (concatIdx !== null) { const vs = spec.vconcat||spec.hconcat||spec.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+    const root = t.encoding || {};
+    const lyr  = (layerIdx !== null && t.layer?.[layerIdx]?.encoding) || {};
+    return { ...root, ...lyr };
+  })();
+
   // Controls
   const defs = [...(MARK_CTRL_DEFS._common || []), ...(MARK_CTRL_DEFS[markType] || [])];
   defs.forEach(def => {
     // Skip controls where the current value is an expression/conditional object —
-    // overwriting it with a plain scalar would destroy the conditional logic
+    // overwriting it with a plain scalar would destroy the conditional logic.
+    // Tooltip is exempt — it lives in encoding, not mark, so markObj.tooltip may be an object.
     const rawVal = markObj[def.prop];
-    if (rawVal !== null && rawVal !== undefined && typeof rawVal === 'object') return;
+    if (def.prop !== 'tooltip' && rawVal !== null && rawVal !== undefined && typeof rawVal === 'object') return;
 
     const row = document.createElement('div');
     row.className = 'prop-row';
@@ -4182,9 +4225,32 @@ function rebuildMarkSection(spec) {
     lbl.textContent = def.label;
     row.appendChild(lbl);
 
-    const { wrap, el } = _buildCtrlEl(def, markObj);
+    const { wrap, el } = _buildCtrlEl(def, effectiveMarkObj);
+    // Tooltip lives in encoding.tooltip (supports title/format); also honour mark.tooltip: true
+    if (def.prop === 'tooltip') {
+      const et = _activeEnc.tooltip;
+      const mt = markObj.tooltip;
+      el.checked = mt === true || (et !== null && et !== undefined && typeof et !== 'undefined');
+    }
     const evtName = (def.ctrl === 'color' || def.ctrl === 'range') ? 'input' : 'change';
     el.addEventListener(evtName, () => {
+      if (def.prop === 'tooltip') {
+        const fields = el.checked ? _buildTooltipFields(spec, layerIdx, concatIdx) : null;
+        patchSpec(ps => {
+          let t = ps;
+          if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+          // Clear any mark-level tooltip
+          const mk = layerIdx !== null ? t.layer?.[layerIdx]?.mark : t.mark;
+          if (mk && typeof mk === 'object') delete mk.tooltip;
+          // Write to encoding.tooltip
+          const enc = layerIdx !== null
+            ? (t.layer[layerIdx].encoding = t.layer[layerIdx].encoding || {})
+            : (t.encoding = t.encoding || {});
+          if (fields) enc.tooltip = fields;
+          else delete enc.tooltip;
+        });
+        return;
+      }
       let value;
       if (def.ctrl === 'checkbox') {
         value = def.prop === 'point' ? el.checked : el.checked;
