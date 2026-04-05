@@ -4510,12 +4510,25 @@ function _applyHlBarStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info
 function _applyHlLineStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info) {
   if (!spec.transform) spec.transform = [];
   _liftLayerFilters(spec, layerIdx);
-  const ops = [];
-  if (hlMax) ops.push({ op: 'max', field: info.field, as: '_hl_max' });
-  if (hlMin) ops.push({ op: 'min', field: info.field, as: '_hl_min' });
-  spec.transform.push({ joinaggregate: ops });
+  let testField;
+  if (info.aggregate && info.groupby?.length > 0) {
+    const globalOps = [];
+    if (hlMax) globalOps.push({ op: 'max', field: '_hl_grp', as: '_hl_max' });
+    if (hlMin) globalOps.push({ op: 'min', field: '_hl_grp', as: '_hl_min' });
+    spec.transform.push(
+      { joinaggregate: [{ op: info.aggregate, field: info.field, as: '_hl_grp' }], groupby: info.groupby },
+      { joinaggregate: globalOps }
+    );
+    testField = '_hl_grp';
+  } else {
+    const ops = [];
+    if (hlMax) ops.push({ op: 'max', field: info.field, as: '_hl_max' });
+    if (hlMin) ops.push({ op: 'min', field: info.field, as: '_hl_min' });
+    spec.transform.push({ joinaggregate: ops });
+    testField = info.field;
+  }
 
-  const tf = `datum['${info.field}']`;
+  const tf = `datum['${testField}']`;
   spec.transform.push({ calculate:
     hlMax && hlMin
       ? `${tf}===datum['_hl_max']?'${HL_MAX}':${tf}===datum['_hl_min']?'${HL_MIN}':'${HL_NRM}'`
@@ -4929,11 +4942,19 @@ function rebuildMarkSection(spec) {
   typeSel.addEventListener('change', () => {
     const newType = typeSel.value;
     patchSpec(ps => {
-      // Clean up any active highlight when switching to a mark type that doesn't support it
-      if (!HL_MARKS.has(newType)) _removeHlFromSpec(ps);
-      // Apply the type change
       let target = ps;
       if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) target = vs[concatIdx]; }
+
+      // Read highlight state before changing mark type, so we can re-apply correctly after
+      const oldHlSt = _readLayerHlState(target, layerIdx);
+      const oldStyleIsLine = HL_LINE_MARKS.has(markType);
+      const newStyleIsLine  = HL_LINE_MARKS.has(newType);
+      const styleChanged    = oldStyleIsLine !== newStyleIsLine;
+
+      // Remove highlight if new type doesn't support it, or if the strategy is changing
+      if (!HL_MARKS.has(newType) || styleChanged) _removeHlFromSpec(target);
+
+      // Apply the type change
       if (layerIdx !== null && target.layer?.[layerIdx]) {
         if (typeof target.layer[layerIdx].mark === 'string') target.layer[layerIdx].mark = { type: target.layer[layerIdx].mark };
         target.layer[layerIdx].mark.type = newType;
@@ -4941,6 +4962,11 @@ function rebuildMarkSection(spec) {
         if (typeof target.mark === 'string') target.mark = { type: target.mark };
         if (!target.mark) target.mark = { type: 'bar' };
         target.mark.type = newType;
+      }
+
+      // Re-apply highlight under the new strategy if it was active and new type supports it
+      if (styleChanged && HL_MARKS.has(newType) && oldHlSt.active && (oldHlSt.hlMax || oldHlSt.hlMin)) {
+        _applyHlToSpec(target, layerIdx, oldHlSt.hlMax, oldHlSt.hlMin, oldHlSt.maxColor, oldHlSt.minColor);
       }
     });
   });
