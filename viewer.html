@@ -129,12 +129,12 @@
       if (lightMatch) document.body.classList.add('light');
       else document.body.classList.remove('light');
 
-      // Override fixed dimensions so chart fills the viewer
+      // Use the spec's own dimensions if provided; otherwise fill the viewer
       const wrap = document.getElementById('chart-wrap');
       const availW = wrap.clientWidth  - 48;
       const availH = wrap.clientHeight - 48;
-      spec.width  = Math.round(availW * 0.75);
-      spec.height = Math.round(availH * 0.75);
+      if (typeof spec.width  !== 'number') spec.width  = Math.round(availW * 0.75);
+      if (typeof spec.height !== 'number') spec.height = Math.round(availH * 0.75);
 
       // Suppress vega-embed's built-in theme when we provide our own config
       const embedTheme = (hasInlineConfig || matchedConfig) ? null : (lightMatch ? 'default' : 'dark');

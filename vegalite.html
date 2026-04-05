@@ -1243,6 +1243,14 @@ body.light-mode .hd-cn { color: #c2410c; }
           </div>
           <div class="props-section-body">
             <div class="prop-row">
+              <span class="prop-label">Width</span>
+              <div class="prop-ctrl"><input type="number" id="pp-width" min="1" max="4000" placeholder="auto"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Height</span>
+              <div class="prop-ctrl"><input type="number" id="pp-height" min="1" max="4000" placeholder="auto"></div>
+            </div>
+            <div class="prop-row">
               <span class="prop-label">Padding</span>
               <div class="prop-ctrl"><input type="number" id="pp-padding" min="0" max="100" placeholder="5"></div>
             </div>
@@ -4158,6 +4166,8 @@ function syncPropsFromSpec() {
   document.getElementById('pp-legend-orient').value   = legO.orient || 'right';
 
   // ── LAYOUT ────────────────────────────────────
+  document.getElementById('pp-width').value    = (typeof spec.width === 'number') ? spec.width : '';
+  document.getElementById('pp-height').value   = (typeof spec.height === 'number') ? spec.height : '';
   document.getElementById('pp-padding').value  = spec.padding != null ? spec.padding : '';
   document.getElementById('pp-bg-color').value = cfg.background || '#020d18';
 }
@@ -5365,6 +5375,10 @@ function applyLayoutProps() {
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { return; }
 
+  const w = document.getElementById('pp-width').value;
+  if (w !== '') spec.width = parseInt(w); else delete spec.width;
+  const h = document.getElementById('pp-height').value;
+  if (h !== '') spec.height = parseInt(h); else delete spec.height;
   const p = document.getElementById('pp-padding').value;
   if (p !== '') spec.padding = parseInt(p); else delete spec.padding;
   specBuffer = JSON.stringify(spec, null, 2);
@@ -5424,6 +5438,8 @@ function applyLayoutProps() {
   document.getElementById('pp-legend-orient').addEventListener('change', applyLegendProps);
 
   // Layout
+  document.getElementById('pp-width').addEventListener('change', applyLayoutProps);
+  document.getElementById('pp-height').addEventListener('change', applyLayoutProps);
   document.getElementById('pp-padding').addEventListener('change', applyLayoutProps);
   document.getElementById('pp-bg-color').addEventListener('input', applyLayoutProps);
 })();
