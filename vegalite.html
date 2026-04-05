@@ -1578,7 +1578,7 @@ const CONFIGS = [
       legend: { labelColor: "#90b8d4", titleColor: "#90b8d4", labelFontSize: 11, titleFontSize: 11 },
       title: { color: "#e0f0ff", fontSize: 14, fontWeight: 700, anchor: "start", offset: 8 },
       range: {
-        category: ["#00b4d8","#48cae4","#90e0ef","#ade8f4","#caf0f8","#0077b6","#0096c7","#7b2d8b","#f72585","#4cc9f0"]
+        category: ["#00b4d8","#f72585","#48cae4","#90e0ef","#ade8f4","#caf0f8","#0077b6","#7b2d8b","#0096c7","#4cc9f0"]
       },
       mark: { color: "#00b4d8" },
       bar:  { color: "#00b4d8" },
@@ -1699,7 +1699,7 @@ const CONFIGS = [
       legend: { labelColor: "#6b5744", titleColor: "#6b5744", labelFontSize: 11, titleFontSize: 11 },
       title: { color: "#3b2a1a", fontSize: 14, fontWeight: 700, anchor: "start", offset: 8 },
       range: {
-        category: ["#b45309","#b91c1c","#047857","#1d4ed8","#7c2d12","#92400e","#065f46","#1e3a8a","#78350f","#374151"]
+        category: ["#b45309","#374151","#b91c1c","#047857","#1d4ed8","#7c2d12","#92400e","#065f46","#1e3a8a","#78350f"]
       },
       mark: { color: "#b45309" },
       bar:  { color: "#b45309" },
@@ -1747,7 +1747,7 @@ const CONFIGS = [
       legend: { labelColor: "#475569", titleColor: "#475569", labelFontSize: 11, titleFontSize: 11 },
       title: { color: "#0f172a", fontSize: 14, fontWeight: 700, anchor: "start", offset: 8 },
       range: {
-        category: ["#0284c7","#0d9488","#7c3aed","#dc2626","#d97706","#16a34a","#be185d","#ea580c","#2563eb","#065f46"]
+        category: ["#0284c7","#dc2626","#0d9488","#7c3aed","#d97706","#16a34a","#be185d","#ea580c","#2563eb","#065f46"]
       },
       mark: { color: "#0284c7" },
       bar:  { color: "#0284c7" },
@@ -1805,6 +1805,7 @@ const TEMPLATES = [
   },
   { id:"area", name:"AREA", icon:"▲▲▲",
     spec: { "$schema":SCHEMA, "title":"Stacked Area", "data":{"url":DS+"unemployment-across-industries.json"},
+      "transform":[{"filter":"datum.series === 'Construction' || datum.series === 'Manufacturing'"}],
       "mark":"area",
       "encoding":{ "x":{"field":"date","type":"temporal","timeUnit":"yearmonth"}, "y":{"field":"count","type":"quantitative","aggregate":"sum"}, "color":{"field":"series","type":"nominal"} }
     }
@@ -2522,7 +2523,8 @@ function addLayer(type) {
     const newLayerIdx = spec.layer.length - 1;
     const hlSt = _readHlState(spec);
     if (hlSt.active) {
-      _applyTextHlToSpec(spec, newLayerIdx, '#e05252', 13, '#5289e0', 13);
+      const _hlDefs = _hlDefaultColors();
+      _applyTextHlToSpec(spec, newLayerIdx, _hlDefs.maxColor, 13, _hlDefs.minColor, 13);
     }
   }
 
@@ -3925,6 +3927,17 @@ function _buildCtrlEl(def, markObj) {
 
 // ── HIGHLIGHT MAX / MIN ───────────────────────────────────────────────
 
+// Default highlight colours are drawn from the active theme's category palette
+// so each theme gets a complementary pair without any hardcoding.
+function _hlDefaultColors() {
+  const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+  const cat = cfg.range?.category || [];
+  return {
+    maxColor: cat[1] || '#e05252',
+    minColor: cat[3] || '#5289e0'
+  };
+}
+
 const HL_MARKS      = new Set(['bar','line']); // bar = bar & column charts
 const HL_LINE_MARKS = new Set(['line','area','trail']); // use point-overlay layer approach
 const HL_MAX = '__hl_max__', HL_MIN = '__hl_min__', HL_NRM = '__hl_normal__';
@@ -3955,8 +3968,9 @@ function _readHlState(spec) {
     const domain = hlLayer.encoding.color.scale?.domain || [];
     const range  = hlLayer.encoding.color.scale?.range  || [];
     const pick   = (d, def) => { const i = domain.indexOf(d); return i >= 0 ? range[i] : def; };
+    const defs = _hlDefaultColors();
     return { active: true, hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
-             maxColor: pick(HL_MAX, '#e05252'), minColor: pick(HL_MIN, '#5289e0') };
+             maxColor: pick(HL_MAX, defs.maxColor), minColor: pick(HL_MIN, defs.minColor) };
   }
   // Bar-style: highlight lives in spec.encoding.color OR a layer's encoding.color
   // (addLayer moves it into the layer when converting flat → layered)
@@ -3969,8 +3983,9 @@ function _readHlState(spec) {
   const domain = active ? (enc.color.scale?.domain || []) : [];
   const range  = active ? (enc.color.scale?.range  || []) : [];
   const pick   = (d, def) => { const i = domain.indexOf(d); return i >= 0 ? range[i] : def; };
+  const defs = _hlDefaultColors();
   return { active, hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
-           maxColor: pick(HL_MAX, '#e05252'), minColor: pick(HL_MIN, '#5289e0') };
+           maxColor: pick(HL_MAX, defs.maxColor), minColor: pick(HL_MIN, defs.minColor) };
 }
 
 // Strip all highlight state from spec (transforms, color encoding, injected layer)
@@ -4167,8 +4182,8 @@ function _readTextHlState(spec, layerIdx) {
     return c?.value ?? null;
   };
   return {
-    maxColor: getColor(HL_MAX) || '#e05252',
-    minColor: getColor(HL_MIN) || '#5289e0',
+    maxColor: getColor(HL_MAX) || _hlDefaultColors().maxColor,
+    minColor: getColor(HL_MIN) || _hlDefaultColors().minColor,
     maxSize:  getSize(HL_MAX)  ?? 13,
     minSize:  getSize(HL_MIN)  ?? 13,
   };
@@ -4251,8 +4266,8 @@ function _buildTextHlControls(spec, layerIdx, body) {
   function applyChange() {
     patchSpec(s => _applyTextHlToSpec(
       s, layerIdx,
-      maxCol?.value || '#e05252', maxSz?.value || 13,
-      minCol?.value || '#5289e0', minSz?.value || 13
+      maxCol?.value || _hlDefaultColors().maxColor, maxSz?.value || 13,
+      minCol?.value || _hlDefaultColors().minColor, minSz?.value || 13
     ));
   }
 
