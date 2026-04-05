@@ -4782,10 +4782,25 @@ function rebuildMarkSection(spec) {
     markObj  = _markObj(spec.mark);
   }
 
-  // Mark type badge
+  // Mark type dropdown
   const typeRow = document.createElement('div');
   typeRow.className = 'prop-row';
-  typeRow.innerHTML = `<span class="prop-label">Type</span><div class="prop-ctrl"><span class="mark-type-badge">${markType.toUpperCase()}</span></div>`;
+  const typeCtrl = document.createElement('div');
+  typeCtrl.className = 'prop-ctrl';
+  const typeSel = document.createElement('select');
+  ['bar','line','area','point','arc','text','tick','rect','rule','trail','circle','square'].forEach(t => {
+    const opt = document.createElement('option');
+    opt.value = t;
+    opt.textContent = t.toUpperCase();
+    if (t === markType) opt.selected = true;
+    typeSel.appendChild(opt);
+  });
+  typeSel.addEventListener('change', () => {
+    _applyMarkProp('type', typeSel.value, layerIdx, concatIdx);
+  });
+  typeCtrl.appendChild(typeSel);
+  typeRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Type' }));
+  typeRow.appendChild(typeCtrl);
   body.appendChild(typeRow);
 
   // Fill in config-level mark colour as the display default when not set explicitly
