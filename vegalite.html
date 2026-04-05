@@ -2548,25 +2548,31 @@ function shareVisual() {
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
   try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
 
-  const combined = JSON.stringify({ ...spec, config });
-  const encoded = LZString.compressToEncodedURIComponent(combined);
+  const combined  = JSON.stringify({ ...spec, config });
+  const encoded   = LZString.compressToEncodedURIComponent(combined);
   const lightFlag = isLightMode ? '&light=1' : '';
-  const url = `${location.origin}/viewer.html#spec=${encoded}${lightFlag}`;
+  const longUrl   = `${location.origin}/viewer.html#spec=${encoded}${lightFlag}`;
 
-  navigator.clipboard.writeText(url).then(() => {
-    const btn = document.getElementById('btn-share-visual');
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✓ LINK COPIED!';
-    btn.style.borderColor = 'var(--green)';
-    btn.style.color = 'var(--green)';
-    setTimeout(() => {
-      btn.innerHTML = orig;
-      btn.style.borderColor = '';
-      btn.style.color = '';
-    }, 2200);
-  }).catch(() => {
-    prompt('Copy your shareable visual link:', url);
-  });
+  const btn  = document.getElementById('btn-share-visual');
+  const orig = btn.innerHTML;
+  btn.innerHTML = '… SHORTENING';
+  btn.disabled  = true;
+
+  fetch(`https://is.gd/create.php?format=simple&url=${encodeURIComponent(longUrl)}`)
+    .then(r => r.ok ? r.text() : Promise.reject())
+    .then(short => navigator.clipboard.writeText(short.trim()))
+    .catch(() => navigator.clipboard.writeText(longUrl))
+    .then(() => {
+      btn.innerHTML = '✓ LINK COPIED!';
+      btn.style.borderColor = 'var(--green)';
+      btn.style.color = 'var(--green)';
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.style.borderColor = '';
+        btn.style.color = '';
+        btn.disabled = false;
+      }, 2200);
+    });
 }
 
 function loadSpecFromHash() {
