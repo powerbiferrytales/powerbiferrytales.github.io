@@ -107,9 +107,17 @@
 
       const spec = JSON.parse(decoded);
 
-      // Apply Ferry Tales config if a theme ID was passed, otherwise drop any embedded config
-      const matchedConfig = themeId ? CONFIGS.find(c => c.id === themeId) : null;
-      if (matchedConfig) {
+      // Config priority:
+      //   1. Inline config embedded in the spec (new-style share links) — use as-is.
+      //   2. Named theme via &theme= param (legacy share links) — look up and apply.
+      //   3. Neither — drop any stale embedded config and let vega-embed use its default.
+      const hasInlineConfig = !!spec.config;
+      const matchedConfig   = !hasInlineConfig && themeId ? CONFIGS.find(c => c.id === themeId) : null;
+      if (hasInlineConfig) {
+        const bg = spec.config.background || '';
+        document.body.style.background = bg;
+        document.getElementById('chart-wrap').style.background = bg;
+      } else if (matchedConfig) {
         spec.config = matchedConfig.cfg;
         document.body.style.background = matchedConfig.cfg.background || '';
         document.getElementById('chart-wrap').style.background = matchedConfig.cfg.background || '';
@@ -128,8 +136,8 @@
       spec.width  = Math.round(availW * 0.75);
       spec.height = Math.round(availH * 0.75);
 
-      // Use no vegaEmbed theme when we supply our own config; fall back to dark/default otherwise
-      const embedTheme = matchedConfig ? null : (lightMatch ? 'default' : 'dark');
+      // Suppress vega-embed's built-in theme when we provide our own config
+      const embedTheme = (hasInlineConfig || matchedConfig) ? null : (lightMatch ? 'default' : 'dark');
 
       vegaEmbed('#chart', spec, {
         renderer: 'svg',

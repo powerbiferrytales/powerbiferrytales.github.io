@@ -2823,10 +2823,13 @@ function toggleStudioTheme() {
 function shareVisual() {
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
   else configBuffer = cmEditor.getValue();
-  let spec;
-  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
-  const encoded = LZString.compressToEncodedURIComponent(JSON.stringify(spec));
-  const longUrl = `${location.origin}/viewer.html#spec=${encoded}${isLightMode ? '&light=1' : ''}&theme=${activeConfigId}`;
+  let spec, config;
+  try { spec    = JSON.parse(specBuffer);   } catch(e) { err("Spec: "   + e.message); return; }
+  try { config  = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
+  // Embed the live config directly in the spec so the viewer always renders
+  // with the exact config the user has set, not just the theme default.
+  const encoded = LZString.compressToEncodedURIComponent(JSON.stringify({ ...spec, config }));
+  const longUrl = `${location.origin}/viewer.html#spec=${encoded}${isLightMode ? '&light=1' : ''}`;
   showShareFeedback('… SHORTENING', 'var(--dim)', 30000);
   fetch(`https://api.shrtco.de/v2/shorten?url=${encodeURIComponent(longUrl)}`)
     .then(r => r.json())
