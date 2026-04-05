@@ -84,7 +84,8 @@ html, body { height: 100%; overflow: hidden; background: #050506; color: var(--t
   padding: 0 12px;
   gap: 12px;
   flex-shrink: 0;
-  overflow: hidden;
+  position: relative;
+  z-index: 400;
 }
 
 .logo {
@@ -439,6 +440,27 @@ body.light-mode .cm-patch-highlight-wrap {
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn-primary { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
 .btn-primary:hover { background: rgba(245,158,11,0.2); }
+
+/* Share options dropdown */
+.share-wrap { position: relative; }
+.share-menu {
+  display: none; position: absolute; top: calc(100% + 4px); right: 0; z-index: 300;
+  background: var(--surface); border: 1px solid var(--border2); border-radius: 4px;
+  min-width: 200px; box-shadow: 0 6px 18px rgba(0,0,0,0.3); overflow: hidden;
+}
+.share-menu.open { display: block; }
+.share-opt {
+  display: block; width: 100%; padding: 9px 14px; text-align: left;
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 13.75px; font-family: var(--font); cursor: pointer;
+  letter-spacing: 0.06em; font-weight: 600;
+}
+.share-opt:last-child { border-bottom: none; }
+.share-opt:hover { background: var(--surface2); color: var(--accent); }
+.share-opt-desc {
+  display: block; font-weight: 400; font-size: 12.5px; color: var(--dim);
+  letter-spacing: 0.03em; margin-top: 2px;
+}
 
 /* Add-layer dropdown */
 .add-layer-wrap { position: relative; }
@@ -1027,9 +1049,17 @@ body.light-mode .hd-cn { color: #c2410c; }
     <div class="divider"></div>
     <div class="template-rail" id="template-rail"></div>
     <button class="btn" id="btn-theme-toggle" title="Switch between dark and light mode">☀ LIGHT</button>
-    <button class="btn" id="btn-share" title="Copy spec JSON to clipboard">⬡ SHARE SPEC</button>
-    <button class="btn" id="btn-share-visual" title="Copy shareable link to visual-only viewer">⬡ SHARE VISUAL</button>
-    <button class="btn" id="btn-copy-image" title="Copy chart as PNG image to clipboard">⬡ COPY IMAGE</button>
+    <div class="share-wrap">
+      <button class="btn" id="btn-share-options" title="Share and export options">⬡ SHARE ▾</button>
+      <div class="share-menu" id="share-menu">
+        <button class="share-opt" id="sopt-spec">SHARE SPEC<span class="share-opt-desc">Copy full spec JSON to clipboard</span></button>
+        <button class="share-opt" id="sopt-visual">SHARE VISUAL<span class="share-opt-desc">Copy link to your datavis</span></button>
+        <button class="share-opt" id="sopt-copy-img">COPY IMAGE<span class="share-opt-desc">Copy chart as PNG to clipboard</span></button>
+        <button class="share-opt" id="sopt-save-png">SAVE AS PNG<span class="share-opt-desc">Download chart as PNG file (2×)</span></button>
+        <button class="share-opt" id="sopt-save-svg">SAVE AS SVG<span class="share-opt-desc">Download chart as scalable vector</span></button>
+        <button class="share-opt" id="sopt-vega-editor">OPEN IN VEGA EDITOR<span class="share-opt-desc">Open spec in the online Vega editor</span></button>
+      </div>
+    </div>
     <button class="btn" id="btn-help" title="Open help guide">? HELP</button>
     <a class="btn" href="https://powerbiferrytales.github.io/" target="_blank" rel="noopener" title="Visit Ferry Tales website">⬡ WEBSITE</a>
     <div class="header-btns"></div>
@@ -2506,31 +2536,61 @@ function addLayer(type) {
   renderSpec();
 }
 
+// ─── Share feedback helper ────────────────────────────────────
+let _shareFbTimer = null;
+function showShareFeedback(msg, color = 'var(--green)', duration = 2200) {
+  const btn = document.getElementById('btn-share-options');
+  if (!btn) return;
+  if (_shareFbTimer) clearTimeout(_shareFbTimer);
+  btn.innerHTML = msg;
+  btn.style.borderColor = color;
+  btn.style.color       = color;
+  btn.disabled = true;
+  _shareFbTimer = setTimeout(() => {
+    btn.innerHTML     = '⬡ SHARE ▾';
+    btn.style.borderColor = '';
+    btn.style.color       = '';
+    btn.disabled = false;
+    _shareFbTimer = null;
+  }, duration);
+}
+
+// ─── SVG → PNG blob helper (shared by copy-image and save-png) ─
+function _svgToPngBlob(svgEl, bgColor, scale = 2) {
+  return new Promise((resolve, reject) => {
+    const w = svgEl.viewBox.baseVal.width  || svgEl.clientWidth;
+    const h = svgEl.viewBox.baseVal.height || svgEl.clientHeight;
+    const svgStr  = new XMLSerializer().serializeToString(svgEl);
+    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url     = URL.createObjectURL(svgBlob);
+    const img     = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width  = w * scale;
+      canvas.height = h * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(scale, scale);
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Canvas blob failed')), 'image/png');
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+    img.src = url;
+  });
+}
+
 function shareSpec() {
-  // Ensure both buffers are current
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
   else configBuffer = cmEditor.getValue();
-
   let spec, config;
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
   try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
-
   const combined = JSON.stringify({ ...spec, config }, null, 2);
-
-  navigator.clipboard.writeText(combined).then(() => {
-    const btn = document.getElementById('btn-share');
-    const orig = btn.innerHTML;
-    btn.innerHTML = '✓ COPIED!';
-    btn.style.borderColor = 'var(--green)';
-    btn.style.color = 'var(--green)';
-    setTimeout(() => {
-      btn.innerHTML = orig;
-      btn.style.borderColor = '';
-      btn.style.color = '';
-    }, 2200);
-  }).catch(() => {
-    prompt('Copy your Vega-Lite spec:', combined);
-  });
+  navigator.clipboard.writeText(combined)
+    .then(() => showShareFeedback('✓ SPEC COPIED!'))
+    .catch(() => { prompt('Copy your Vega-Lite spec:', combined); });
 }
 
 function toggleStudioTheme() {
@@ -2544,112 +2604,74 @@ function toggleStudioTheme() {
 function shareVisual() {
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
   else configBuffer = cmEditor.getValue();
-
-  let spec, config;
+  let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
-  try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
-
-  const encoded   = LZString.compressToEncodedURIComponent(JSON.stringify(spec));
-  const lightFlag = isLightMode ? '&light=1' : '';
-  const themeFlag = `&theme=${activeConfigId}`;
-  const longUrl   = `${location.origin}/viewer.html#spec=${encoded}${lightFlag}${themeFlag}`;
-
-  const btn  = document.getElementById('btn-share-visual');
-  const orig = btn.innerHTML;
-  btn.innerHTML = '… SHORTENING';
-  btn.disabled  = true;
-
+  const encoded = LZString.compressToEncodedURIComponent(JSON.stringify(spec));
+  const longUrl = `${location.origin}/viewer.html#spec=${encoded}${isLightMode ? '&light=1' : ''}&theme=${activeConfigId}`;
+  showShareFeedback('… SHORTENING', 'var(--dim)', 30000);
   fetch(`https://api.shrtco.de/v2/shorten?url=${encodeURIComponent(longUrl)}`)
     .then(r => r.json())
-    .then(data => {
-      if (!data.ok) throw new Error('shorten failed');
-      return data.result.full_short_link;
-    })
+    .then(data => { if (!data.ok) throw new Error('failed'); return data.result.full_short_link; })
     .then(short => navigator.clipboard.writeText(short))
-    .then(() => {
-      btn.innerHTML = '✓ LINK COPIED!';
-      btn.style.borderColor = 'var(--green)';
-      btn.style.color = 'var(--green)';
-      setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2200);
-    })
+    .then(() => showShareFeedback('✓ LINK COPIED!'))
     .catch(() => {
-      // Shortening failed — copy long URL and tell the user
       navigator.clipboard.writeText(longUrl);
-      btn.innerHTML = '⚠ LONG LINK COPIED';
-      btn.style.borderColor = 'var(--accent)';
-      btn.style.color = 'var(--accent)';
-      setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2800);
+      showShareFeedback('⚠ LONG LINK COPIED', 'var(--accent)', 2800);
     });
 }
 
+function _chartBg() {
+  return ((CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg.background) || '#000000';
+}
+
 async function copyChartImage() {
-  const btn  = document.getElementById('btn-copy-image');
-  const orig = btn.innerHTML;
-
-  if (!embedResult) {
-    btn.innerHTML = '⚠ NO CHART';
-    btn.style.borderColor = 'var(--err)';
-    btn.style.color = 'var(--err)';
-    setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
-    return;
-  }
-
-  btn.innerHTML = '… COPYING';
-  btn.disabled  = true;
-
+  const svgEl = document.querySelector('#vega-container svg');
+  if (!embedResult || !svgEl) { showShareFeedback('⚠ NO CHART', 'var(--red)', 2000); return; }
+  showShareFeedback('… COPYING', 'var(--dim)', 30000);
   try {
-    // Get the rendered SVG element
-    const svgEl = document.querySelector('#vega-container svg');
-    if (!svgEl) throw new Error('SVG not found');
-
-    const svgW = svgEl.viewBox.baseVal.width  || svgEl.clientWidth;
-    const svgH = svgEl.viewBox.baseVal.height || svgEl.clientHeight;
-    const scale = 2; // retina quality
-
-    // Determine chart background colour from the active config
-    const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
-    const bgColor = cfg.background || '#000000';
-
-    // Serialize SVG to a blob URL
-    const svgStr  = new XMLSerializer().serializeToString(svgEl);
-    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
-    const url     = URL.createObjectURL(svgBlob);
-
-    await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        canvas.width  = svgW * scale;
-        canvas.height = svgH * scale;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(scale, scale);
-        // Fill background first so transparent SVG areas get the theme colour
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, svgW, svgH);
-        ctx.drawImage(img, 0, 0, svgW, svgH);
-        URL.revokeObjectURL(url);
-
-        canvas.toBlob(blob => {
-          if (!blob) { reject(new Error('Canvas blob failed')); return; }
-          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
-            .then(resolve).catch(reject);
-        }, 'image/png');
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
-      img.src = url;
-    });
-
-    btn.innerHTML = '✓ IMAGE COPIED!';
-    btn.style.borderColor = 'var(--green)';
-    btn.style.color = 'var(--green)';
-    setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2200);
-
+    const blob = await _svgToPngBlob(svgEl, _chartBg());
+    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+    showShareFeedback('✓ IMAGE COPIED!');
   } catch(e) {
-    btn.innerHTML = '⚠ COPY FAILED';
-    btn.style.borderColor = 'var(--err)';
-    btn.style.color = 'var(--err)';
-    setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2500);
+    showShareFeedback('⚠ COPY FAILED', 'var(--red)', 2500);
   }
+}
+
+async function savePng() {
+  const svgEl = document.querySelector('#vega-container svg');
+  if (!embedResult || !svgEl) { showShareFeedback('⚠ NO CHART', 'var(--red)', 2000); return; }
+  showShareFeedback('… SAVING', 'var(--dim)', 30000);
+  try {
+    const blob = await _svgToPngBlob(svgEl, _chartBg());
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'chart.png';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showShareFeedback('✓ PNG SAVED!');
+  } catch(e) {
+    showShareFeedback('⚠ SAVE FAILED', 'var(--red)', 2500);
+  }
+}
+
+function saveSvg() {
+  const svgEl = document.querySelector('#vega-container svg');
+  if (!svgEl) { showShareFeedback('⚠ NO CHART', 'var(--red)', 2000); return; }
+  const blob = new Blob([new XMLSerializer().serializeToString(svgEl)], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'chart.svg';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showShareFeedback('✓ SVG SAVED!');
+}
+
+function openInVegaEditor() {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  let spec;
+  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
+  const encoded = LZString.compressToEncodedURIComponent(JSON.stringify(spec, null, 2));
+  window.open(`https://vega.github.io/editor/#/url/vega-lite/${encoded}`, '_blank');
 }
 
 function loadSpecFromHash() {
@@ -2786,10 +2808,26 @@ function bindEvents() {
   });
   document.addEventListener('click', () => {
     document.getElementById('add-layer-menu')?.classList.remove('open');
+    document.getElementById('share-menu')?.classList.remove('open');
   });
-  document.getElementById('btn-share').onclick        = shareSpec;
-  document.getElementById('btn-share-visual').onclick = shareVisual;
-  document.getElementById('btn-copy-image').onclick   = copyChartImage;
+
+  // Share options dropdown
+  document.getElementById('btn-share-options').addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('share-menu').classList.toggle('open');
+  });
+  document.getElementById('share-menu').addEventListener('click', e => e.stopPropagation());
+  const _so = id => fn => document.getElementById(id).addEventListener('click', () => {
+    document.getElementById('share-menu').classList.remove('open');
+    fn();
+  });
+  _so('sopt-spec')(shareSpec);
+  _so('sopt-visual')(shareVisual);
+  _so('sopt-copy-img')(copyChartImage);
+  _so('sopt-save-png')(savePng);
+  _so('sopt-save-svg')(saveSvg);
+  _so('sopt-vega-editor')(openInVegaEditor);
+
   document.getElementById('btn-theme-toggle').onclick = toggleStudioTheme;
   document.getElementById('btn-help').onclick         = () => document.getElementById('help-overlay').classList.remove('hidden');
   document.getElementById('btn-help-close').onclick   = () => document.getElementById('help-overlay').classList.add('hidden');
