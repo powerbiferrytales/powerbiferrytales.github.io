@@ -33,6 +33,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/brace-fold.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/fold/foldgutter.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/edit/matchbrackets.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/searchcursor.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/search/search.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/dialog/dialog.min.css">
 <style>
 :root {
   --bg: #0a0a0b;
@@ -237,6 +241,32 @@ html, body { height: 100%; overflow: hidden; background: #050506; color: var(--t
   min-width: 28px !important;
 }
 .CodeMirror-foldgutter { width: 16px; }
+/* ── Search / Replace dialog ── */
+.CodeMirror-dialog {
+  background: var(--surface2) !important;
+  border-bottom: 1px solid var(--border2) !important;
+  border-top: none !important;
+  padding: 6px 10px !important;
+  font-family: var(--font);
+  font-size: 13px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.CodeMirror-dialog input {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border2) !important;
+  border-radius: 3px;
+  padding: 3px 7px;
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+  min-width: 160px;
+}
+.CodeMirror-dialog input:focus { border-color: var(--accent) !important; }
+.CodeMirror-search-hint { color: var(--muted); font-size: 11px; }
 .CodeMirror-foldgutter-open::after {
   content: '▾'; color: var(--accent); font-size: 13px;
   cursor: pointer; opacity: 0.65;
@@ -1742,12 +1772,6 @@ const TEMPLATES = [
       "encoding":{ "x":{"field":"Horsepower","type":"quantitative"}, "y":{"field":"Miles_per_Gallon","type":"quantitative","title":"MPG"}, "color":{"field":"Origin","type":"nominal"}, "tooltip":[{"field":"Name"},{"field":"Horsepower"},{"field":"Miles_per_Gallon","title":"MPG"},{"field":"Origin"}] }
     }
   },
-  { id:"bubble", name:"BUBBLE", icon:"○●○",
-    spec: { "$schema":SCHEMA, "title":"Bubble Chart", "data":{"url":DS+"cars.json"},
-      "mark":{"type":"point","filled":true,"opacity":0.7},
-      "encoding":{ "x":{"field":"Horsepower","type":"quantitative"}, "y":{"field":"Miles_per_Gallon","type":"quantitative","title":"MPG"}, "size":{"field":"Weight_in_lbs","type":"quantitative","title":"Weight"}, "color":{"field":"Origin","type":"nominal"} }
-    }
-  },
   { id:"area", name:"AREA", icon:"▲▲▲",
     spec: { "$schema":SCHEMA, "title":"Stacked Area", "data":{"url":DS+"unemployment-across-industries.json"},
       "mark":"area",
@@ -2136,6 +2160,7 @@ function initCM() {
       'Esc':   ()  => { if (isState.visible) hideIS(); },
       'Down':  cm  => { if (isState.visible) { isNavigatingIS = true; const n = Math.min(isState.items.length,20); isState.activeIdx=(isState.activeIdx+1)%n; renderIS(); setTimeout(()=>{isNavigatingIS=false;},0); } else cm.execCommand('goLineDown'); },
       'Up':    cm  => { if (isState.visible) { isNavigatingIS = true; const n = Math.min(isState.items.length,20); isState.activeIdx=(isState.activeIdx-1+n)%n; renderIS(); setTimeout(()=>{isNavigatingIS=false;},0); } else cm.execCommand('goLineUp'); },
+
     }
   });
   cmEditor.on('change', () => {
