@@ -4613,6 +4613,18 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
 
   _removeHlFromSpec(spec);
 
+  // _removeHlFromSpec may have unwrapped a _hlWrapped line spec back to flat —
+  // if so, fall back to the simple flat path so _applyHlLineStyle can re-wrap correctly.
+  if (!spec.layer) {
+    if (!hlMax && !hlMin) return;
+    const info = _detectHlInfo(spec, null);
+    if (!info) return;
+    const mt = _markType(spec.mark);
+    if (HL_LINE_MARKS.has(mt)) _applyHlLineStyle(spec, null, hlMax, hlMin, maxColor, minColor, info);
+    else                        _applyHlBarStyle (spec, null, hlMax, hlMin, maxColor, minColor, info);
+    return;
+  }
+
   const toApply = [];
   if (hlMax || hlMin) toApply.push({ layerIdx, hlMax, hlMin, maxColor, minColor });
   otherActive.forEach(s => toApply.push(s));
