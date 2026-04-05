@@ -4340,7 +4340,7 @@ function _hlDefaultColors() {
   };
 }
 
-const HL_MARKS      = new Set(['bar','line','tick','rule']); // bar = bar & column charts
+const HL_MARKS      = new Set(['bar','line','tick','rule','point','circle','square']); // bar = bar & column charts
 const HL_LINE_MARKS = new Set(['line','area','trail']); // use point-overlay layer approach
 const HL_MAX = '__hl_max__', HL_MIN = '__hl_min__', HL_NRM = '__hl_normal__';
 
@@ -4556,14 +4556,104 @@ function _applyHlLineStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, inf
 
 // Dispatcher
 function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
+  // Flat spec: simple path, no sibling layers to preserve
+  if (!spec.layer || layerIdx === null) {
+    _removeHlFromSpec(spec);
+    if (!hlMax && !hlMin) return;
+    const info = _detectHlInfo(spec, layerIdx);
+    if (!info) return;
+    const markType = _markType(spec.mark);
+    if (HL_LINE_MARKS.has(markType)) _applyHlLineStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info);
+    else                              _applyHlBarStyle (spec, layerIdx, hlMax, hlMin, maxColor, minColor, info);
+    return;
+  }
+
+  // Layered spec: save other active bar-style layers' highlight states before wiping
+  const defs = _hlDefaultColors();
+  const otherActive = [];
+  spec.layer.forEach((lyr, i) => {
+    if (i === layerIdx || lyr.name === '_hl_layer') return;
+    const enc = lyr.encoding || {};
+    if (enc.color?.field !== '_hl_cat') return;
+    const domain = enc.color.scale?.domain || [];
+    const range  = enc.color.scale?.range  || [];
+    const pick = (d, def) => { const k = domain.indexOf(d); return k >= 0 ? range[k] : def; };
+    otherActive.push({ layerIdx: i,
+      hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
+      maxColor: pick(HL_MAX, defs.maxColor), minColor: pick(HL_MIN, defs.minColor) });
+  });
+
   _removeHlFromSpec(spec);
-  if (!hlMax && !hlMin) return;
-  const info = _detectHlInfo(spec, layerIdx);
+
+  const toApply = [];
+  if (hlMax || hlMin) toApply.push({ layerIdx, hlMax, hlMin, maxColor, minColor });
+  otherActive.forEach(s => toApply.push(s));
+  if (!toApply.length) return;
+
+  const info = _detectHlInfo(spec, toApply[0].layerIdx);
   if (!info) return;
-  const markType = (layerIdx !== null && spec.layer?.[layerIdx])
-    ? _markType(spec.layer[layerIdx].mark) : _markType(spec.mark);
-  if (HL_LINE_MARKS.has(markType)) _applyHlLineStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info);
-  else                              _applyHlBarStyle (spec, layerIdx, hlMax, hlMin, maxColor, minColor, info);
+
+  // Build shared root transforms once, covering the union of all layers' max/min needs
+  const anyMax = toApply.some(s => s.hlMax);
+  const anyMin = toApply.some(s => s.hlMin);
+  if (!spec.transform) spec.transform = [];
+  _liftLayerFilters(spec, toApply[0].layerIdx);
+  let testField;
+  if (info.aggregate && info.groupby?.length > 0) {
+    const gOps = [];
+    if (anyMax) gOps.push({ op: 'max', field: '_hl_grp', as: '_hl_max' });
+    if (anyMin) gOps.push({ op: 'min', field: '_hl_grp', as: '_hl_min' });
+    spec.transform.push(
+      { joinaggregate: [{ op: info.aggregate, field: info.field, as: '_hl_grp' }], groupby: info.groupby },
+      { joinaggregate: gOps }
+    );
+    testField = '_hl_grp';
+  } else {
+    const ops = [];
+    if (anyMax) ops.push({ op: 'max', field: info.field, as: '_hl_max' });
+    if (anyMin) ops.push({ op: 'min', field: info.field, as: '_hl_min' });
+    spec.transform.push({ joinaggregate: ops });
+    testField = info.field;
+  }
+  const tf = `datum['${testField}']`;
+  spec.transform.push({ calculate:
+    anyMax && anyMin
+      ? `${tf}===datum['_hl_max']?'${HL_MAX}':${tf}===datum['_hl_min']?'${HL_MIN}':'${HL_NRM}'`
+      : anyMax ? `${tf}===datum['_hl_max']?'${HL_MAX}':'${HL_NRM}'`
+              : `${tf}===datum['_hl_min']?'${HL_MIN}':'${HL_NRM}'`,
+    as: '_hl_cat' });
+
+  // Apply independent per-layer colour encodings
+  const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+  for (const s of toApply) {
+    const lyr = spec.layer[s.layerIdx];
+    if (!lyr) continue;
+    const lyrMarkType = _markType(lyr.mark);
+    if (HL_LINE_MARKS.has(lyrMarkType)) {
+      const domain = [], range = [];
+      if (s.hlMax) { domain.push(HL_MAX); range.push(s.maxColor); }
+      if (s.hlMin) { domain.push(HL_MIN); range.push(s.minColor); }
+      const srcEnc = lyr.encoding || spec.encoding || {};
+      spec.layer.push({
+        name: '_hl_layer',
+        transform: [{ filter: `datum['_hl_cat'] !== '${HL_NRM}'` }],
+        mark: { type: 'point', filled: true, size: 100 },
+        encoding: { x: srcEnc.x, y: srcEnc.y,
+          color: { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null } }
+      });
+    } else {
+      const markObj = _markObj(lyr.mark);
+      const normalColor = markObj.color || cfg.mark?.color || '#4a90d9';
+      const domain = [], range = [];
+      if (s.hlMax) { domain.push(HL_MAX); range.push(s.maxColor); }
+      if (s.hlMin) { domain.push(HL_MIN); range.push(s.minColor); }
+      domain.push(HL_NRM); range.push(normalColor);
+      lyr.encoding = lyr.encoding || {};
+      lyr.encoding.color = { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null };
+      const quantEnc = lyr.encoding[info.channel] ? lyr.encoding : (spec.encoding || {});
+      if (quantEnc[info.channel]) quantEnc[info.channel].stack = null;
+    }
+  }
 }
 
 // ── Text-layer highlight label styling ─────────────────────────────────────
@@ -4699,6 +4789,32 @@ function _buildTextHlControls(spec, layerIdx, body) {
   if (hlSt.hlMin) ({ col: minCol, sz: minSz } = buildRow('Min label', txSt.minColor, txSt.minSize));
 }
 
+// Read highlight state for a specific layer (not the first _hl_cat layer found)
+function _readLayerHlState(spec, layerIdx) {
+  const defs = _hlDefaultColors();
+  if (layerIdx !== null && spec.layer?.[layerIdx]) {
+    if (HL_LINE_MARKS.has(_markType(spec.layer[layerIdx].mark))) {
+      const hlLayer = spec.layer.find(l => l.name === '_hl_layer');
+      if (hlLayer?.encoding?.color?.field === '_hl_cat') {
+        const domain = hlLayer.encoding.color.scale?.domain || [];
+        const range  = hlLayer.encoding.color.scale?.range  || [];
+        const pick = (d, def) => { const i = domain.indexOf(d); return i >= 0 ? range[i] : def; };
+        return { active: true, hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
+                 maxColor: pick(HL_MAX, defs.maxColor), minColor: pick(HL_MIN, defs.minColor) };
+      }
+      return { active: false, hlMax: false, hlMin: false, maxColor: defs.maxColor, minColor: defs.minColor };
+    }
+    const enc = spec.layer[layerIdx].encoding || {};
+    const active = enc.color?.field === '_hl_cat';
+    const domain = active ? (enc.color.scale?.domain || []) : [];
+    const range  = active ? (enc.color.scale?.range  || []) : [];
+    const pick = (d, def) => { const i = domain.indexOf(d); return i >= 0 ? range[i] : def; };
+    return { active, hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
+             maxColor: pick(HL_MAX, defs.maxColor), minColor: pick(HL_MIN, defs.minColor) };
+  }
+  return _readHlState(spec);
+}
+
 // Build the Highlight sub-section inside the marks panel
 function _buildHighlightControls(spec, layerIdx, body) {
   const markType = (layerIdx !== null && spec.layer?.[layerIdx])
@@ -4709,7 +4825,7 @@ function _buildHighlightControls(spec, layerIdx, body) {
     ? (spec.layer[layerIdx].encoding || spec.encoding || {}) : (spec.encoding || {});
   if (markType === 'line' && enc.color?.field && enc.color.field !== '_hl_cat') return;
 
-  const st = _readHlState(spec);   // always reads from root spec
+  const st = _readLayerHlState(spec, layerIdx);
 
   const divider = document.createElement('div');
   divider.className = 'props-subsection-divider';
