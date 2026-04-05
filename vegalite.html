@@ -2221,12 +2221,14 @@ const MARK_CTRL_DEFS = {
   ],
   line: [
     { prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0.5, max:20, step:0.5, placeholder:'2' },
+    { prop:'strokeDash',  label:'Dash style',   ctrl:'strokedash' },
     { prop:'point',       label:'Show points',  ctrl:'checkbox', default:false },
     { prop:'interpolate', label:'Curve',        ctrl:'select',
       options:['linear','monotone','step','step-before','step-after','basis','cardinal','catmull-rom'] },
   ],
   area: [
     { prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0, max:20, step:0.5, placeholder:'0' },
+    { prop:'strokeDash',  label:'Dash style',   ctrl:'strokedash' },
     { prop:'fillOpacity', label:'Fill opacity', ctrl:'range',  min:0, max:1, step:0.05, default:1 },
     { prop:'interpolate', label:'Curve',        ctrl:'select',
       options:['linear','monotone','step','step-before','step-after','basis'] },
@@ -2263,13 +2265,17 @@ const MARK_CTRL_DEFS = {
     { prop:'thickness', label:'Thickness', ctrl:'number', min:1, max:20, placeholder:'1' },
     { prop:'bandSize',  label:'Band size', ctrl:'number', min:0, max:50, placeholder:'auto' },
   ],
-  rule:      [{ prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0.5, max:20, step:0.5, placeholder:'1' }],
+  rule:      [
+    { prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0.5, max:20, step:0.5, placeholder:'1' },
+    { prop:'strokeDash',  label:'Dash style',   ctrl:'strokedash' },
+  ],
   boxplot:   [],
   errorband: [],
   errorbar:  [],
   geoshape:  [],
   trail:     [
     { prop:'strokeWidth', label:'Stroke width', ctrl:'number', min:0.5, max:20, step:0.5, placeholder:'2' },
+    { prop:'strokeDash',  label:'Dash style',   ctrl:'strokedash' },
   ],
 };
 
@@ -4314,6 +4320,15 @@ function _buildCtrlEl(def, markObj) {
       if ((val || def.default || def.options[0]) === o) opt.selected = true;
       el.appendChild(opt);
     });
+  } else if (def.ctrl === 'strokedash') {
+    el = document.createElement('select');
+    const currentStr = Array.isArray(val) ? val.join(',') : '';
+    [['','Solid'],['4,2','— Dashed'],['8,4','— Long dash'],['2,2','··· Dotted'],['8,2,2,2','—·— Dash-dot']].forEach(([v, lbl]) => {
+      const opt = document.createElement('option');
+      opt.value = v; opt.textContent = lbl;
+      if (v === currentStr) opt.selected = true;
+      el.appendChild(opt);
+    });
   } else {                          // number
     el = document.createElement('input');
     el.type = 'number';
@@ -4996,7 +5011,7 @@ function rebuildMarkSection(spec) {
     // overwriting it with a plain scalar would destroy the conditional logic.
     // Tooltip is exempt — it lives in encoding, not mark, so markObj.tooltip may be an object.
     const rawVal = markObj[def.prop];
-    if (def.prop !== 'tooltip' && rawVal !== null && rawVal !== undefined && typeof rawVal === 'object') return;
+    if (def.prop !== 'tooltip' && def.prop !== 'strokeDash' && rawVal !== null && rawVal !== undefined && typeof rawVal === 'object') return;
 
     const row = document.createElement('div');
     row.className = 'prop-row';
@@ -5038,6 +5053,8 @@ function rebuildMarkSection(spec) {
         value = el.value !== '' ? parseFloat(el.value) : null;
       } else if (def.ctrl === 'range') {
         value = parseFloat(el.value);
+      } else if (def.ctrl === 'strokedash') {
+        value = el.value ? el.value.split(',').map(Number) : null;
       } else {
         value = el.value;
       }
