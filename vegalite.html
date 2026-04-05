@@ -1809,6 +1809,87 @@ const TEMPLATES = [
       }
     }
   },
+  { id:"donut", name:"DONUT", icon:"◎",
+    spec: { "$schema":SCHEMA, "title":"Population Under 25 · USA 2000", "data":{"url":DS+"population.json"},
+      "transform":[
+        {"filter":"datum.year === 2000"},
+        {"calculate":"datum.age < 30 ? datum.people : 0","as":"_u25"},
+        {"joinaggregate":[{"op":"sum","field":"people","as":"_total"},{"op":"sum","field":"_u25","as":"_under25"}]},
+        {"filter":"datum.age === 0 && datum.sex === 1"},
+        {"calculate":"datum._under25 / datum._total * 100","as":"value"}
+      ],
+      "width":200, "height":200, "view":{"stroke":null},
+      "layer":[
+        {
+          "mark":{"type":"arc","outerRadius":90,"innerRadius":89,"color":"#555555"}
+        },
+        {
+          "mark":{"type":"arc","outerRadius":100,"innerRadius":80},
+          "encoding":{
+            "theta":{"field":"value","type":"quantitative","scale":{"domain":[0,100]}}
+          }
+        },
+        {
+          "transform":[{"calculate":"datum.value / 100","as":"_pct"}],
+          "mark":{"type":"text","radius":0,"fontSize":35,"fontWeight":700},
+          "encoding":{
+            "text":{"field":"_pct","type":"quantitative","aggregate":"sum","format":".0%"},
+            "theta":{"field":"value","type":"quantitative","scale":{"domain":[0,100]}}
+          }
+        }
+      ]
+    }
+  },
+  { id:"kpi", name:"KPI CARD", icon:"▭①",
+    spec: { "$schema":SCHEMA, "data":{"url":DS+"unemployment-across-industries.json"},
+      "transform":[
+        {"filter":"datum.series === 'Construction'"},
+        {"timeUnit":"year","field":"date","as":"_yr"},
+        {"aggregate":[{"op":"mean","field":"rate","as":"_avg"}],"groupby":["_yr"]},
+        {"window":[{"op":"lag","field":"_avg","as":"_prev","param":1}],"sort":[{"field":"_yr"}]},
+        {"calculate":"datum._prev ? (datum._avg - datum._prev) / datum._prev : 0","as":"_yoy"},
+        {"window":[{"op":"rank","as":"_rank"}],"sort":[{"field":"_avg","order":"descending"}]}
+      ],
+      "title":{"text":"Unemployment Rate","subtitle":"Construction","fontSize":25,"subtitleFontSize":14,"color":"#454545","subtitleColor":"#888888","anchor":"start"},
+      "width":300,
+      "spacing":8,
+      "vconcat":[
+        {
+          "height":63,
+          "transform":[
+            {"window":[{"op":"row_number","as":"_rn"}],"sort":[{"field":"_yr","order":"descending"}]},
+            {"filter":"datum._rn === 1"}
+          ],
+          "mark":{"type":"text","fontWeight":600,"size":48,"color":"#454545","align":"left"},
+          "encoding":{"text":{"field":"_avg","type":"quantitative","format":".1f"}}
+        },
+        {
+          "height":31,
+          "transform":[
+            {"window":[{"op":"row_number","as":"_rn"}],"sort":[{"field":"_yr","order":"descending"}]},
+            {"filter":"datum._rn === 1"},
+            {"calculate":"(datum._yoy >= 0 ? '+' : '') + format(datum._yoy,',.1%') + ' vs PY'","as":"_label"}
+          ],
+          "mark":{"type":"text","align":"left","size":23,"color":{"expr":"datum._yoy >= 0 ? 'green' : 'red'"}},
+          "encoding":{"text":{"field":"_label"}}
+        },
+        {
+          "height":125,
+          "layer":[
+            {"mark":{"type":"line","tooltip":true,"color":"#454545","strokeWidth":2}},
+            {"mark":{"type":"point","filled":true,"opacity":1,
+              "size":{"expr":"datum._rank === 1 ? 125 : 0"},
+              "color":{"expr":"datum._rank === 1 ? '#ec7629' : '#454545'"}
+            }}
+          ],
+          "encoding":{
+            "x":{"field":"_yr","type":"temporal","title":null,"axis":{"format":"%Y","labelAngle":0,"grid":false}},
+            "y":{"field":"_avg","type":"quantitative","title":null,"axis":{"title":null,"grid":false}}
+          }
+        }
+      ]
+    }
+  },
   { id:"blank", name:"BLANK", icon:"◻",
     spec: { "$schema":SCHEMA, "title":"My Chart",
       "data":{"name":"dataset"},
@@ -1908,6 +1989,7 @@ let activeConfigId = 'warm-sand';
 let configBuffer = JSON.stringify(CONFIGS.find(c => c.id === 'warm-sand').cfg, null, 2);
 let isLightMode = true;
 let selectedLayerIdx = 0;
+let selectedConcatIdx = 0;
 let _lastMarkSig = '';
 
 // ─────────────────────────────────────────────────────────────
@@ -2621,13 +2703,16 @@ function applyTemplate(t) {
     dbBadge.textContent = '';
   }
 
+  selectedConcatIdx = 0;
+  selectedLayerIdx  = 0;
+
   let spec = JSON.parse(JSON.stringify(t.spec));
   const activeCfg = CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0];
   spec.config = activeCfg.cfg;
   configBuffer = JSON.stringify(activeCfg.cfg, null, 2);
 
   // Facet/repeat: turn fit OFF before render. Everything else: turn fit ON.
-  const isMultiView = !!(t.spec.facet || t.spec.repeat || t.spec.encoding?.facet);
+  const isMultiView = !!(t.spec.facet || t.spec.repeat || t.spec.encoding?.facet || t.spec.vconcat || t.spec.hconcat || t.spec.concat);
   if (isMultiView) {
     fitState.active = false;
     fitState.width  = null;
@@ -3429,7 +3514,7 @@ function syncPropsFromSpec() {
   document.getElementById('pp-title-color').dataset.lastSync = syncedTitleColor;
 
   // ── X AXIS ────────────────────────────────────
-  const xEnc = (spec.encoding && spec.encoding.x) ? spec.encoding.x : {};
+  const xEnc = _resolveAxisEnc(spec, 'x') || {};
   const xA   = xEnc.axis;
   document.getElementById('pp-x-show').checked     = (xA !== null && xA !== false);
   const xAO  = (xA && typeof xA === 'object') ? xA : {};
@@ -3439,7 +3524,7 @@ function syncPropsFromSpec() {
   document.getElementById('pp-x-title-text').value = typeof xAO.title === 'string' ? xAO.title : '';
 
   // ── Y AXIS ────────────────────────────────────
-  const yEnc = (spec.encoding && spec.encoding.y) ? spec.encoding.y : {};
+  const yEnc = _resolveAxisEnc(spec, 'y') || {};
   const yA   = yEnc.axis;
   document.getElementById('pp-y-show').checked     = (yA !== null && yA !== false);
   const yAO  = (yA && typeof yA === 'object') ? yA : {};
@@ -3486,8 +3571,8 @@ function applyTitleProps() {
 
 function applyAxisProps(axis) {
   patchSpec(spec => {
-    if (!spec.encoding || !spec.encoding[axis]) return;
-    const enc  = spec.encoding[axis];
+    const enc = _resolveAxisEnc(spec, axis);
+    if (!enc) return;
     const show = document.getElementById('pp-' + axis + '-show').checked;
     if (!show) { enc.axis = null; return; }
     const labels    = document.getElementById('pp-' + axis + '-labels').checked;
@@ -3504,6 +3589,28 @@ function applyAxisProps(axis) {
   });
 }
 
+// Resolve the encoding object for a given axis channel, searching root → concat views → layers
+function _resolveAxisEnc(spec, axis) {
+  if (spec.encoding?.[axis]) return spec.encoding[axis];
+  const views = spec.vconcat || spec.hconcat || spec.concat;
+  if (views) {
+    for (const view of views) {
+      if (view.encoding?.[axis]) return view.encoding[axis];
+      if (view.layer) {
+        for (const lyr of view.layer) {
+          if (lyr.encoding?.[axis]) return lyr.encoding[axis];
+        }
+      }
+    }
+  }
+  if (spec.layer) {
+    for (const lyr of spec.layer) {
+      if (lyr.encoding?.[axis]) return lyr.encoding[axis];
+    }
+  }
+  return null;
+}
+
 // ── Dynamic mark helpers ───────────────────────────────────────
 function _markType(mark) {
   return (typeof mark === 'string' ? mark : (mark && mark.type)) || 'bar';
@@ -3512,6 +3619,8 @@ function _markObj(mark) {
   return (typeof mark === 'object' && mark !== null) ? mark : {};
 }
 function _markSig(spec) {
+  const views = spec && (spec.vconcat || spec.hconcat || spec.concat);
+  if (views) return 'concat:' + views.map(v => v.layer ? v.layer.map(l => _markType(l.mark)).join('+') : _markType(v.mark)).join(',');
   if (spec && spec.layer) return 'layer:' + spec.layer.map(l => _markType(l.mark)).join(',');
   return spec ? _markType(spec.mark) : '';
 }
@@ -3522,9 +3631,29 @@ function _buildLayerTabs(layers) {
   layers.forEach((layer, i) => {
     const btn = document.createElement('button');
     btn.className = 'mark-layer-tab' + (i === selectedLayerIdx ? ' active' : '');
-    btn.textContent = `L${i + 1}: ${_markType(layer.mark)}`;
+    btn.textContent = `L${i + 1}: ${_markType(layer.mark).toUpperCase()}`;
     btn.onclick = () => {
       selectedLayerIdx = i;
+      try { rebuildMarkSection(JSON.parse(specBuffer)); } catch(_) {}
+    };
+    wrap.appendChild(btn);
+  });
+  return wrap;
+}
+
+function _buildConcatTabs(views) {
+  const wrap = document.createElement('div');
+  wrap.className = 'mark-layer-tabs';
+  views.forEach((view, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'mark-layer-tab' + (i === selectedConcatIdx ? ' active' : '');
+    const label = view.layer
+      ? view.layer.map(l => _markType(l.mark).toUpperCase()).join('+')
+      : _markType(view.mark).toUpperCase();
+    btn.textContent = `V${i + 1}: ${label}`;
+    btn.onclick = () => {
+      selectedConcatIdx = i;
+      selectedLayerIdx = 0;
       try { rebuildMarkSection(JSON.parse(specBuffer)); } catch(_) {}
     };
     wrap.appendChild(btn);
@@ -3999,9 +4128,28 @@ function rebuildMarkSection(spec) {
   if (!body) return;
   body.innerHTML = '';
 
-  let markType, markObj, layerIdx = null;
+  let markType, markObj, layerIdx = null, concatIdx = null;
 
-  if (spec.layer && spec.layer.length) {
+  const concatViews = spec.vconcat || spec.hconcat || spec.concat;
+
+  if (concatViews && concatViews.length) {
+    // Compound spec — view selector tabs first
+    selectedConcatIdx = Math.min(selectedConcatIdx, concatViews.length - 1);
+    body.appendChild(_buildConcatTabs(concatViews));
+    concatIdx = selectedConcatIdx;
+    const view = concatViews[selectedConcatIdx];
+    if (view.layer && view.layer.length) {
+      selectedLayerIdx = Math.min(selectedLayerIdx, view.layer.length - 1);
+      body.appendChild(_buildLayerTabs(view.layer));
+      const lyr = view.layer[selectedLayerIdx] || view.layer[0];
+      markType = _markType(lyr.mark);
+      markObj  = _markObj(lyr.mark);
+      layerIdx = selectedLayerIdx;
+    } else {
+      markType = _markType(view.mark);
+      markObj  = _markObj(view.mark);
+    }
+  } else if (spec.layer && spec.layer.length) {
     selectedLayerIdx = Math.min(selectedLayerIdx, spec.layer.length - 1);
     body.appendChild(_buildLayerTabs(spec.layer));
     const lyr = spec.layer[selectedLayerIdx] || spec.layer[0];
@@ -4022,6 +4170,11 @@ function rebuildMarkSection(spec) {
   // Controls
   const defs = [...(MARK_CTRL_DEFS._common || []), ...(MARK_CTRL_DEFS[markType] || [])];
   defs.forEach(def => {
+    // Skip controls where the current value is an expression/conditional object —
+    // overwriting it with a plain scalar would destroy the conditional logic
+    const rawVal = markObj[def.prop];
+    if (rawVal !== null && rawVal !== undefined && typeof rawVal === 'object') return;
+
     const row = document.createElement('div');
     row.className = 'prop-row';
     const lbl = document.createElement('span');
@@ -4042,32 +4195,40 @@ function rebuildMarkSection(spec) {
       } else {
         value = el.value;
       }
-      _applyMarkProp(def.prop, value, layerIdx);
+      _applyMarkProp(def.prop, value, layerIdx, concatIdx);
     });
     row.appendChild(wrap);
     body.appendChild(row);
   });
 
-  // Highlight max/min controls (shown for supported marks with a quantitative field)
-  _buildHighlightControls(spec, layerIdx, body);
-  // Text-label colour/size overrides when highlight is active
-  if (markType === 'text') _buildTextHlControls(spec, layerIdx, body);
+  // Highlight max/min controls (only for flat/layered specs, not compound)
+  if (!concatViews) {
+    _buildHighlightControls(spec, layerIdx, body);
+    if (markType === 'text') _buildTextHlControls(spec, layerIdx, body);
+  }
 
   _lastMarkSig = _markSig(spec);
 }
 
-function _applyMarkProp(prop, value, layerIdx) {
+function _applyMarkProp(prop, value, layerIdx, concatIdx = null) {
   patchSpec(spec => {
+    // Navigate into the correct sub-view for compound (vconcat/hconcat/concat) specs
+    let target = spec;
+    if (concatIdx !== null) {
+      const views = spec.vconcat || spec.hconcat || spec.concat;
+      if (views?.[concatIdx]) target = views[concatIdx];
+      else return;
+    }
     let mark;
-    if (layerIdx !== null && spec.layer && spec.layer[layerIdx]) {
-      if (typeof spec.layer[layerIdx].mark === 'string')
-        spec.layer[layerIdx].mark = { type: spec.layer[layerIdx].mark };
-      mark = spec.layer[layerIdx].mark;
+    if (layerIdx !== null && target.layer && target.layer[layerIdx]) {
+      if (typeof target.layer[layerIdx].mark === 'string')
+        target.layer[layerIdx].mark = { type: target.layer[layerIdx].mark };
+      mark = target.layer[layerIdx].mark;
     } else {
-      if (spec.layer) return;
-      if (typeof spec.mark === 'string') spec.mark = { type: spec.mark };
-      if (!spec.mark) spec.mark = { type: 'bar' };
-      mark = spec.mark;
+      if (target.layer) return;
+      if (typeof target.mark === 'string') target.mark = { type: target.mark };
+      if (!target.mark) target.mark = { type: 'bar' };
+      mark = target.mark;
     }
     if (value === null || value === undefined) delete mark[prop];
     else mark[prop] = value;
