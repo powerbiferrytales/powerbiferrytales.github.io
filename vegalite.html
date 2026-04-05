@@ -4606,9 +4606,15 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
     const domain = enc.color.scale?.domain || [];
     const range  = enc.color.scale?.range  || [];
     const pick = (d, def) => { const k = domain.indexOf(d); return k >= 0 ? range[k] : def; };
-    otherActive.push({ layerIdx: i,
+    const entry = { layerIdx: i,
       hlMax: domain.includes(HL_MAX), hlMin: domain.includes(HL_MIN),
-      maxColor: pick(HL_MAX, defs.maxColor), minColor: pick(HL_MIN, defs.minColor) });
+      maxColor: pick(HL_MAX, defs.maxColor), minColor: pick(HL_MIN, defs.minColor) };
+    // For text layers, snapshot the full text-HL encoding so custom font sizes are preserved
+    if (_markType(lyr.mark) === 'text') {
+      entry.textHlColor = JSON.parse(JSON.stringify(enc.color));
+      if (enc.size) entry.textHlSize = JSON.parse(JSON.stringify(enc.size));
+    }
+    otherActive.push(entry);
   });
 
   _removeHlFromSpec(spec);
@@ -4681,6 +4687,14 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
         encoding: { x: srcEnc.x, y: srcEnc.y,
           color: { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null } }
       });
+    } else if (s.textHlColor) {
+      // Text layer with custom label-HL encoding — restore snapshot directly
+      lyr.encoding = lyr.encoding || {};
+      lyr.encoding.color = s.textHlColor;
+      if (s.textHlSize) lyr.encoding.size = s.textHlSize;
+      spec.resolve = spec.resolve || {};
+      spec.resolve.scale = spec.resolve.scale || {};
+      spec.resolve.scale.color = 'independent';
     } else {
       const markObj = _markObj(lyr.mark);
       const normalColor = markObj.color || cfg.mark?.color || '#4a90d9';
