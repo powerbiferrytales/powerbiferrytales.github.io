@@ -2299,11 +2299,13 @@ function switchTab(name) {
   document.getElementById('tab-btn-config').classList.toggle('active', !isData && activeEditorView === 'config');
   document.querySelectorAll('.tab-actions').forEach(a => {
     let show = false;
-    if (isData)                              show = a.id === 'tab-actions-data';
-    else if (activeEditorView === 'config')  show = a.id === 'tab-actions-config';
-    else                                     show = a.id === 'tab-actions-spec';
+    if (isData)   show = a.id === 'tab-actions-data';
+    else          show = a.id === 'tab-actions-spec';
     a.classList.toggle('hidden', !show);
   });
+  // Hide + LAYER in config view (doesn't apply to config JSON)
+  document.getElementById('add-layer-wrap').style.display =
+    (!isData && activeEditorView === 'config') ? 'none' : '';
   document.getElementById('tab-data').classList.toggle('hidden', !isData);
   document.getElementById('tab-spec').classList.toggle('hidden', isData);
   if (!isData && cmEditor) setTimeout(() => cmEditor.refresh(), 0);
@@ -2320,9 +2322,11 @@ function switchEditorView(view) {
   document.getElementById('tab-btn-spec').classList.toggle('active', view === 'spec');
   document.getElementById('tab-btn-config').classList.toggle('active', view === 'config');
 
-  // Show correct toolbar actions
-  document.getElementById('tab-actions-spec').classList.toggle('hidden', view !== 'spec');
-  document.getElementById('tab-actions-config').classList.toggle('hidden', view !== 'config');
+  // Show correct toolbar actions — spec toolbar stays visible for both spec and config views
+  document.getElementById('tab-actions-spec').classList.remove('hidden');
+  document.getElementById('tab-actions-config').classList.add('hidden');
+  // Hide + LAYER in config view (not applicable to config JSON)
+  document.getElementById('add-layer-wrap').style.display = view === 'config' ? 'none' : '';
 
   // Load the target buffer into CM without triggering a render
   suppressRender = true;
