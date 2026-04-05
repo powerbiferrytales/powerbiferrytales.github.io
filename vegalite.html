@@ -1029,6 +1029,7 @@ body.light-mode .hd-cn { color: #c2410c; }
     <button class="btn" id="btn-theme-toggle" title="Switch between dark and light mode">☀ LIGHT</button>
     <button class="btn" id="btn-share" title="Copy spec JSON to clipboard">⬡ SHARE SPEC</button>
     <button class="btn" id="btn-share-visual" title="Copy shareable link to visual-only viewer">⬡ SHARE VISUAL</button>
+    <button class="btn" id="btn-copy-image" title="Copy chart as PNG image to clipboard">⬡ COPY IMAGE</button>
     <button class="btn" id="btn-help" title="Open help guide">? HELP</button>
     <a class="btn" href="https://powerbiferrytales.github.io/" target="_blank" rel="noopener" title="Visit Ferry Tales website">⬡ WEBSITE</a>
     <div class="header-btns"></div>
@@ -2581,6 +2582,76 @@ function shareVisual() {
     });
 }
 
+async function copyChartImage() {
+  const btn  = document.getElementById('btn-copy-image');
+  const orig = btn.innerHTML;
+
+  if (!embedResult) {
+    btn.innerHTML = '⚠ NO CHART';
+    btn.style.borderColor = 'var(--err)';
+    btn.style.color = 'var(--err)';
+    setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; }, 2000);
+    return;
+  }
+
+  btn.innerHTML = '… COPYING';
+  btn.disabled  = true;
+
+  try {
+    // Get the rendered SVG element
+    const svgEl = document.querySelector('#vega-container svg');
+    if (!svgEl) throw new Error('SVG not found');
+
+    const svgW = svgEl.viewBox.baseVal.width  || svgEl.clientWidth;
+    const svgH = svgEl.viewBox.baseVal.height || svgEl.clientHeight;
+    const scale = 2; // retina quality
+
+    // Determine chart background colour from the active config
+    const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+    const bgColor = cfg.background || '#000000';
+
+    // Serialize SVG to a blob URL
+    const svgStr  = new XMLSerializer().serializeToString(svgEl);
+    const svgBlob = new Blob([svgStr], { type: 'image/svg+xml;charset=utf-8' });
+    const url     = URL.createObjectURL(svgBlob);
+
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width  = svgW * scale;
+        canvas.height = svgH * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(scale, scale);
+        // Fill background first so transparent SVG areas get the theme colour
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, svgW, svgH);
+        ctx.drawImage(img, 0, 0, svgW, svgH);
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob(blob => {
+          if (!blob) { reject(new Error('Canvas blob failed')); return; }
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
+            .then(resolve).catch(reject);
+        }, 'image/png');
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')); };
+      img.src = url;
+    });
+
+    btn.innerHTML = '✓ IMAGE COPIED!';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2200);
+
+  } catch(e) {
+    btn.innerHTML = '⚠ COPY FAILED';
+    btn.style.borderColor = 'var(--err)';
+    btn.style.color = 'var(--err)';
+    setTimeout(() => { btn.innerHTML = orig; btn.style.borderColor = ''; btn.style.color = ''; btn.disabled = false; }, 2500);
+  }
+}
+
 function loadSpecFromHash() {
   try {
     const hash = location.hash;
@@ -2718,6 +2789,7 @@ function bindEvents() {
   });
   document.getElementById('btn-share').onclick        = shareSpec;
   document.getElementById('btn-share-visual').onclick = shareVisual;
+  document.getElementById('btn-copy-image').onclick   = copyChartImage;
   document.getElementById('btn-theme-toggle').onclick = toggleStudioTheme;
   document.getElementById('btn-help').onclick         = () => document.getElementById('help-overlay').classList.remove('hidden');
   document.getElementById('btn-help-close').onclick   = () => document.getElementById('help-overlay').classList.add('hidden');
