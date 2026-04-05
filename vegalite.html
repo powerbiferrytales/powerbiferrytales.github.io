@@ -1764,7 +1764,8 @@ const CONFIGS = [
       bar:  { color: "#00b4d8" },
       line: { color: "#00b4d8" },
       point: { color: "#00b4d8" },
-      arc:  { color: "#00b4d8" }
+      arc:  { color: "#00b4d8" },
+      text: { color: "#90b8d4" }
     }
   },
   {
@@ -1788,7 +1789,8 @@ const CONFIGS = [
       bar:  { color: "#f59e0b" },
       line: { color: "#f59e0b" },
       point: { color: "#f59e0b" },
-      arc:  { color: "#f59e0b" }
+      arc:  { color: "#f59e0b" },
+      text: { color: "#9ca3af" }
     }
   },
   {
@@ -1812,7 +1814,8 @@ const CONFIGS = [
       bar:  { color: "#fb7185" },
       line: { color: "#fb7185" },
       point: { color: "#fb7185" },
-      arc:  { color: "#fb7185" }
+      arc:  { color: "#fb7185" },
+      text: { color: "#94a3b8" }
     }
   },
   {
@@ -1836,7 +1839,8 @@ const CONFIGS = [
       bar:  { color: "#d4a017" },
       line: { color: "#d4a017" },
       point: { color: "#d4a017" },
-      arc:  { color: "#d4a017" }
+      arc:  { color: "#d4a017" },
+      text: { color: "#86a789" }
     }
   },
   // ── Light themes ─────────────────────────────────────────────
@@ -1861,7 +1865,8 @@ const CONFIGS = [
       bar:  { color: "#2563eb" },
       line: { color: "#2563eb" },
       point: { color: "#2563eb" },
-      arc:  { color: "#2563eb" }
+      arc:  { color: "#2563eb" },
+      text: { color: "#44445a" }
     }
   },
   {
@@ -1885,7 +1890,8 @@ const CONFIGS = [
       bar:  { color: "#b45309" },
       line: { color: "#b45309" },
       point: { color: "#b45309" },
-      arc:  { color: "#b45309" }
+      arc:  { color: "#b45309" },
+      text: { color: "#6b5744" }
     }
   },
   {
@@ -1909,7 +1915,8 @@ const CONFIGS = [
       bar:  { color: "#be185d" },
       line: { color: "#be185d" },
       point: { color: "#be185d" },
-      arc:  { color: "#be185d" }
+      arc:  { color: "#be185d" },
+      text: { color: "#7a3a50" }
     }
   },
   {
@@ -1933,7 +1940,8 @@ const CONFIGS = [
       bar:  { color: "#0284c7" },
       line: { color: "#0284c7" },
       point: { color: "#0284c7" },
-      arc:  { color: "#0284c7" }
+      arc:  { color: "#0284c7" },
+      text: { color: "#475569" }
     }
   }
 ];
@@ -2056,11 +2064,9 @@ const TEMPLATES = [
         "text":"Stock Price",
         "fontSize":25,
         "anchor":"start",
-        "color":"#454545",
         "subtitleFontSize":12,
         "subtitleFontWeight":600,
-        "subtitle":"annual avg price by symbol",
-        "subtitleColor":"#454545"
+        "subtitle":"annual avg price by symbol"
       },
       "layer":[
         {
@@ -2130,7 +2136,7 @@ const TEMPLATES = [
         {"calculate":"datum._prev ? (datum._avg - datum._prev) / datum._prev : 0","as":"_yoy"},
         {"window":[{"op":"rank","as":"_rank"}],"sort":[{"field":"_avg","order":"descending"}]}
       ],
-      "title":{"text":"Unemployment Rate","subtitle":"Construction","fontSize":25,"subtitleFontSize":14,"color":"#454545","subtitleColor":"#888888","anchor":"start"},
+      "title":{"text":"Unemployment Rate","subtitle":"Construction","fontSize":25,"subtitleFontSize":14,"anchor":"start"},
       "width":300,
       "spacing":8,
       "vconcat":[
@@ -2140,7 +2146,7 @@ const TEMPLATES = [
             {"window":[{"op":"row_number","as":"_rn"}],"sort":[{"field":"_yr","order":"descending"}]},
             {"filter":"datum._rn === 1"}
           ],
-          "mark":{"type":"text","fontWeight":600,"size":48,"color":"#454545","align":"left"},
+          "mark":{"type":"text","fontWeight":600,"size":48,"align":"left"},
           "encoding":{"text":{"field":"_avg","type":"quantitative","format":".1f"}}
         },
         {
@@ -2156,10 +2162,10 @@ const TEMPLATES = [
         {
           "height":125,
           "layer":[
-            {"mark":{"type":"line","tooltip":true,"color":"#454545","strokeWidth":2}},
+            {"mark":{"type":"line","tooltip":true,"strokeWidth":2}},
             {"mark":{"type":"point","filled":true,"opacity":1,
               "size":{"expr":"datum._rank === 1 ? 125 : 0"},
-              "color":{"expr":"datum._rank === 1 ? '#ec7629' : '#454545'"}
+              "color":{"expr":"datum._rank === 1 ? '#ec7629' : 'transparent'"}
             }}
           ],
           "encoding":{
