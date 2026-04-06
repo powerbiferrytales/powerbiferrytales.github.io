@@ -389,9 +389,19 @@ body.light-mode .cm-patch-highlight-wrap {
   font-weight: 400; color: var(--accent); opacity: 0.75; letter-spacing: 0.04em; font-size: 10px;
 }
 .data-bottom-head .db-badge {
-  margin-left: auto; font-size: 10px; font-weight: 600; color: var(--muted);
+  font-size: 10px; font-weight: 600; color: var(--muted);
   letter-spacing: 0.08em; opacity: 0.6;
 }
+.dt-search {
+  margin-left: auto; background: var(--surface2); border: 1px solid var(--border);
+  color: var(--text); border-radius: 4px; padding: 3px 8px; font-size: 11px;
+  font-family: var(--mono); width: 160px; outline: none; letter-spacing: 0.03em;
+}
+.dt-search:focus { border-color: var(--accent); }
+.dt-search::placeholder { color: var(--muted); opacity: 0.5; }
+.full-tbl th.dt-sort-hdr { cursor: pointer; user-select: none; }
+.full-tbl th.dt-sort-hdr:hover { color: var(--text); }
+.full-tbl th.dt-sort-active { color: var(--text); }
 .data-grid-wrap {
   flex: 1; min-height: 0; overflow-x: auto; overflow-y: scroll;
   scrollbar-width: thin; scrollbar-color: #555566 var(--surface2);
@@ -1505,7 +1515,8 @@ body.light-mode .hd-cn { color: #c2410c; }
           DATA
           <span class="db-info" id="db-info"></span>
           <span class="db-badge" id="db-badge"></span>
-          <div class="zoom-ctrl" style="margin-left:auto">
+          <input type="text" id="dt-search" class="dt-search" placeholder="search…" autocomplete="off">
+          <div class="zoom-ctrl">
             <button class="zoom-btn" id="btn-dtz-out" title="Decrease table font size">−</button>
             <span class="zoom-lbl" id="dtz-label">12px</span>
             <button class="zoom-btn" id="btn-dtz-in"  title="Increase table font size">+</button>
@@ -3144,6 +3155,12 @@ document.getElementById('btn-fit').onclick = () => {
   document.getElementById('btn-edz-out').onclick  = () => setCodeZoom(codeZoomIdx - 1);
   document.getElementById('btn-dtz-in').onclick   = () => setDataZoom(dataZoomIdx + 1);
   document.getElementById('btn-dtz-out').onclick  = () => setDataZoom(dataZoomIdx - 1);
+
+  // data search input
+  document.getElementById('dt-search').addEventListener('input', e => {
+    _dtSearch = e.target.value;
+    if (_dtData.length) _renderDtView();
+  });
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -3356,23 +3373,96 @@ function showFields(data, fields) {
   });
 }
 
-function renderDataTable(data, fields) {
-  const maxRows = Math.min(data.length, 1000);
-  dbInfo.textContent = `${data.length.toLocaleString()} rows × ${fields.length} columns`;
-  dbBadge.textContent = maxRows < data.length ? `showing first ${maxRows.toLocaleString()}` : '';
+// Sort / search state for the data preview table
+let _dtData    = [];
+let _dtFields  = [];
+let _dtSortCol = null;   // column index (null = none)
+let _dtSortDir = 'asc';  // 'asc' | 'desc'
+let _dtSearch  = '';     // global search string
 
-  const thead = `<thead><tr>${fields.map(f => `<th>${f}</th>`).join('')}</tr></thead>`;
-  const tbody = `<tbody>${data.slice(0, maxRows).map(row =>
+function renderDataTable(data, fields) {
+  _dtData    = data;
+  _dtFields  = fields;
+  _dtSortCol = null;
+  _dtSortDir = 'asc';
+  _dtSearch  = '';
+  const si = document.getElementById('dt-search');
+  if (si) si.value = '';
+  _renderDtView();
+}
+
+function _renderDtView() {
+  const data   = _dtData;
+  const fields = _dtFields;
+  const MAX    = 1000;
+
+  dbInfo.textContent = `${data.length.toLocaleString()} rows × ${fields.length} columns`;
+
+  // ── filter ──────────────────────────────────────────────────
+  let rows = data;
+  const q = _dtSearch.trim().toLowerCase();
+  if (q) {
+    // detect which fields have at least one string value in sample
+    const sample = data.slice(0, 50);
+    const strFields = fields.filter(f => sample.some(r => r[f] != null && typeof r[f] === 'string'));
+    rows = data.filter(row => strFields.some(f => {
+      const v = row[f];
+      return v != null && String(v).toLowerCase().includes(q);
+    }));
+  }
+
+  // ── sort ────────────────────────────────────────────────────
+  if (_dtSortCol !== null) {
+    const f   = fields[_dtSortCol];
+    const dir = _dtSortDir === 'asc' ? 1 : -1;
+    rows = [...rows].sort((a, b) => {
+      const av = a[f], bv = b[f];
+      if (av == null && bv == null) return 0;
+      if (av == null) return dir;
+      if (bv == null) return -dir;
+      if (typeof av === 'number' && typeof bv === 'number') return dir * (av - bv);
+      return dir * String(av).localeCompare(String(bv));
+    });
+  }
+
+  const showing = Math.min(rows.length, MAX);
+  dbBadge.textContent = q
+    ? `${rows.length.toLocaleString()} match${rows.length !== 1 ? 'es' : ''}${showing < rows.length ? ` · first ${showing.toLocaleString()}` : ''}`
+    : (showing < data.length ? `showing first ${showing.toLocaleString()}` : '');
+
+  // ── render ──────────────────────────────────────────────────
+  const thead = `<thead><tr>${fields.map((f, i) => {
+    const active = _dtSortCol === i;
+    const arrow  = active ? (_dtSortDir === 'asc' ? ' ▲' : ' ▼') : '';
+    return `<th class="dt-sort-hdr${active ? ' dt-sort-active' : ''}" data-col="${i}">${f}${arrow}</th>`;
+  }).join('')}</tr></thead>`;
+
+  const tbody = `<tbody>${rows.slice(0, MAX).map(row =>
     `<tr>${fields.map(f => {
       const v = row[f];
       const s = v == null ? '' : String(v);
-      return `<td title="${s.length > 30 ? s : ''}">${s}</td>`;
+      const esc = s.replace(/"/g, '&quot;');
+      return `<td title="${s.length > 30 ? esc : ''}">${s}</td>`;
     }).join('')}</tr>`
   ).join('')}</tbody>`;
 
   dataGridWrap.innerHTML = `<table class="full-tbl">${thead}${tbody}</table>`;
 
-  // Reapply current zoom so reloading data doesn't reset the font size
+  // sort click handlers
+  dataGridWrap.querySelectorAll('th.dt-sort-hdr').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = +th.dataset.col;
+      if (_dtSortCol === col) {
+        _dtSortDir = _dtSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        _dtSortCol = col;
+        _dtSortDir = 'asc';
+      }
+      _renderDtView();
+    });
+  });
+
+  // reapply zoom
   const sz = DTZ_SIZES[dataZoomIdx];
   const tbl = dataGridWrap.querySelector('.full-tbl');
   if (tbl) tbl.style.fontSize = sz + 'px';
