@@ -2128,7 +2128,7 @@ const TEMPLATES = [
     }
   },
   { id:"donut", name:"DONUT", icon:"◎",
-    spec: { "$schema":SCHEMA, "title":"Population Under 25 · USA 2000", "data":{"url":DS+"population.json"},
+    spec: { "$schema":SCHEMA, "title":"Population Under 30 · USA 2000", "data":{"url":DS+"population.json"},
       "transform":[
         {"filter":"datum.year === 2000"},
         {"calculate":"datum.age < 30 ? datum.people : 0","as":"_u25"},
