@@ -2709,8 +2709,9 @@ function duplicateLayer(layerIdx, concatIdx) {
     const srcLayer = target.layer[layerIdx];
     const copy = JSON.parse(JSON.stringify(srcLayer));
     // Strip HL-specific colour/size encodings from the copy so it starts clean
-    if (copy.encoding?.color?.field === '_hl_cat') delete copy.encoding.color;
-    if (copy.encoding?.size?.condition?.some?.(c => c.test?.includes('_hl_cat'))) delete copy.encoding.size;
+    if (copy.encoding?.color?.field === '_hl_cat' || copy.encoding?.color?.field === '_hl_txt_cat') delete copy.encoding.color;
+    if (copy.encoding?.size?.condition?.some?.(c => c.test?.includes('_hl_cat') || c.test?.includes('_hl_txt_cat'))) delete copy.encoding.size;
+    if (copy.transform) { copy.transform = copy.transform.filter(t => t.as !== '_hl_txt_cat'); if (!copy.transform.length) delete copy.transform; }
     delete copy.name; // remove _hl_layer name if somehow copied
     target.layer.push(copy);
     selectedLayerIdx = target.layer.length - 1;
@@ -2733,8 +2734,9 @@ function duplicateLayer(layerIdx, concatIdx) {
     }
     // Duplicate: copy of firstLayer with HL stripped
     const copy = JSON.parse(JSON.stringify(firstLayer));
-    if (copy.encoding?.color?.field === '_hl_cat') delete copy.encoding.color;
-    if (copy.encoding?.size?.condition?.some?.(c => c.test?.includes('_hl_cat'))) delete copy.encoding.size;
+    if (copy.encoding?.color?.field === '_hl_cat' || copy.encoding?.color?.field === '_hl_txt_cat') delete copy.encoding.color;
+    if (copy.encoding?.size?.condition?.some?.(c => c.test?.includes('_hl_cat') || c.test?.includes('_hl_txt_cat'))) delete copy.encoding.size;
+    if (copy.transform) { copy.transform = copy.transform.filter(t => t.as !== '_hl_txt_cat'); if (!copy.transform.length) delete copy.transform; }
     target.layer = [firstLayer, copy];
     selectedLayerIdx = 1;
   }
@@ -3709,6 +3711,7 @@ async function renderSpec(cfgOverride = null) {
   }
 
   let renderableSpec = JSON.parse(JSON.stringify(spec));
+  _migrateSpecHlTxtCat(renderableSpec); // silently fix old _hl_cat text layers for this render
   renderableSpec.config = config;
 
   if (userData) {
@@ -3953,28 +3956,68 @@ document.getElementById('props-toggle').addEventListener('click', () => {
     panel.classList.contains('collapsed') ? '▶' : '◀';
 });
 
+// One-shot migration: any text layer still encoding colour as field:'_hl_cat' (written by
+// older code) is renamed to '_hl_txt_cat' and given the matching calculate transform.
+// This lets old saved specs render without "Conflicting scale property" warnings.
+// The function is idempotent — re-running it on an already-migrated spec is a no-op.
+function _migrateSpecHlTxtCat(spec) {
+  if (!spec.layer) return;
+  let migrated = false;
+  spec.layer.forEach(lyr => {
+    if (lyr.name === '_hl_layer') return;
+    if (_markType(lyr.mark) !== 'text') return;
+    if (lyr.encoding?.color?.field !== '_hl_cat') return;
+    // Rename the colour field
+    lyr.encoding.color = { ...lyr.encoding.color, field: '_hl_txt_cat' };
+    // Upgrade size condition tests: _hl_cat → _hl_txt_cat so they survive aggregation groupby
+    if (Array.isArray(lyr.encoding.size?.condition)) {
+      lyr.encoding.size.condition.forEach(c => {
+        if (c.test?.includes('_hl_cat') && !c.test?.includes('_hl_txt_cat')) {
+          c.test = c.test.replace(/_hl_cat/g, '_hl_txt_cat');
+        }
+      });
+    }
+    // Ensure the calculate transform is present (deduped)
+    lyr.transform = (lyr.transform || []).filter(t => t.as !== '_hl_txt_cat');
+    lyr.transform.push({ calculate: "datum['_hl_cat']", as: '_hl_txt_cat' });
+    migrated = true;
+  });
+  // Also ensure resolve: independent whenever a text HL layer is present
+  if (migrated || spec.layer.some(lyr => lyr.encoding?.color?.field === '_hl_txt_cat')) {
+    spec.resolve = spec.resolve || {};
+    spec.resolve.scale = spec.resolve.scale || {};
+    spec.resolve.scale.color = 'independent';
+  }
+}
+
 // Patch the spec in-place, update the editor, and re-render
-// After any patchSpec mutation, keep the HL_NRM colour entry in sync with the
-// current mark colour so bar colour changes work while highlight is active.
+// After any patchSpec mutation, keep every layer's HL_NRM colour entry in sync with
+// that layer's own mark colour.  The old single-findIndex approach always synced the
+// first _hl_cat layer (usually the bar layer) and never updated the text layer, so
+// text label normal colour diverged as soon as mark.color was changed separately.
 function _syncHlNormalColor(spec) {
-  // Find whichever encoding object holds the _hl_cat bar-style colour scale
-  let hlEnc = null, markSrc = null;
-  if (spec.layer) {
-    const idx = spec.layer.findIndex(l => l.name !== '_hl_layer' && l.encoding?.color?.field === '_hl_cat');
-    if (idx >= 0) { hlEnc = spec.layer[idx].encoding; markSrc = spec.layer[idx]; }
-  }
-  if (!hlEnc && spec.encoding?.color?.field === '_hl_cat') {
-    hlEnc = spec.encoding; markSrc = spec;
-  }
-  if (!hlEnc) return;
-  const domain = hlEnc.color.scale?.domain;
-  const range  = hlEnc.color.scale?.range;
-  if (!domain || !range) return;
-  const nrmIdx = domain.indexOf(HL_NRM);
-  if (nrmIdx < 0) return;
   const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
-  const markObj = _markObj(markSrc?.mark);
-  range[nrmIdx] = markObj?.color || cfg.mark?.color || '#4a90d9';
+  function _syncOne(enc, markSrc) {
+    const domain = enc.color?.scale?.domain;
+    const range  = enc.color?.scale?.range;
+    if (!domain || !range) return;
+    const nrmIdx = domain.indexOf(HL_NRM);
+    if (nrmIdx < 0) return;
+    const markObj = _markObj(markSrc?.mark);
+    range[nrmIdx] = markObj?.color || cfg.mark?.color || '#4a90d9';
+  }
+  if (spec.layer) {
+    // Update every non-_hl_layer that carries bar-style or text-style HL colour encoding
+    spec.layer.forEach(lyr => {
+      if (lyr.name !== '_hl_layer' &&
+          (lyr.encoding?.color?.field === '_hl_cat' || lyr.encoding?.color?.field === '_hl_txt_cat')) {
+        _syncOne(lyr.encoding, lyr);
+      }
+    });
+    return;
+  }
+  // Flat spec: root encoding holds the scale
+  if (spec.encoding?.color?.field === '_hl_cat') _syncOne(spec.encoding, spec);
 }
 
 function patchSpec(fn) {
@@ -3982,6 +4025,7 @@ function patchSpec(fn) {
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { return; }
   fn(spec);
+  _migrateSpecHlTxtCat(spec); // upgrade any text layer still using old _hl_cat field name
   _syncHlNormalColor(spec);   // keep HL_NRM in sync with any mark colour change
   const oldText = cmEditor.getValue();
   specBuffer = JSON.stringify(spec, null, 2);
@@ -4555,14 +4599,7 @@ function _removeHlFromSpec(spec) {
     });
     if (!spec.transform.length) delete spec.transform;
   }
-  // Remove stack:null we added to prevent stacking warnings
-  [spec.encoding, ...(spec.layer?.map(l => l.encoding) || [])].forEach(enc => {
-    if (!enc) return;
-    for (const ch of ['x','y','theta','radius','size']) {
-      if (enc[ch]?.stack === null) delete enc[ch].stack;
-    }
-  });
-  // Remove _hl_cat colour/size from root encoding and all non-hl layers
+  // Remove _hl_cat / _hl_txt_cat colour/size from root encoding and all non-hl layers
   // (covers bar-style root encoding, bar-layer encoding, and text-layer field/condition encodings)
   if (spec.encoding?.color?.field === '_hl_cat') delete spec.encoding.color;
   spec.layer?.forEach(l => {
@@ -4570,12 +4607,17 @@ function _removeHlFromSpec(spec) {
     ['color', 'size'].forEach(ch => {
       const enc = l.encoding[ch];
       if (!enc) return;
-      if (enc.field === '_hl_cat') { delete l.encoding[ch]; return; }
+      if (enc.field === '_hl_cat' || enc.field === '_hl_txt_cat') { delete l.encoding[ch]; return; }
       const conds = Array.isArray(enc.condition) ? enc.condition : enc.condition ? [enc.condition] : [];
-      if (conds.some(c => c.test?.includes('_hl_cat'))) delete l.encoding[ch];
+      if (conds.some(c => c.test?.includes('_hl_cat') || c.test?.includes('_hl_txt_cat'))) delete l.encoding[ch];
     });
+    // Remove _hl_txt_cat calculate transform from text layers
+    if (l.transform) {
+      l.transform = l.transform.filter(t => t.as !== '_hl_txt_cat');
+      if (!l.transform.length) delete l.transform;
+    }
   });
-  // Remove the independent-scale resolve added for text-layer label highlight
+  // Remove the independent-scale resolve added for text-layer label highlight (legacy cleanup)
   if (spec.resolve?.scale?.color === 'independent') {
     delete spec.resolve.scale.color;
     if (!Object.keys(spec.resolve.scale).length) delete spec.resolve.scale;
@@ -4655,9 +4697,6 @@ function _applyHlBarStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info
   if (hlMin) { domain.push(HL_MIN); range.push(minColor); }
   domain.push(HL_NRM); range.push(normalColor);
   enc.color = { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null };
-  // Suppress stacking warning — set stack:null on whichever encoding owns the quantitative channel
-  const quantEnc = enc[info.channel] ? enc : (spec.encoding || {});
-  if (quantEnc[info.channel]) quantEnc[info.channel].stack = null;
 }
 
 // Line/area/trail style: inject a point overlay layer so the line stays unbroken
@@ -4741,7 +4780,7 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
   spec.layer.forEach((lyr, i) => {
     if (i === layerIdx || lyr.name === '_hl_layer') return;
     const enc = lyr.encoding || {};
-    if (enc.color?.field !== '_hl_cat') return;
+    if (enc.color?.field !== '_hl_cat' && enc.color?.field !== '_hl_txt_cat') return;
     const domain = enc.color.scale?.domain || [];
     const range  = enc.color.scale?.range  || [];
     const pick = (d, def) => { const k = domain.indexOf(d); return k >= 0 ? range[k] : def; };
@@ -4752,6 +4791,9 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
     if (_markType(lyr.mark) === 'text') {
       entry.textHlColor = JSON.parse(JSON.stringify(enc.color));
       if (enc.size) entry.textHlSize = JSON.parse(JSON.stringify(enc.size));
+      // Also snapshot the _hl_txt_cat calculate transform so it can be restored
+      const txtCalc = (lyr.transform || []).find(t => t.as === '_hl_txt_cat');
+      if (txtCalc) entry.textHlTxtCatTransform = JSON.parse(JSON.stringify(txtCalc));
     }
     otherActive.push(entry);
   });
@@ -4827,10 +4869,17 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
           color: { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null } }
       });
     } else if (s.textHlColor) {
-      // Text layer with custom label-HL encoding — restore snapshot directly
+      // Text layer with custom label-HL encoding — restore snapshot, normalising field name.
+      // Older snapshots may have field:'_hl_cat'; always promote to '_hl_txt_cat' so the
+      // text layer's colour scale never shares a field name with the bar layer's _hl_cat scale.
       lyr.encoding = lyr.encoding || {};
-      lyr.encoding.color = s.textHlColor;
+      lyr.encoding.color = { ...s.textHlColor, field: '_hl_txt_cat' };
       if (s.textHlSize) lyr.encoding.size = s.textHlSize;
+      // Always ensure the _hl_txt_cat calculate transform is present on this layer
+      lyr.transform = (lyr.transform || []).filter(t => t.as !== '_hl_txt_cat');
+      lyr.transform.push(s.textHlTxtCatTransform || { calculate: "datum['_hl_cat']", as: '_hl_txt_cat' });
+      // Independent resolve: unique field names + independent resolve together eliminate
+      // both Vega field-level and Vega-Lite channel-level scale merging
       spec.resolve = spec.resolve || {};
       spec.resolve.scale = spec.resolve.scale || {};
       spec.resolve.scale.color = 'independent';
@@ -4843,8 +4892,6 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
       domain.push(HL_NRM); range.push(normalColor);
       lyr.encoding = lyr.encoding || {};
       lyr.encoding.color = { field: '_hl_cat', type: 'nominal', scale: { domain, range }, legend: null };
-      const quantEnc = lyr.encoding[info.channel] ? lyr.encoding : (spec.encoding || {});
-      if (quantEnc[info.channel]) quantEnc[info.channel].stack = null;
     }
   }
 }
@@ -4863,7 +4910,8 @@ function _readTextHlState(spec, layerIdx) {
   const sizeConds = Array.isArray(enc.size?.condition) ? enc.size.condition
     : enc.size?.condition ? [enc.size.condition] : [];
   const getSize = hl => {
-    const c = sizeConds.find(c => c.test === `datum['_hl_cat'] === '${hl}'`);
+    // Test strings reference _hl_txt_cat (survives aggregation via groupby) not _hl_cat
+    const c = sizeConds.find(c => c.test === `datum['_hl_txt_cat'] === '${hl}'`);
     return c?.value ?? null;
   };
   return {
@@ -4894,10 +4942,10 @@ function _applyTextHlToSpec(spec, layerIdx, maxColor, maxSize, minColor, minSize
   if (!hlSt.active || (!hlSt.hlMax && !hlSt.hlMin)) {
     delete enc.color; delete enc.size;
     if (layer.transform) {
-      layer.transform = layer.transform.filter(t => t.filter !== _hlTxtFilter);
+      layer.transform = layer.transform.filter(t => t.filter !== _hlTxtFilter && t.as !== '_hl_txt_cat');
       if (!layer.transform.length) delete layer.transform;
     }
-    // Remove the independent-scale resolve we added to prevent bar/text color merge conflicts
+    // Legacy cleanup: remove independent-scale resolve that older code versions may have written
     if (spec.resolve?.scale?.color === 'independent') {
       delete spec.resolve.scale.color;
       if (!Object.keys(spec.resolve.scale).length) delete spec.resolve.scale;
@@ -4906,9 +4954,9 @@ function _applyTextHlToSpec(spec, layerIdx, maxColor, maxSize, minColor, minSize
     return;
   }
 
-  // Also clean up any stale filter from earlier versions before writing encodings
+  // Clean up any stale filter/transform from earlier code versions before writing encodings
   if (layer.transform) {
-    layer.transform = layer.transform.filter(t => t.filter !== _hlTxtFilter);
+    layer.transform = layer.transform.filter(t => t.filter !== _hlTxtFilter && t.as !== '_hl_txt_cat');
     if (!layer.transform.length) delete layer.transform;
   }
 
@@ -4917,17 +4965,28 @@ function _applyTextHlToSpec(spec, layerIdx, maxColor, maxSize, minColor, minSize
   if (hlSt.hlMin) { domain.push(HL_MIN); colorRange.push(minColor);  sizeRange.push(+minSize); }
   domain.push(HL_NRM); colorRange.push(normalColor); sizeRange.push(normalSize);
 
-  // Color stays field-based — this forces _hl_cat into the groupby so it survives aggregation
-  // and is available for the size conditions below.
-  enc.color = { field: '_hl_cat', type: 'ordinal', sort: null, scale: { domain, range: colorRange }, legend: null };
+  // Add a layer-level calculate that copies _hl_cat → _hl_txt_cat.
+  // This gives the text layer its own uniquely named field so Vega-Lite cannot merge
+  // its colour scale with the bar layer's _hl_cat scale (even with resolve: independent
+  // the same field name caused "Conflicting scale property" warnings).
+  layer.transform = layer.transform || [];
+  layer.transform.push({ calculate: "datum['_hl_cat']", as: '_hl_txt_cat' });
+
+  // Color stays field-based — this forces _hl_txt_cat into the groupby so it survives
+  // aggregation and is available for the size conditions below.
+  enc.color = { field: '_hl_txt_cat', type: 'ordinal', sort: null, scale: { domain, range: colorRange }, legend: null };
   // Size uses explicit condition expressions instead of a scale, avoiding Vega-Lite's ordinal
   // scale range-remapping which was causing max size to bleed into min and normal labels.
+  // Size conditions must test _hl_txt_cat (not _hl_cat) because _hl_txt_cat is the colour
+  // field and therefore included in the aggregation groupby — _hl_cat is NOT in the groupby
+  // and may be absent from aggregated rows, causing all conditions to silently evaluate false.
   const sizeConds = [];
-  if (hlSt.hlMax) sizeConds.push({ test: `datum['_hl_cat'] === '${HL_MAX}'`, value: +maxSize });
-  if (hlSt.hlMin) sizeConds.push({ test: `datum['_hl_cat'] === '${HL_MIN}'`, value: +minSize });
+  if (hlSt.hlMax) sizeConds.push({ test: `datum['_hl_txt_cat'] === '${HL_MAX}'`, value: +maxSize });
+  if (hlSt.hlMin) sizeConds.push({ test: `datum['_hl_txt_cat'] === '${HL_MIN}'`, value: +minSize });
   enc.size = { condition: sizeConds, value: normalSize };
-  // Prevent Vega-Lite from merging this layer's color scale with the bar layer's color scale
-  // (both use _hl_cat but with different ranges — bar fill colors vs. text label colors)
+  // With _hl_txt_cat as a unique field, independent resolve finally works — the different field
+  // names prevent Vega from merging the two layers' colour scales at the data-field level,
+  // while independent resolve prevents Vega-Lite from merging them at the channel level.
   spec.resolve = spec.resolve || {};
   spec.resolve.scale = spec.resolve.scale || {};
   spec.resolve.scale.color = 'independent';
@@ -4954,6 +5013,10 @@ function _buildTextHlControls(spec, layerIdx, body) {
       maxCol?.value || _hlDefaultColors().maxColor, maxSz?.value || 13,
       minCol?.value || _hlDefaultColors().minColor, minSz?.value || 13
     ));
+    // Rebuild the mark section so the _common.color picker appears/disappears correctly
+    // depending on whether text HL is now active (encoding.color overrides mark.color).
+    // _autoSyncMarkSection won't trigger this since the mark type signature doesn't change.
+    try { rebuildMarkSection(JSON.parse(specBuffer)); } catch(_) {}
   }
 
   function buildRow(label, colorVal, sizeVal) {
@@ -4980,6 +5043,55 @@ function _buildTextHlControls(spec, layerIdx, body) {
 
   if (hlSt.hlMax) ({ col: maxCol, sz: maxSz } = buildRow('Max label', txSt.maxColor, txSt.maxSize));
   if (hlSt.hlMin) ({ col: minCol, sz: minSz } = buildRow('Min label', txSt.minColor, txSt.minSize));
+
+  // "Other" row — controls normal (non-highlighted) label colour.
+  // Replaces the _common.color picker which is hidden while text HL is active.
+  const txLayer = spec.layer?.[layerIdx];
+  const txNrmDomain = txLayer?.encoding?.color?.scale?.domain || [];
+  const txNrmRange  = txLayer?.encoding?.color?.scale?.range  || [];
+  const txNi = txNrmDomain.indexOf(HL_NRM);
+  const txCfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+  const txNrmColor = txNi >= 0 ? txNrmRange[txNi]
+    : (_markObj(txLayer?.mark)?.color || txCfg.mark?.color || '#9ca3af');
+
+  const nrmTxRow = document.createElement('div');
+  nrmTxRow.className = 'prop-row';
+  nrmTxRow.appendChild(Object.assign(document.createElement('span'),
+    { className: 'prop-label', textContent: 'Other' }));
+  const nrmTxCtrl = document.createElement('div');
+  nrmTxCtrl.className = 'prop-ctrl';
+  nrmTxCtrl.style.cssText = 'display:flex;align-items:center;gap:6px;';
+  const nrmTxCol = document.createElement('input');
+  nrmTxCol.type = 'color'; nrmTxCol.value = txNrmColor;
+  nrmTxCol.style.cssText = 'width:36px;height:24px;flex-shrink:0;padding:1px 2px;';
+  const nrmTxSz = document.createElement('input');
+  nrmTxSz.type = 'number'; nrmTxSz.min = 0; nrmTxSz.max = 72;
+  nrmTxSz.placeholder = String(_markObj(txLayer?.mark)?.fontSize ?? 11);
+  nrmTxSz.value = _markObj(txLayer?.mark)?.fontSize ?? '';
+  nrmTxSz.style.cssText = 'flex:1;';
+  const syncOther = () => {
+    patchSpec(s => {
+      const lyr = s.layer?.[layerIdx];
+      if (!lyr) return;
+      // Update the NRM range entry in the text layer's HL colour scale
+      const ni2 = lyr.encoding?.color?.scale?.domain?.indexOf(HL_NRM);
+      if (ni2 != null && ni2 >= 0) lyr.encoding.color.scale.range[ni2] = nrmTxCol.value;
+      // Sync enc.size.value (the non-highlighted font size used in the condition encoding)
+      if (Array.isArray(lyr.encoding?.size?.condition)) lyr.encoding.size.value = parseFloat(nrmTxSz.value) || 11;
+      // Keep mark.color / fontSize in sync so applyChange re-uses these when re-applying HL
+      if (typeof lyr.mark === 'string') lyr.mark = { type: lyr.mark, color: nrmTxCol.value };
+      else if (lyr.mark && typeof lyr.mark === 'object') {
+        lyr.mark.color = nrmTxCol.value;
+        const fsVal = parseFloat(nrmTxSz.value);
+        if (!isNaN(fsVal)) lyr.mark.fontSize = fsVal;
+      }
+    });
+  };
+  nrmTxCol.addEventListener('input', syncOther);
+  nrmTxSz.addEventListener('change', syncOther);
+  nrmTxCtrl.appendChild(nrmTxCol); nrmTxCtrl.appendChild(nrmTxSz);
+  nrmTxRow.appendChild(nrmTxCtrl);
+  body.appendChild(nrmTxRow);
 }
 
 // Read highlight state for a specific layer (not the first _hl_cat layer found)
@@ -4998,7 +5110,7 @@ function _readLayerHlState(spec, layerIdx) {
       return { active: false, hlMax: false, hlMin: false, maxColor: defs.maxColor, minColor: defs.minColor };
     }
     const enc = spec.layer[layerIdx].encoding || {};
-    const active = enc.color?.field === '_hl_cat';
+    const active = enc.color?.field === '_hl_cat' || enc.color?.field === '_hl_txt_cat';
     const domain = active ? (enc.color.scale?.domain || []) : [];
     const range  = active ? (enc.color.scale?.range  || []) : [];
     const pick = (d, def) => { const i = domain.indexOf(d); return i >= 0 ? range[i] : def; };
@@ -5025,7 +5137,23 @@ function _buildHighlightControls(spec, layerIdx, body) {
   divider.textContent = 'Highlight';
   body.appendChild(divider);
 
-  let maxChk, maxCol, minChk, minCol;
+  // Resolve the current NRM colour for bar-style marks (not used by line-style HL)
+  const isLineStyleHl = HL_LINE_MARKS.has(markType);
+  let nrmColor = (() => {
+    const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
+    const mkSrc = (layerIdx !== null && spec.layer?.[layerIdx]) ? spec.layer[layerIdx] : spec;
+    const mkObj  = _markObj(mkSrc.mark);
+    if (!isLineStyleHl) {
+      const encSrc = mkSrc.encoding || (layerIdx !== null ? {} : spec.encoding || {});
+      const nrmDomain = encSrc.color?.scale?.domain || [];
+      const nrmRange  = encSrc.color?.scale?.range  || [];
+      const ni = nrmDomain.indexOf(HL_NRM);
+      if (ni >= 0) return nrmRange[ni];
+    }
+    return mkObj?.color || cfg.mark?.color || '#4a90d9';
+  })();
+
+  let maxChk, maxCol, minChk, minCol, nrmCol;
   function applyHlChange() {
     patchSpec(s => _applyHlToSpec(s, layerIdx, maxChk.checked, minChk.checked, maxCol.value, minCol.value));
   }
@@ -5066,6 +5194,41 @@ function _buildHighlightControls(spec, layerIdx, body) {
 
   ({ chk: maxChk, col: maxCol } = buildHlRow('Max value', st.hlMax, st.maxColor));
   ({ chk: minChk, col: minCol } = buildHlRow('Min value', st.hlMin, st.minColor));
+
+  // Normal colour control — only for bar-style HL (line marks use mark.color directly)
+  // Shown only when HL is active so it's clear it controls the non-highlighted marks.
+  if (st.active && !isLineStyleHl) {
+    const nrmRow = document.createElement('div');
+    nrmRow.className = 'prop-row';
+    nrmRow.appendChild(Object.assign(document.createElement('span'),
+      { className: 'prop-label', textContent: 'Normal' }));
+    const nrmCtrl = document.createElement('div');
+    nrmCtrl.className = 'prop-ctrl';
+    nrmCol = document.createElement('input');
+    nrmCol.type = 'color'; nrmCol.value = nrmColor;
+    nrmCol.style.cssText = 'flex:1;height:24px;';
+    nrmCol.addEventListener('input', () => {
+      patchSpec(s => {
+        // Navigate to the same layer/encoding that holds the HL colour scale
+        const encSrc = (layerIdx !== null && s.layer?.[layerIdx])
+          ? (s.layer[layerIdx].encoding = s.layer[layerIdx].encoding || {})
+          : (s.encoding = s.encoding || {});
+        const ni = encSrc.color?.scale?.domain?.indexOf(HL_NRM);
+        if (ni != null && ni >= 0) encSrc.color.scale.range[ni] = nrmCol.value;
+        // Keep mark.color in sync so _syncHlNormalColor stays consistent
+        const mk = (layerIdx !== null && s.layer?.[layerIdx]) ? s.layer[layerIdx].mark : s.mark;
+        if (typeof mk === 'string') {
+          if (layerIdx !== null) s.layer[layerIdx].mark = { type: mk, color: nrmCol.value };
+          else s.mark = { type: mk, color: nrmCol.value };
+        } else if (mk && typeof mk === 'object') {
+          mk.color = nrmCol.value;
+        }
+      });
+    });
+    nrmCtrl.appendChild(nrmCol);
+    nrmRow.appendChild(nrmCtrl);
+    body.appendChild(nrmRow);
+  }
 }
 
 function rebuildMarkSection(spec) {
@@ -5191,8 +5354,18 @@ function rebuildMarkSection(spec) {
   })();
 
   // Controls
+  const isHlLayerTab = layerIdx !== null && spec.layer?.[layerIdx]?.name === '_hl_layer';
   const defs = [...(MARK_CTRL_DEFS._common || []), ...(MARK_CTRL_DEFS[markType] || [])];
   defs.forEach(def => {
+    // The synthetic _hl_layer has encoding.color overriding mark.color, so the colour picker
+    // would silently do nothing — hide it to avoid confusion. Colours are set via the
+    // Highlight Max/Min pickers on the main layer tab.
+    if (def.prop === 'color' && isHlLayerTab) return;
+    // For text marks with active text HL, encoding.color overrides mark.color. Hide the
+    // _common.color picker — the "Other" row in the Label highlight section takes its place.
+    // When HL is deactivated, applyChange forces a rebuild and this picker reappears.
+    if (def.prop === 'color' && markType === 'text' &&
+        (_activeEnc.color?.field === '_hl_cat' || _activeEnc.color?.field === '_hl_txt_cat')) return;
     // Skip controls where the current value is an expression/conditional object —
     // overwriting it with a plain scalar would destroy the conditional logic.
     // Tooltip is exempt — it lives in encoding, not mark, so markObj.tooltip may be an object.
@@ -5444,7 +5617,7 @@ function _applyMarkProp(prop, value, layerIdx, concatIdx = null) {
     // labels update immediately without having to re-apply the label highlight.
     if (prop === 'fontSize' && layerIdx !== null && target.layer?.[layerIdx]) {
       const enc = target.layer[layerIdx].encoding || {};
-      if (Array.isArray(enc.size?.condition) && enc.size.condition.some(c => c.test?.includes('_hl_cat'))) {
+      if (Array.isArray(enc.size?.condition) && enc.size.condition.some(c => c.test?.includes('_hl_cat') || c.test?.includes('_hl_txt_cat'))) {
         enc.size.value = value ?? 11;
       }
     }
