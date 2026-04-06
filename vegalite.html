@@ -2848,10 +2848,11 @@ function shareVisual() {
   let spec, config;
   try { spec    = JSON.parse(specBuffer);   } catch(e) { err("Spec: "   + e.message); return; }
   try { config  = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
-  // Embed the live config directly in the spec so the viewer always renders
-  // with the exact config the user has set, not just the theme default.
-  // &theme= is kept as a fallback for cached/old viewer instances.
-  const encoded = LZString.compressToEncodedURIComponent(JSON.stringify({ ...spec, config }));
+  // When FIT is active, strip fixed dimensions so the viewer auto-fills the browser.
+  // When FIT is off, the spec's own width/height are preserved for exact sizing.
+  const shareSpec = { ...spec, config };
+  if (fitState.active) { delete shareSpec.width; delete shareSpec.height; }
+  const encoded = LZString.compressToEncodedURIComponent(JSON.stringify(shareSpec));
   const longUrl = `${location.origin}/viewer.html#spec=${encoded}${isLightMode ? '&light=1' : ''}&theme=${activeConfigId}`;
   navigator.clipboard.writeText(longUrl)
     .then(() => showShareFeedback('✓ LINK COPIED!'))
