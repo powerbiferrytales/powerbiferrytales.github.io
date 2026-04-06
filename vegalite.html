@@ -2251,7 +2251,7 @@ const MARK_CTRL_DEFS = {
   ],
   point: [
     { prop:'size',   label:'Size',   ctrl:'number',   min:1, max:1000, placeholder:'30' },
-    { prop:'filled', label:'Filled', ctrl:'checkbox', default:true },
+    { prop:'filled', label:'Filled', ctrl:'checkbox', default:false },
     { prop:'shape',  label:'Shape',  ctrl:'select',
       options:['circle','square','cross','diamond','triangle-up','triangle-down','triangle-right','triangle-left','stroke'] },
   ],
@@ -4497,10 +4497,16 @@ function _buildCtrlEl(def, markObj) {
     else                      el.checked = val != null ? !!val : def.default !== false;
   } else if (def.ctrl === 'select') {
     el = document.createElement('select');
+    // Leading "unset" option — selected when the property is absent from the mark spec.
+    // Choosing it back removes the property, letting Vega-Lite use its own default.
+    const blankOpt = document.createElement('option');
+    blankOpt.value = ''; blankOpt.textContent = '—';
+    if (val == null || val === '') blankOpt.selected = true;
+    el.appendChild(blankOpt);
     (def.options || []).forEach(o => {
       const opt = document.createElement('option');
       opt.value = o; opt.textContent = o;
-      if ((val || def.default || def.options[0]) === o) opt.selected = true;
+      if (val != null && val !== '' && String(val) === String(o)) opt.selected = true;
       el.appendChild(opt);
     });
   } else if (def.ctrl === 'strokedash') {
@@ -5415,7 +5421,8 @@ function rebuildMarkSection(spec) {
       } else if (def.ctrl === 'strokedash') {
         value = el.value ? el.value.split(',').map(Number) : null;
       } else {
-        value = el.value;
+        // For select controls, empty string means the user picked "—" (unset) → delete the prop
+        value = el.value !== '' ? el.value : null;
       }
       _applyMarkProp(def.prop, value, layerIdx, concatIdx);
     });
