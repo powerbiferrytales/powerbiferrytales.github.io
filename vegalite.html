@@ -2691,6 +2691,65 @@ function clearConsole() {
   if (panel)    panel.classList.remove('has-messages');
 }
 // ─────────────────────────────────────────────────────────────
+function duplicateLayer(layerIdx, concatIdx) {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+
+  let spec;
+  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
+
+  let target = spec;
+  if (concatIdx !== null) {
+    const vs = spec.vconcat || spec.hconcat || spec.concat;
+    if (vs?.[concatIdx]) target = vs[concatIdx];
+  }
+
+  const isHlT = t => t.joinaggregate?.some(j => j.as?.startsWith('_hl_')) || t.as === '_hl_cat' || t.filter?.includes('_hl_cat');
+
+  if (target.layer && layerIdx !== null) {
+    const srcLayer = target.layer[layerIdx];
+    const copy = JSON.parse(JSON.stringify(srcLayer));
+    // Strip HL-specific colour/size encodings from the copy so it starts clean
+    if (copy.encoding?.color?.field === '_hl_cat') delete copy.encoding.color;
+    if (copy.encoding?.size?.condition?.some?.(c => c.test?.includes('_hl_cat'))) delete copy.encoding.size;
+    delete copy.name; // remove _hl_layer name if somehow copied
+    target.layer.push(copy);
+    selectedLayerIdx = target.layer.length - 1;
+  } else if (!target.layer) {
+    // Flat spec — wrap into layers, same pattern as addLayer()
+    const firstLayer = {};
+    ['mark', 'selection', 'params'].forEach(k => {
+      if (target[k] !== undefined) { firstLayer[k] = target[k]; delete target[k]; }
+    });
+    if (target.transform) {
+      const hlT  = target.transform.filter(t =>  isHlT(t));
+      const normT = target.transform.filter(t => !isHlT(t));
+      if (normT.length) firstLayer.transform = normT;
+      if (hlT.length) target.transform = hlT; else delete target.transform;
+    }
+    if (target.encoding?.color?.field === '_hl_cat') {
+      firstLayer.encoding = firstLayer.encoding || {};
+      firstLayer.encoding.color = target.encoding.color;
+      delete target.encoding.color;
+    }
+    // Duplicate: copy of firstLayer with HL stripped
+    const copy = JSON.parse(JSON.stringify(firstLayer));
+    if (copy.encoding?.color?.field === '_hl_cat') delete copy.encoding.color;
+    if (copy.encoding?.size?.condition?.some?.(c => c.test?.includes('_hl_cat'))) delete copy.encoding.size;
+    target.layer = [firstLayer, copy];
+    selectedLayerIdx = 1;
+  }
+
+  const oldText = cmEditor.getValue();
+  specBuffer = JSON.stringify(spec, null, 2);
+  _clearPatchHighlight();
+  suppressRender = true;
+  cmEditor.setValue(specBuffer);
+  suppressRender = false;
+  _applyPatchHighlight(oldText, specBuffer);
+  renderSpec();
+}
+
+// ─────────────────────────────────────────────────────────────
 const LAYER_TEMPLATES = {
   text: {
     mark: { type: "text", fontSize: 11, align: "center" },
@@ -5341,6 +5400,17 @@ function rebuildMarkSection(spec) {
   if (!concatViews) {
     _buildHighlightControls(spec, layerIdx, body);
     if (markType === 'text') _buildTextHlControls(spec, layerIdx, body);
+  }
+
+  // Duplicate mark button — not shown for the synthetic _hl_layer
+  const isHlLayer = layerIdx !== null && spec.layer?.[layerIdx]?.name === '_hl_layer';
+  if (!concatViews && !isHlLayer) {
+    const dupBtn = document.createElement('button');
+    dupBtn.className = 'btn';
+    dupBtn.style.cssText = 'width:100%;margin-top:8px;font-size:12px;letter-spacing:0.08em;';
+    dupBtn.textContent = '⊕ DUPLICATE MARK';
+    dupBtn.onclick = () => duplicateLayer(layerIdx, concatIdx);
+    body.appendChild(dupBtn);
   }
 
   _lastMarkSig = _markSig(spec);
