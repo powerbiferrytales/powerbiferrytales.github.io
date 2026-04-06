@@ -1071,6 +1071,8 @@ body.light-mode .hd-cn { color: #c2410c; }
     </div>
     <div class="divider"></div>
     <div class="template-rail" id="template-rail"></div>
+    <button class="btn" id="btn-reset-template" title="Reset current template to default">↺ RESET</button>
+    <div class="divider"></div>
     <button class="btn" id="btn-theme-toggle" title="Switch between dark and light mode">☀ LIGHT</button>
     <div class="share-wrap">
       <button class="btn" id="btn-share-options" title="Share and export options">⬡ SHARE ▾</button>
@@ -2299,6 +2301,7 @@ const MARK_CTRL_DEFS = {
 // ─────────────────────────────────────────────────────────────
 let userData = null;
 let activeTemplateId = null;
+const templateCache = {};  // { templateId: specJSON } — preserves edits across template switches
 let embedResult = null;
 let renderTimer = null;
 let pasteFormat = 'csv';
@@ -3067,7 +3070,8 @@ function bindEvents() {
   _so('sopt-save-svg')(saveSvg);
   _so('sopt-vega-editor')(openInVegaEditor);
 
-  document.getElementById('btn-theme-toggle').onclick = toggleStudioTheme;
+  document.getElementById('btn-theme-toggle').onclick    = toggleStudioTheme;
+  document.getElementById('btn-reset-template').onclick  = resetCurrentTemplate;
   document.getElementById('btn-help').onclick         = () => document.getElementById('help-overlay').classList.remove('hidden');
   document.getElementById('btn-help-close').onclick   = () => document.getElementById('help-overlay').classList.add('hidden');
   document.getElementById('help-overlay').addEventListener('click', e => {
@@ -3125,7 +3129,17 @@ document.getElementById('btn-fit').onclick = () => {
 // ─────────────────────────────────────────────────────────────
 // TEMPLATES
 // ─────────────────────────────────────────────────────────────
-function applyTemplate(t) {
+function saveCurrentTemplateToCache() {
+  if (!activeTemplateId) return;
+  // Grab the latest editor content so manual edits are captured
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  templateCache[activeTemplateId] = specBuffer;
+}
+
+function applyTemplate(t, forceDefault) {
+  // Save the outgoing template's edits before switching
+  saveCurrentTemplateToCache();
+
   activeTemplateId = t.id;
   document.querySelectorAll('.tpl-btn').forEach(b => b.classList.toggle('active', b.dataset.id === t.id));
 
@@ -3139,7 +3153,13 @@ function applyTemplate(t) {
   selectedConcatIdx = 0;
   selectedLayerIdx  = 0;
 
-  let spec = JSON.parse(JSON.stringify(t.spec));
+  // Restore cached edits if available, otherwise use the template default
+  let spec;
+  if (!forceDefault && templateCache[t.id]) {
+    try { spec = JSON.parse(templateCache[t.id]); } catch(_) { spec = null; }
+  }
+  if (!spec) spec = JSON.parse(JSON.stringify(t.spec));
+
   const activeCfg = CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0];
   spec.config = activeCfg.cfg;
   configBuffer = JSON.stringify(activeCfg.cfg, null, 2);
@@ -3157,6 +3177,13 @@ function applyTemplate(t) {
   if (!isMultiView) {
     setTimeout(fitToFrame, 600);
   }
+}
+
+function resetCurrentTemplate() {
+  const t = TEMPLATES.find(t => t.id === activeTemplateId);
+  if (!t) return;
+  delete templateCache[t.id];
+  applyTemplate(t, true);
 }
 
 function setSpec(spec) {
