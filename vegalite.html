@@ -1145,62 +1145,20 @@ body.light-mode .hd-cn { color: #c2410c; }
           </div>
         </div>
 
-        <!-- X AXIS -->
+        <!-- X AXIS — body is built dynamically by rebuildAxisSection() -->
         <div class="props-section" id="ps-xaxis">
           <div class="props-section-head" onclick="toggleSection('ps-xaxis')">
             <span>X AXIS</span><span class="props-section-arrow">▶</span>
           </div>
-          <div class="props-section-body">
-            <div class="prop-row">
-              <span class="prop-label">Show axis</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-x-show" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Show labels</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-x-labels" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Show title</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-x-title" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Grid lines</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-x-grid" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Title text</span>
-              <div class="prop-ctrl"><input type="text" id="pp-x-title-text" placeholder="auto"></div>
-            </div>
-          </div>
+          <div class="props-section-body"></div>
         </div>
 
-        <!-- Y AXIS -->
+        <!-- Y AXIS — body is built dynamically by rebuildAxisSection() -->
         <div class="props-section" id="ps-yaxis">
           <div class="props-section-head" onclick="toggleSection('ps-yaxis')">
             <span>Y AXIS</span><span class="props-section-arrow">▶</span>
           </div>
-          <div class="props-section-body">
-            <div class="prop-row">
-              <span class="prop-label">Show axis</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-y-show" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Show labels</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-y-labels" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Show title</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-y-title" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Grid lines</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-y-grid" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Title text</span>
-              <div class="prop-ctrl"><input type="text" id="pp-y-title-text" placeholder="auto"></div>
-            </div>
-          </div>
+          <div class="props-section-body"></div>
         </div>
 
         <!-- MARKS — body is built dynamically by rebuildMarkSection() -->
@@ -2299,6 +2257,7 @@ const MARK_CTRL_DEFS = {
 // STATE
 // ─────────────────────────────────────────────────────────────
 let userData = null;
+let _cachedRawFields = [];  // full raw field list from URL fetch or uploaded data
 let activeTemplateId = null;
 const templateCache = {};  // { templateId: specJSON } — preserves edits across template switches
 let embedResult = null;
@@ -2315,6 +2274,7 @@ let isLightMode = true;
 let selectedLayerIdx = 0;
 let selectedConcatIdx = 0;
 let _lastMarkSig = '';
+let _lastAxisSig  = '';
 
 // ─────────────────────────────────────────────────────────────
 // DOM
@@ -3247,6 +3207,8 @@ function resetCurrentTemplate() {
 }
 
 function setSpec(spec) {
+  // Clear field cache — new spec may have a different data source
+  if (!userData) _cachedRawFields = [];
   // Split config from spec into separate buffers
   const specOnly = Object.assign({}, spec);
   delete specOnly.config;
@@ -3334,6 +3296,7 @@ function clearSampleActive() {
 // ─────────────────────────────────────────────────────────────
 function setData(data, fields) {
   userData = data;
+  if (data?.length) _cachedRawFields = Object.keys(data[0]);
   ftMapCache = null; // invalidate field type cache
   showFields(data, fields);
   renderDataTable(data, fields);
@@ -3785,6 +3748,7 @@ async function populateDataTableFromView(view) {
         fields = rows.length ? Object.keys(rows[0]) : [];
       }
       if (rows.length && fields.length) {
+        _cachedRawFields = fields;   // cache full raw field list for dropdowns
         renderDataTable(rows, fields);
         return;
       }
@@ -3803,6 +3767,7 @@ async function populateDataTableFromView(view) {
     }
     if (!rows || !rows.length) return;
     const fields = Object.keys(rows[0]).filter(k => !k.startsWith('_vg'));
+    _cachedRawFields = [...new Set(fields.map(k => _rawFieldName(k)))];
     renderDataTable(rows, fields);
   } catch(_) {}
 }
@@ -4270,25 +4235,9 @@ function syncPropsFromSpec() {
   // Reset the sync tracker so the title→subtitle colour link works correctly after a template switch
   document.getElementById('pp-title-color').dataset.lastSync = syncedTitleColor;
 
-  // ── X AXIS ────────────────────────────────────
-  const xEnc = _resolveAxisEnc(spec, 'x') || {};
-  const xA   = xEnc.axis;
-  document.getElementById('pp-x-show').checked     = (xA !== null && xA !== false);
-  const xAO  = (xA && typeof xA === 'object') ? xA : {};
-  document.getElementById('pp-x-labels').checked   = xAO.labels !== false;
-  document.getElementById('pp-x-title').checked    = xEnc.title !== null && xAO.title !== null && xAO.title !== false;
-  document.getElementById('pp-x-grid').checked     = xAO.grid   !== false;
-  document.getElementById('pp-x-title-text').value = typeof xAO.title === 'string' ? xAO.title : (typeof xEnc.title === 'string' ? xEnc.title : '');
-
-  // ── Y AXIS ────────────────────────────────────
-  const yEnc = _resolveAxisEnc(spec, 'y') || {};
-  const yA   = yEnc.axis;
-  document.getElementById('pp-y-show').checked     = (yA !== null && yA !== false);
-  const yAO  = (yA && typeof yA === 'object') ? yA : {};
-  document.getElementById('pp-y-labels').checked   = yAO.labels !== false;
-  document.getElementById('pp-y-title').checked    = yEnc.title !== null && yAO.title !== null && yAO.title !== false;
-  document.getElementById('pp-y-grid').checked     = yAO.grid   !== false;
-  document.getElementById('pp-y-title-text').value = typeof yAO.title === 'string' ? yAO.title : (typeof yEnc.title === 'string' ? yEnc.title : '');
+  // ── X AXIS / Y AXIS — fully dynamic rebuild ──────────────────
+  rebuildAxisSection(spec, 'x');
+  rebuildAxisSection(spec, 'y');
 
   // ── MARKS ─ dynamic rebuild ───────────────────
   rebuildMarkSection(spec);
@@ -4397,6 +4346,171 @@ function _resolveAxisEnc(spec, axis) {
   return null;
 }
 
+// ── Axis section dynamic rebuild ──────────────────────────────
+
+// Like _resolveAxisEnc but ONLY checks root spec and concat views — not layers.
+// Used by the axis section to know whether it owns the encoding or layers do.
+function _resolveRootAxisEnc(spec, axis) {
+  if (spec.encoding?.[axis]) return spec.encoding[axis];
+  const views = spec.vconcat || spec.hconcat || spec.concat;
+  if (views) {
+    for (const v of views) {
+      if (v.encoding?.[axis]) return v.encoding[axis];
+    }
+  }
+  return null;
+}
+
+// Fingerprint of root-level x/y encoding — used to know when to rebuild axis sections.
+function _axisSig(spec) {
+  const e = ax => { const enc = _resolveRootAxisEnc(spec, ax); return enc ? `${enc.field||''}:${enc.type||''}:${enc.aggregate||''}` : '-'; };
+  return e('x') + '|' + e('y');
+}
+
+// Write a property to the root-level encoding for the given axis channel.
+function _applyRootAxisEncProp(axis, prop, value) {
+  patchSpec(spec => {
+    let enc = null;
+    if (spec.encoding?.[axis]) enc = spec.encoding[axis];
+    else {
+      const views = spec.vconcat || spec.hconcat || spec.concat;
+      if (views) { for (const v of views) { if (v.encoding?.[axis]) { enc = v.encoding[axis]; break; } } }
+    }
+    if (!enc) return;
+    if (value === null || value === undefined || value === '') delete enc[prop];
+    else enc[prop] = value;
+  });
+}
+
+// Build Field / Type / Aggregate rows into `body` for an encoding object.
+// `onWrite(prop, value)` is called when any control changes.
+function _buildEncFieldRows(enc, fields, onWrite, body) {
+  const makeRow = (label, ctrl) => {
+    const row = document.createElement('div'); row.className = 'prop-row';
+    row.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: label }));
+    const c = document.createElement('div'); c.className = 'prop-ctrl'; c.appendChild(ctrl);
+    row.appendChild(c); body.appendChild(row);
+  };
+  const makeSel = (options, current, onChange) => {
+    const sel = document.createElement('select');
+    const blank = document.createElement('option'); blank.value = ''; blank.textContent = '—'; sel.appendChild(blank);
+    options.forEach(o => {
+      const opt = document.createElement('option'); opt.value = o; opt.textContent = o;
+      if (o === current) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', () => onChange(sel.value || null));
+    return sel;
+  };
+  // Field
+  const fSel = document.createElement('select');
+  const fBlank = document.createElement('option'); fBlank.value=''; fBlank.textContent='—'; fSel.appendChild(fBlank);
+  fields.forEach(f => {
+    const o = document.createElement('option'); o.value = f; o.textContent = f;
+    if (f === (enc.field || '')) o.selected = true;
+    fSel.appendChild(o);
+  });
+  fSel.addEventListener('change', () => onWrite('field', fSel.value || null));
+  makeRow('Field', fSel);
+  // Type
+  makeRow('Type',      makeSel(['quantitative','ordinal','nominal','temporal'], enc.type||'',      v => onWrite('type', v)));
+  // Aggregate
+  makeRow('Aggregate', makeSel(['sum','mean','count','min','max','median','q1','q3'], enc.aggregate||'', v => onWrite('aggregate', v)));
+}
+
+// Common format options for axis labels and text marks.
+const AXIS_FMT_OPTIONS = [
+  ['', 'Auto'], [',.0f', '1,234'], [',.1f', '1,234.5'], ['.1%', '12.3%'], ['.2s', '1.2M'],
+  ['$,.0f', '$1,234'], ['$,.2f', '$1,234.56'], ['.3f', '1.234'],
+];
+
+function rebuildAxisSection(spec, axis) {
+  const sectionId = axis === 'x' ? 'ps-xaxis' : 'ps-yaxis';
+  const body = document.querySelector('#' + sectionId + ' .props-section-body');
+  if (!body) return;
+  body.innerHTML = '';
+
+  const fields  = _getDataFields();
+  const rootEnc = _resolveRootAxisEnc(spec, axis);   // root/concat-view level only
+  const anyEnc  = _resolveAxisEnc(spec, axis) || {}; // first found (any level)
+
+  // ── Encoding controls (root level) ──────────────────────────
+  if (rootEnc) {
+    if (fields.length) {
+      _buildEncFieldRows(rootEnc, fields, (prop, value) => {
+        _applyRootAxisEncProp(axis, prop, value);
+        // Rebuild immediately in non-live mode (no render cycle fires)
+        if (!liveMode) { try { rebuildAxisSection(JSON.parse(specBuffer), axis); } catch(_) {} }
+      }, body);
+    }
+    const dispDiv = document.createElement('div');
+    dispDiv.className = 'props-subsection-divider'; dispDiv.textContent = 'Axis display';
+    body.appendChild(dispDiv);
+  } else if (spec.layer || spec.vconcat || spec.hconcat || spec.concat) {
+    // Encoding is per-layer — editing happens in the Marks section
+    const hint = document.createElement('div'); hint.className = 'prop-row';
+    hint.style.cssText = 'font-size:11px;color:var(--muted);padding:2px 0 6px;';
+    hint.textContent = 'Encoding per layer — edit in Marks';
+    body.appendChild(hint);
+  }
+
+  // ── Display controls ─────────────────────────────────────────
+  // Only show if there's actually an encoding for this axis somewhere in the spec
+  if (!anyEnc.field && !rootEnc) return;
+
+  const aO = (anyEnc.axis && typeof anyEnc.axis === 'object') ? anyEnc.axis : {};
+
+  const mkChkRow = (label, id, checked) => {
+    const row = document.createElement('div'); row.className = 'prop-row';
+    row.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: label }));
+    const c = document.createElement('div'); c.className = 'prop-ctrl';
+    const chk = document.createElement('input'); chk.type = 'checkbox'; chk.id = id; chk.checked = checked;
+    chk.style.accentColor = 'var(--accent)';
+    chk.addEventListener('change', () => applyAxisProps(axis));
+    c.appendChild(chk); row.appendChild(c); body.appendChild(row);
+  };
+  const mkTxtRow = (label, id, value, placeholder) => {
+    const row = document.createElement('div'); row.className = 'prop-row';
+    row.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: label }));
+    const c = document.createElement('div'); c.className = 'prop-ctrl';
+    const inp = document.createElement('input'); inp.type = 'text'; inp.id = id; inp.value = value; inp.placeholder = placeholder;
+    inp.addEventListener('change', () => applyAxisProps(axis));
+    c.appendChild(inp); row.appendChild(c); body.appendChild(row);
+  };
+
+  mkChkRow('Show axis',   'pp-'+axis+'-show',   anyEnc.axis !== null && anyEnc.axis !== false);
+  mkChkRow('Show labels', 'pp-'+axis+'-labels', aO.labels !== false);
+  mkChkRow('Show title',  'pp-'+axis+'-title',  anyEnc.title !== null && aO.title !== null && aO.title !== false);
+  mkChkRow('Grid lines',  'pp-'+axis+'-grid',   aO.grid !== false);
+  mkTxtRow('Title text',  'pp-'+axis+'-title-text',
+    typeof aO.title === 'string' ? aO.title : (typeof anyEnc.title === 'string' ? anyEnc.title : ''), 'auto');
+
+  // Format row — writes to enc.axis.format inline (not through applyAxisProps)
+  const fmtRow = document.createElement('div'); fmtRow.className = 'prop-row';
+  fmtRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Format' }));
+  const fmtCtrl = document.createElement('div'); fmtCtrl.className = 'prop-ctrl';
+  const fmtSel  = document.createElement('select');
+  const curFmt  = aO.format || '';
+  AXIS_FMT_OPTIONS.forEach(([val, lbl]) => {
+    const o = document.createElement('option'); o.value = val; o.textContent = lbl;
+    if (val === curFmt) o.selected = true;
+    fmtSel.appendChild(o);
+  });
+  fmtSel.addEventListener('change', () => {
+    patchSpec(spec => {
+      const enc = _resolveAxisEnc(spec, axis);
+      if (!enc) return;
+      if (enc.axis === null || enc.axis === false) return; // axis hidden — don't add format
+      if (!enc.axis || typeof enc.axis !== 'object') enc.axis = {};
+      if (fmtSel.value) enc.axis.format = fmtSel.value;
+      else delete enc.axis.format;
+    });
+  });
+  fmtCtrl.appendChild(fmtSel); fmtRow.appendChild(fmtCtrl); body.appendChild(fmtRow);
+
+  _lastAxisSig = _axisSig(spec);
+}
+
 // ── Dynamic mark helpers ───────────────────────────────────────
 function _markType(mark) {
   return (typeof mark === 'string' ? mark : (mark && mark.type)) || 'bar';
@@ -4405,9 +4519,12 @@ function _markObj(mark) {
   return (typeof mark === 'object' && mark !== null) ? mark : {};
 }
 function _markSig(spec) {
+  // Include which layers carry their own x/y encoding so the section rebuilds
+  // when a layer gains or loses its own axis encoding (not just when mark type changes).
+  const lyrSig = l => _markType(l.mark) + (l.encoding?.x ? 'X' : '') + (l.encoding?.y ? 'Y' : '');
   const views = spec && (spec.vconcat || spec.hconcat || spec.concat);
-  if (views) return 'concat:' + views.map(v => v.layer ? v.layer.map(l => _markType(l.mark)).join('+') : _markType(v.mark)).join(',');
-  if (spec && spec.layer) return 'layer:' + spec.layer.map(l => _markType(l.mark)).join(',');
+  if (views) return 'concat:' + views.map(v => v.layer ? v.layer.map(lyrSig).join('+') : _markType(v.mark)).join(',');
+  if (spec && spec.layer) return 'layer:' + spec.layer.map(lyrSig).join(',');
   return spec ? _markType(spec.mark) : '';
 }
 
@@ -4448,11 +4565,13 @@ function _buildConcatTabs(views) {
 }
 
 function _getDataFields() {
+  // Prefer the full raw field cache populated from the original URL fetch or uploaded data.
+  // source_0 from the Vega view only has the aggregated/transformed columns the current spec
+  // uses, so it loses fields as soon as the spec changes — making dropdowns appear empty.
+  if (_cachedRawFields.length) return _cachedRawFields;
   if (userData?.length) return Object.keys(userData[0]);
   if (!embedResult?.view) return [];
-  // source_0/source_1 may hold Vega's aggregated pipeline data where field names
-  // have been prefixed (e.g. sum_people, mean_yield).  Strip those prefixes and
-  // deduplicate so we always present raw dataset field names to the user.
+  // Fallback: read from Vega view (only used fields, but better than nothing)
   for (const name of ['source_0', 'source_1']) {
     try {
       const d = embedResult.view.data(name);
@@ -5582,6 +5701,64 @@ function rebuildMarkSection(spec) {
     if (markType === 'text') _buildTextHlControls(spec, layerIdx, body);
   }
 
+  // ── Layer-level X / Y encoding controls ─────────────────────
+  // Shown when the currently selected layer has its own encoding.x or encoding.y
+  // (as opposed to inheriting from root, which is handled by the X/Y AXIS sections).
+  if (layerIdx !== null) {
+    let target = spec;
+    if (concatIdx !== null) { const vs = spec.vconcat||spec.hconcat||spec.concat; if (vs?.[concatIdx]) target = vs[concatIdx]; }
+    const lyr = target.layer?.[layerIdx];
+    if (lyr) {
+      const layerFields = _getDataFields();
+      ['x', 'y'].forEach(axis => {
+        const lyrEnc = lyr.encoding?.[axis];
+        if (!lyrEnc) return; // this layer doesn't have its own encoding for this axis
+
+        const axDiv = document.createElement('div');
+        axDiv.className = 'props-subsection-divider';
+        axDiv.textContent = axis.toUpperCase() + ' Encoding';
+        body.appendChild(axDiv);
+
+        _buildEncFieldRows(lyrEnc, layerFields, (prop, value) => {
+          patchSpec(ps => {
+            let t = ps;
+            if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+            const enc = t.layer?.[layerIdx]?.encoding?.[axis];
+            if (!enc) return;
+            if (value === null || value === undefined) delete enc[prop];
+            else enc[prop] = value;
+          });
+          try { rebuildMarkSection(JSON.parse(specBuffer)); } catch(_) {}
+        }, body);
+
+        // Format row for axis label format (enc.axis.format)
+        const fmtRow = document.createElement('div'); fmtRow.className = 'prop-row';
+        fmtRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Format' }));
+        const fmtCtrl = document.createElement('div'); fmtCtrl.className = 'prop-ctrl';
+        const fmtSel  = document.createElement('select');
+        const curFmt  = (lyrEnc.axis && typeof lyrEnc.axis === 'object') ? (lyrEnc.axis.format || '') : '';
+        AXIS_FMT_OPTIONS.forEach(([val, lbl]) => {
+          const o = document.createElement('option'); o.value = val; o.textContent = lbl;
+          if (val === curFmt) o.selected = true;
+          fmtSel.appendChild(o);
+        });
+        fmtSel.addEventListener('change', () => {
+          patchSpec(ps => {
+            let t = ps;
+            if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+            const enc = t.layer?.[layerIdx]?.encoding?.[axis];
+            if (!enc) return;
+            if (enc.axis === null || enc.axis === false) return;
+            if (!enc.axis || typeof enc.axis !== 'object') enc.axis = {};
+            if (fmtSel.value) enc.axis.format = fmtSel.value;
+            else delete enc.axis.format;
+          });
+        });
+        fmtCtrl.appendChild(fmtSel); fmtRow.appendChild(fmtCtrl); body.appendChild(fmtRow);
+      });
+    }
+  }
+
   // Duplicate mark button — not shown for the synthetic _hl_layer
   const isHlLayer = layerIdx !== null && spec.layer?.[layerIdx]?.name === '_hl_layer';
   if (!concatViews && !isHlLayer) {
@@ -5634,8 +5811,10 @@ function _applyMarkProp(prop, value, layerIdx, concatIdx = null) {
 function _autoSyncMarkSection() {
   try {
     const sp = JSON.parse(specBuffer);
-    const sig = _markSig(sp);
-    if (sig !== _lastMarkSig) rebuildMarkSection(sp);
+    const sig    = _markSig(sp);
+    const axSig  = _axisSig(sp);
+    if (sig   !== _lastMarkSig) rebuildMarkSection(sp);
+    if (axSig !== _lastAxisSig) { rebuildAxisSection(sp, 'x'); rebuildAxisSection(sp, 'y'); }
   } catch(_) {}
 }
 
@@ -5707,17 +5886,7 @@ function applyLayoutProps() {
   });
   document.getElementById('pp-title-sub-color').addEventListener('input', applyTitleProps);
 
-  // X axis
-  ['pp-x-show', 'pp-x-labels', 'pp-x-title', 'pp-x-grid'].forEach(id =>
-    document.getElementById(id).addEventListener('change', () => applyAxisProps('x')));
-  document.getElementById('pp-x-title-text').addEventListener('change', () => applyAxisProps('x'));
-
-  // Y axis
-  ['pp-y-show', 'pp-y-labels', 'pp-y-title', 'pp-y-grid'].forEach(id =>
-    document.getElementById(id).addEventListener('change', () => applyAxisProps('y')));
-  document.getElementById('pp-y-title-text').addEventListener('change', () => applyAxisProps('y'));
-
-  // Marks — events are wired dynamically by rebuildMarkSection()
+  // X/Y axis and Marks — events are wired dynamically by rebuildAxisSection() / rebuildMarkSection()
 
   // Legend
   document.getElementById('pp-legend-show').addEventListener('change', applyLegendProps);
