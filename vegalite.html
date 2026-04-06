@@ -729,6 +729,9 @@ select {
 .prop-ctrl select:focus {
   outline: none; border-color: var(--accent);
 }
+.prop-ctrl input:disabled {
+  opacity: 0.35; cursor: not-allowed;
+}
 .prop-ctrl input[type="color"] {
   width: 100%; height: 24px; border: 1px solid var(--border2);
   border-radius: 3px; background: none; cursor: pointer; padding: 1px;
@@ -2548,8 +2551,7 @@ function setPreviewZoom(idx) {
   document.getElementById('preview-zoom-wrap').style.transform = `scale(${z})`;
   document.getElementById('pvz-label').textContent = Math.round(z * 100) + '%';
   // Deactivate fit mode — user has manually overridden the zoom
-  fitState.active = false;
-  document.getElementById('btn-fit').classList.remove('btn-primary');
+  deactivateFit();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -2588,6 +2590,12 @@ function setDataZoom(idx) {
   // Store as CSS var so future table renders also inherit it
   document.documentElement.style.setProperty('--tbl-font-size', sz + 'px');
 }
+function deactivateFit() {
+  fitState.active = false;
+  document.getElementById('btn-fit').classList.remove('btn-primary');
+  document.getElementById('pp-width').disabled  = false;
+  document.getElementById('pp-height').disabled = false;
+}
 // ─────────────────────────────────────────────────────────────
 async function fitToFrame() {
   const previewTop = document.getElementById('preview-top');
@@ -2618,8 +2626,10 @@ async function fitToFrame() {
     isMulti
   };
 
-  // Show FIT button as active
+  // Show FIT button as active and disable manual dimension inputs
   document.getElementById('btn-fit').classList.add('btn-primary');
+  document.getElementById('pp-width').disabled  = true;
+  document.getElementById('pp-height').disabled = true;
 
   let rs = JSON.parse(JSON.stringify(spec));
   if (userData && rs.data && rs.data.name === 'dataset') rs.data = { values: userData };
@@ -3106,7 +3116,10 @@ function bindEvents() {
     }
   });
   document.getElementById('btn-format').onclick  = formatJSON;
-document.getElementById('btn-fit').onclick      = fitToFrame;
+document.getElementById('btn-fit').onclick = () => {
+  if (fitState.active) { deactivateFit(); if (liveMode) renderSpec(); }
+  else fitToFrame();
+};
   document.getElementById('btn-pvz-in').onclick   = () => setPreviewZoom(previewZoomIdx + 1);
   document.getElementById('btn-pvz-out').onclick  = () => setPreviewZoom(previewZoomIdx - 1);
   document.getElementById('btn-edz-in').onclick   = () => setCodeZoom(codeZoomIdx + 1);
@@ -3140,10 +3153,9 @@ function applyTemplate(t) {
   // Facet/repeat: turn fit OFF before render. Everything else: turn fit ON.
   const isMultiView = !!(t.spec.facet || t.spec.repeat || t.spec.encoding?.facet || t.spec.vconcat || t.spec.hconcat || t.spec.concat);
   if (isMultiView) {
-    fitState.active = false;
     fitState.width  = null;
     fitState.height = null;
-    document.getElementById('btn-fit').classList.remove('btn-primary');
+    deactivateFit();
   }
 
   setSpec(spec);
@@ -5379,6 +5391,10 @@ function applyLayoutProps() {
   if (w !== '') spec.width = parseInt(w); else delete spec.width;
   const h = document.getElementById('pp-height').value;
   if (h !== '') spec.height = parseInt(h); else delete spec.height;
+
+  // Manual dimension change turns off fit mode
+  if (fitState.active) deactivateFit();
+
   const p = document.getElementById('pp-padding').value;
   if (p !== '') spec.padding = parseInt(p); else delete spec.padding;
   specBuffer = JSON.stringify(spec, null, 2);
