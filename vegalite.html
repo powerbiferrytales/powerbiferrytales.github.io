@@ -2177,6 +2177,78 @@ const TEMPLATES = [
       ]
     }
   },
+  { id:"matrix", name:"MATRIX", icon:"⊞", noFit:true,
+    spec: { "$schema":SCHEMA, "title":"Stock Prices 2009", "data":{"url":DS+"stocks.csv"},
+      "transform":[{"filter":"year(datum.date) === 2009"}],
+      "width":{"step":35}, "height":{"step":40},
+      "encoding":{
+        "x":{"field":"date","type":"ordinal","timeUnit":"yearmonth","scale":{"padding":0.05},"title":null,"axis":{"format":"%b","orient":"top"}},
+        "y":{"field":"symbol","type":"ordinal","title":null,"sort":{"field":"symbol","order":"ascending"}}
+      },
+      "layer":[
+        {
+          "mark":{"type":"rect","tooltip":true},
+          "encoding":{
+            "color":{"condition":{"test":{"field":"__selected__","equal":"on"},"value":"#7b516f"},"value":"#e3e3e3"},
+            "opacity":{"condition":{"test":{"field":"__selected__","equal":"off"},"value":0.5},"value":1}
+          }
+        },
+        {
+          "mark":{"type":"text","fontSize":11},
+          "encoding":{
+            "text":{"field":"price","format":",.0f"},
+            "color":{"condition":{"test":{"field":"__selected__","equal":"on"},"value":"white"},"value":"black"}
+          }
+        },
+        {
+          "mark":{"type":"rect","color":"#e3e3e3","xOffset":52},
+          "encoding":{"x":{"field":"date","aggregate":"max"}}
+        },
+        {
+          "mark":{"type":"rect","color":"#e3e3e3","xOffset":104},
+          "encoding":{"x":{"field":"date","aggregate":"max"}}
+        },
+        {
+          "transform":[
+            {"joinaggregate":[{"op":"min","field":"symbol","as":"_hdr_sym"},{"op":"max","field":"date","as":"_hdr_date"}]},
+            {"filter":"datum.symbol === datum._hdr_sym && datum.date === datum._hdr_date"}
+          ],
+          "mark":{"type":"text","fontSize":10,"fontWeight":800,"xOffset":52,"yOffset":-30,"color":"black"},
+          "encoding":{
+            "text":{"value":"Total"},
+            "x":{"field":"date","aggregate":"max"},
+            "y":{"field":"symbol","type":"ordinal"}
+          }
+        },
+        {
+          "transform":[
+            {"joinaggregate":[{"op":"min","field":"symbol","as":"_hdr_sym"},{"op":"max","field":"date","as":"_hdr_date"}]},
+            {"filter":"datum.symbol === datum._hdr_sym && datum.date === datum._hdr_date"}
+          ],
+          "mark":{"type":"text","fontSize":10,"fontWeight":800,"xOffset":104,"yOffset":-30,"color":"black"},
+          "encoding":{
+            "text":{"value":"Min"},
+            "x":{"field":"date","aggregate":"max"},
+            "y":{"field":"symbol","type":"ordinal"}
+          }
+        },
+        {
+          "mark":{"type":"text","fontSize":10,"fontWeight":600,"xOffset":52},
+          "encoding":{
+            "text":{"field":"price","type":"quantitative","aggregate":"sum","format":",.0f"},
+            "x":{"field":"date","aggregate":"max"}
+          }
+        },
+        {
+          "mark":{"type":"text","fontSize":10,"fontWeight":600,"xOffset":104},
+          "encoding":{
+            "text":{"field":"price","type":"quantitative","aggregate":"min","format":",.0f"},
+            "x":{"field":"date","aggregate":"max"}
+          }
+        }
+      ]
+    }
+  },
   { id:"blank", name:"BLANK", icon:"◻",
     spec: { "$schema":SCHEMA, "title":"My Chart",
       "data":{"name":"dataset"},
@@ -3201,9 +3273,10 @@ function applyTemplate(t, forceDefault) {
   spec.config = activeCfg.cfg;
   configBuffer = JSON.stringify(activeCfg.cfg, null, 2);
 
-  // Facet/repeat: turn fit OFF before render. Everything else: turn fit ON.
+  // Facet/repeat or explicit noFit: turn fit OFF. Everything else: turn fit ON.
   const isMultiView = !!(t.spec.facet || t.spec.repeat || t.spec.encoding?.facet || t.spec.vconcat || t.spec.hconcat || t.spec.concat);
-  if (isMultiView) {
+  const noFit = isMultiView || !!t.noFit;
+  if (noFit) {
     fitState.width  = null;
     fitState.height = null;
     deactivateFit();
@@ -3211,7 +3284,7 @@ function applyTemplate(t, forceDefault) {
 
   setSpec(spec);
 
-  if (!isMultiView) {
+  if (!noFit) {
     setTimeout(fitToFrame, 600);
   }
 }
