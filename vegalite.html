@@ -4445,16 +4445,27 @@ function applyAxisProps(axis) {
     const enc = _resolveAxisEnc(spec, axis);
     if (!enc) return;
     const show = document.getElementById('pp-' + axis + '-show').checked;
-    if (!show) { enc.axis = null; return; }
+    if (!show) {
+      // Cache current axis object so it can be restored when shown again
+      if (enc.axis && typeof enc.axis === 'object') enc._axisCache = enc.axis;
+      enc.axis = null; return;
+    }
     const labels    = document.getElementById('pp-' + axis + '-labels').checked;
     const showTitle = document.getElementById('pp-' + axis + '-title').checked;
     const grid      = document.getElementById('pp-' + axis + '-grid').checked;
+    const domain    = document.getElementById('pp-' + axis + '-domain').checked;
+    const ticks     = document.getElementById('pp-' + axis + '-ticks').checked;
     const ttxt      = document.getElementById('pp-' + axis + '-title-text').value.trim();
-    const axObj = {};
-    if (!labels)   axObj.labels = false;
-    if (!showTitle) axObj.title = null;
-    else if (ttxt) axObj.title  = ttxt;
-    if (!grid)     axObj.grid   = false;
+    // Restore from cache if axis was hidden, otherwise use existing; preserves unmanaged props (offset, format, etc.)
+    const existing = (enc.axis && typeof enc.axis === 'object') ? enc.axis
+                   : (enc._axisCache && typeof enc._axisCache === 'object') ? enc._axisCache : {};
+    delete enc._axisCache;
+    const axObj = { ...existing };
+    if (!labels)    axObj.labels = false; else delete axObj.labels;
+    if (!showTitle) axObj.title  = null;  else if (ttxt) axObj.title = ttxt; else delete axObj.title;
+    if (!grid)      axObj.grid   = false; else delete axObj.grid;
+    if (!domain)    axObj.domain = false; else delete axObj.domain;
+    if (!ticks)     axObj.ticks  = false; else delete axObj.ticks;
     if (Object.keys(axObj).length === 0) delete enc.axis;
     else enc.axis = axObj;
   });
@@ -4645,6 +4656,8 @@ function rebuildAxisSection(spec, axis) {
   mkChkRow('Show labels', 'pp-'+axis+'-labels', aO.labels !== false);
   mkChkRow('Show title',  'pp-'+axis+'-title',  anyEnc.title !== null && aO.title !== null && aO.title !== false);
   mkChkRow('Grid lines',  'pp-'+axis+'-grid',   aO.grid !== false);
+  mkChkRow('Domain line', 'pp-'+axis+'-domain', aO.domain !== false);
+  mkChkRow('Tick marks',  'pp-'+axis+'-ticks',  aO.ticks !== false);
   mkTxtRow('Title text',  'pp-'+axis+'-title-text',
     typeof aO.title === 'string' ? aO.title : (typeof anyEnc.title === 'string' ? anyEnc.title : ''), 'auto');
 
@@ -4670,6 +4683,30 @@ function rebuildAxisSection(spec, axis) {
     });
   });
   fmtCtrl.appendChild(fmtSel); fmtRow.appendChild(fmtCtrl); body.appendChild(fmtRow);
+
+  // Label offset row
+  const offRow = document.createElement('div'); offRow.className = 'prop-row';
+  offRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: axis === 'x' ? 'Label Y offset' : 'Label X offset' }));
+  const offCtrl = document.createElement('div'); offCtrl.className = 'prop-ctrl';
+  const offSel  = document.createElement('select');
+  const offProp = 'offset';
+  const curOff  = aO[offProp] != null ? aO[offProp] : '';
+  [['', 'Auto'], [5, '5px'], [10, '10px'], [15, '15px']].forEach(([val, lbl]) => {
+    const o = document.createElement('option'); o.value = val; o.textContent = lbl;
+    if (String(val) === String(curOff)) o.selected = true;
+    offSel.appendChild(o);
+  });
+  offSel.addEventListener('change', () => {
+    patchSpec(spec => {
+      const enc = _resolveAxisEnc(spec, axis);
+      if (!enc) return;
+      if (enc.axis === null || enc.axis === false) return;
+      if (!enc.axis || typeof enc.axis !== 'object') enc.axis = {};
+      if (offSel.value !== '') enc.axis[offProp] = +offSel.value;
+      else delete enc.axis[offProp];
+    });
+  });
+  offCtrl.appendChild(offSel); offRow.appendChild(offCtrl); body.appendChild(offRow);
 
   _lastAxisSig = _axisSig(spec);
 }
