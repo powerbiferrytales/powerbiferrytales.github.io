@@ -3992,14 +3992,14 @@ async function renderSpec(cfgOverride = null) {
 
   // Preserve fit dimensions if fit mode is active; otherwise fall back to auto-width.
   // For the outer facet operator form, width/height belong inside spec.spec (per
-  // facet cell). Setting them on the true root is ignored / warns.
+  // facet cell). autosize is NOT allowed on compound specs, so skip it there.
   const isOuterFaceted = renderableSpec.facet && renderableSpec.spec;
   const dimTarget = isOuterFaceted ? renderableSpec.spec : renderableSpec;
   if (fitState.active) {
     dimTarget.width = fitState.width;
     if (fitState.height !== null) {
-      dimTarget.height   = fitState.height;
-      dimTarget.autosize = { type: 'fit', contains: 'padding', resize: true };
+      dimTarget.height = fitState.height;
+      if (!isOuterFaceted) dimTarget.autosize = { type: 'fit', contains: 'padding', resize: true };
     }
   } else if (!dimTarget.width && !dimTarget.resolve && !isOuterFaceted) {
     const w = document.getElementById('preview-top').clientWidth - 40;
