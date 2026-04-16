@@ -4702,9 +4702,11 @@ function syncPropsFromSpec() {
   document.getElementById('pp-legend-orient').value   = legO.orient || 'right';
 
   // ── LAYOUT ────────────────────────────────────
+  // Width/height live on the inner spec (per chart / per facet cell); padding
+  // is always chart-level on the true root.
   document.getElementById('pp-width').value    = (typeof spec.width === 'number') ? spec.width : '';
   document.getElementById('pp-height').value   = (typeof spec.height === 'number') ? spec.height : '';
-  document.getElementById('pp-padding').value  = spec.padding != null ? spec.padding : '';
+  document.getElementById('pp-padding').value  = root.padding != null ? root.padding : '';
   document.getElementById('pp-bg-color').value = cfg.background || '#020d18';
 
   // ── TRANSFORM / FACET / SORT ─────────────────
@@ -6384,10 +6386,14 @@ function applyLayoutProps() {
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { return; }
 
+  // Width/height apply to each chart (or per facet cell). In outer-facet
+  // operator form that's the inner `spec.spec` object; in the flat form
+  // it's the root itself. Padding is chart-level in both forms → root.
+  const dimTarget = _viewSpec(spec);
   const w = document.getElementById('pp-width').value;
-  if (w !== '') spec.width = parseInt(w); else delete spec.width;
+  if (w !== '') dimTarget.width = parseInt(w); else delete dimTarget.width;
   const h = document.getElementById('pp-height').value;
-  if (h !== '') spec.height = parseInt(h); else delete spec.height;
+  if (h !== '') dimTarget.height = parseInt(h); else delete dimTarget.height;
 
   // Manual dimension change turns off fit mode
   if (fitState.active) deactivateFit();
