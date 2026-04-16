@@ -2332,7 +2332,6 @@ const TEMPLATES = [
   { id:"brush", name:"BRUSH", icon:"▭⟷",
     spec: { "$schema":SCHEMA, "title":"Brush Filter", "data":{"url":DS+"stocks.csv"},
       "spacing":40,
-      "padding":{"left":20,"right":20,"top":20,"bottom":0},
       "vconcat":[
         {
           "title":{"text":"Total Price by Symbol","subtitle":"Filtered by the range selected below"},
@@ -2344,23 +2343,19 @@ const TEMPLATES = [
           "layer":[
             {"mark":{"type":"bar","tooltip":true}},
             {
-              "mark":{"type":"text","align":"left","xOffset":5,"fontSize":12},
+              "mark":{"type":"text","align":"left","xOffset":5},
               "encoding":{"text":{"field":"totalPrice","type":"quantitative","format":",.0f"}}
             }
           ],
           "encoding":{
-            "x":{"field":"totalPrice","type":"quantitative","axis":null},
-            "y":{
-              "field":"symbol","type":"nominal",
-              "sort":{"field":"totalPrice","order":"descending","op":"sum"},
-              "axis":{"title":null}
-            }
+            "x":{"field":"totalPrice","type":"quantitative","axis":null,"stack":null},
+            "y":{"field":"symbol","type":"nominal","sort":"-x","axis":{"title":null}}
           }
         },
         {
-          "title":{"text":"Brush to filter by date","fontSize":14},
+          "title":"Brush to filter by date",
           "height":120, "width":500,
-          "mark":{"type":"bar","tooltip":true},
+          "mark":"bar",
           "params":[
             {"name":"brush","select":{"type":"interval","encodings":["x"]}}
           ],
