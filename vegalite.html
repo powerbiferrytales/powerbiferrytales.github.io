@@ -3990,16 +3990,20 @@ async function renderSpec(cfgOverride = null) {
     }
   }
 
-  // Preserve fit dimensions if fit mode is active; otherwise fall back to auto-width
+  // Preserve fit dimensions if fit mode is active; otherwise fall back to auto-width.
+  // For the outer facet operator form, width/height belong inside spec.spec (per
+  // facet cell). Setting them on the true root is ignored / warns.
+  const isOuterFaceted = renderableSpec.facet && renderableSpec.spec;
+  const dimTarget = isOuterFaceted ? renderableSpec.spec : renderableSpec;
   if (fitState.active) {
-    renderableSpec.width = fitState.width;
+    dimTarget.width = fitState.width;
     if (fitState.height !== null) {
-      renderableSpec.height   = fitState.height;
-      renderableSpec.autosize = { type: 'fit', contains: 'padding', resize: true };
+      dimTarget.height   = fitState.height;
+      dimTarget.autosize = { type: 'fit', contains: 'padding', resize: true };
     }
-  } else if (!renderableSpec.width && !renderableSpec.resolve) {
+  } else if (!dimTarget.width && !dimTarget.resolve && !isOuterFaceted) {
     const w = document.getElementById('preview-top').clientWidth - 40;
-    renderableSpec.width = Math.max(200, w);
+    dimTarget.width = Math.max(200, w);
   }
 
   try {
@@ -4300,9 +4304,13 @@ function patchSpec(fn) {
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { return; }
-  fn(spec);
-  _migrateSpecHlTxtCat(spec); // upgrade any text layer still using old _hl_cat field name
-  _syncHlNormalColor(spec);   // keep HL_NRM in sync with any mark colour change
+  // When the spec is in the outer-facet operator form ({facet, spec: {...}}),
+  // editing operations target the inner spec — that's where encoding, mark,
+  // layer, transform etc. actually live. applyFacetProp uses patchRootSpec()
+  // when it needs to wrap/unwrap at the true root.
+  fn(_viewSpec(spec));
+  _migrateSpecHlTxtCat(_viewSpec(spec)); // upgrade any text layer still using old _hl_cat field name
+  _syncHlNormalColor(_viewSpec(spec));   // keep HL_NRM in sync with any mark colour change
   const oldText = cmEditor.getValue();
   specBuffer = JSON.stringify(spec, null, 2);
   _clearPatchHighlight();
@@ -4311,6 +4319,65 @@ function patchSpec(fn) {
   suppressRender = false;
   _applyPatchHighlight(oldText, specBuffer);
   if (liveMode) renderSpec(); else dot('idle');
+}
+
+// Like patchSpec, but passes the true root spec to fn — used by applyFacetProp
+// to wrap/unwrap between the flat and outer-facet forms.
+function patchRootSpec(fn) {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  let spec;
+  try { spec = JSON.parse(specBuffer); } catch(e) { return; }
+  fn(spec);
+  _migrateSpecHlTxtCat(_viewSpec(spec));
+  _syncHlNormalColor(_viewSpec(spec));
+  const oldText = cmEditor.getValue();
+  specBuffer = JSON.stringify(spec, null, 2);
+  _clearPatchHighlight();
+  suppressRender = true;
+  cmEditor.setValue(specBuffer);
+  suppressRender = false;
+  _applyPatchHighlight(oldText, specBuffer);
+  if (liveMode) renderSpec(); else dot('idle');
+}
+
+// Return the "editable root" of a spec. When the spec uses the outer facet
+// operator form — { facet: {...}, spec: {...} } — editing panels should
+// target the inner spec, where encoding/mark/layer actually live.
+function _viewSpec(spec) {
+  return (spec && spec.facet && spec.spec) ? spec.spec : spec;
+}
+
+// Keys that stay at the true root when wrapping into outer-facet form.
+const _FACET_ROOT_KEYS = new Set(['$schema', 'title', 'description', 'data', 'config', 'usermeta', 'background', 'padding']);
+
+function _isLayeredSpec(spec) {
+  return !!(spec.layer || spec.hconcat || spec.vconcat || spec.concat || spec.repeat);
+}
+
+// Convert a flat-or-layered spec into { $schema, data, ..., facet, spec: <inner> }
+// in place, preserving object identity so the caller's mutations land in the
+// same object the editor serializes.
+function _wrapAsOuterFacet(root, facetDef) {
+  const inner = {};
+  const outer = {};
+  Object.entries(root).forEach(([k, v]) => {
+    if (_FACET_ROOT_KEYS.has(k)) outer[k] = v;
+    else inner[k] = v;
+  });
+  Object.keys(root).forEach(k => delete root[k]);
+  Object.assign(root, outer);
+  root.facet = facetDef;
+  root.spec  = inner;
+}
+
+// Reverse of _wrapAsOuterFacet: unwrap back to a single-level spec in place.
+function _unwrapOuterFacet(root) {
+  if (!root.facet || !root.spec) return;
+  const inner = root.spec;
+  const outer = {};
+  Object.entries(root).forEach(([k, v]) => { if (k !== 'facet' && k !== 'spec') outer[k] = v; });
+  Object.keys(root).forEach(k => delete root[k]);
+  Object.assign(root, outer, inner);
 }
 
 // Lightweight live-preview update for rapid input events (colour pickers while dragging).
@@ -4509,8 +4576,9 @@ function buildPaletteSwatches(cfg) {
 
 // Read the current spec + active theme and populate every control
 function syncPropsFromSpec() {
-  let spec;
-  try { spec = JSON.parse(specBuffer); } catch(e) { return; }
+  let root, spec;
+  try { root = JSON.parse(specBuffer); } catch(e) { return; }
+  spec = _viewSpec(root);  // all the panels below read from the inner spec when outer-faceted
   const cfg = (CONFIGS.find(c => c.id === activeConfigId) || CONFIGS[0]).cfg;
 
   // ── TITLE ────────────────────────────────────
@@ -4567,7 +4635,9 @@ function syncPropsFromSpec() {
   document.getElementById('pp-bg-color').value = cfg.background || '#020d18';
 
   // ── TRANSFORM / FACET / SORT ─────────────────
-  syncTransformPanel(spec);
+  // syncTransformPanel needs the true root so it can read spec.facet when
+  // the chart is in outer-facet form.
+  syncTransformPanel(root);
 }
 
 // ── Apply helpers ─────────────────────────────────────────────
@@ -6528,41 +6598,67 @@ function applyFilterProp() {
 }
 
 function applyFacetProp() {
-  patchSpec(spec => {
+  // patchRootSpec: we may need to wrap/unwrap the root, which means editing
+  // the true root of the spec (not the outer-facet inner view).
+  patchRootSpec(root => {
     const field  = document.getElementById('pp-facet-field').value;
     const type   = document.getElementById('pp-facet-type').value;
     const cols   = document.getElementById('pp-facet-cols').value;
     const shareX = document.getElementById('pp-facet-share-x').checked;
     const shareY = document.getElementById('pp-facet-share-y').checked;
 
-    if (!spec.encoding) spec.encoding = {};
+    // Clean-up helper for axis sharing on whichever object carries resolve.
+    const writeShare = (target) => {
+      if (!shareX || !shareY) {
+        target.resolve = target.resolve || {};
+        target.resolve.scale = target.resolve.scale || {};
+        if (!shareX) target.resolve.scale.x = 'independent'; else delete target.resolve.scale.x;
+        if (!shareY) target.resolve.scale.y = 'independent'; else delete target.resolve.scale.y;
+      } else if (target.resolve && target.resolve.scale) {
+        delete target.resolve.scale.x;
+        delete target.resolve.scale.y;
+        if (Object.keys(target.resolve.scale).length === 0) delete target.resolve.scale;
+        if (Object.keys(target.resolve).length === 0) delete target.resolve;
+      }
+    };
+
+    // No field selected → clear whatever facet form is currently used.
     if (!field) {
-      delete spec.encoding.facet;
-      // Clean up any scale-resolve we set when facet is cleared
-      if (spec.resolve && spec.resolve.scale) {
-        delete spec.resolve.scale.x;
-        delete spec.resolve.scale.y;
-        if (Object.keys(spec.resolve.scale).length === 0) delete spec.resolve.scale;
-        if (Object.keys(spec.resolve).length === 0) delete spec.resolve;
+      if (root.facet && root.spec) {
+        _unwrapOuterFacet(root);
+        writeShare(root); // resolve lives on root after unwrapping
+      } else if (root.encoding) {
+        delete root.encoding.facet;
+        writeShare(root);
       }
       return;
     }
 
-    const facet = { field, type };
-    if (cols !== '') facet.columns = parseInt(cols);
-    spec.encoding.facet = facet;
+    const facetDef = { field, type };
+    if (cols !== '') facetDef.columns = parseInt(cols);
 
-    // Axis sharing — only write entries that deviate from the default ("shared").
-    if (!shareX || !shareY) {
-      if (!spec.resolve) spec.resolve = {};
-      if (!spec.resolve.scale) spec.resolve.scale = {};
-      if (!shareX) spec.resolve.scale.x = 'independent'; else delete spec.resolve.scale.x;
-      if (!shareY) spec.resolve.scale.y = 'independent'; else delete spec.resolve.scale.y;
-    } else if (spec.resolve && spec.resolve.scale) {
-      delete spec.resolve.scale.x;
-      delete spec.resolve.scale.y;
-      if (Object.keys(spec.resolve.scale).length === 0) delete spec.resolve.scale;
-      if (Object.keys(spec.resolve).length === 0) delete spec.resolve;
+    // Is the target spec layered/compound? If so, use the outer facet operator
+    // form; otherwise the lightweight encoding.facet form is sufficient.
+    const inner = _viewSpec(root);
+    const useOuter = _isLayeredSpec(inner);
+
+    if (useOuter) {
+      // Remove any stale encoding.facet from the inner spec first.
+      if (inner.encoding && 'facet' in inner.encoding) delete inner.encoding.facet;
+      if (root.facet && root.spec) {
+        // Already outer-faceted — just update the facet definition in place.
+        root.facet = facetDef;
+        writeShare(root.spec);
+      } else {
+        _wrapAsOuterFacet(root, facetDef);
+        writeShare(root.spec);
+      }
+    } else {
+      // Flat spec. If we were previously outer-faceted, unwrap first.
+      if (root.facet && root.spec) _unwrapOuterFacet(root);
+      root.encoding = root.encoding || {};
+      root.encoding.facet = facetDef;
+      writeShare(root);
     }
   });
 }
@@ -6584,7 +6680,11 @@ function applySortProp() {
   });
 }
 
-function syncTransformPanel(spec) {
+function syncTransformPanel(root) {
+  // When the chart is outer-faceted, transforms/encoding live inside root.spec.
+  // We read filter/sort from the inner view, but read the facet definition
+  // from the true root (outer form) or inner encoding (flat form).
+  const spec = _viewSpec(root);
   _populateFieldSelects();
 
   // Filter — pick up the first filter entry that matches a shape the panel
@@ -6641,8 +6741,10 @@ function syncTransformPanel(spec) {
   }
   _buildFilterValueWidget({ preserveText: textPreserve });
 
-  // Facet
-  const facet = spec.encoding && spec.encoding.facet;
+  // Facet — check outer-facet form first, then fall back to encoding.facet.
+  const facet = (root.facet && root.spec)
+    ? root.facet
+    : (spec.encoding && spec.encoding.facet);
   if (facet && facet.field) {
     document.getElementById('pp-facet-field').value = facet.field;
     document.getElementById('pp-facet-type').value  = facet.type || 'nominal';
@@ -6651,8 +6753,9 @@ function syncTransformPanel(spec) {
     document.getElementById('pp-facet-field').value = '';
     document.getElementById('pp-facet-cols').value  = '';
   }
-  // Share axes — default to shared (checked) unless spec.resolve.scale says otherwise
-  const resolveScale = spec.resolve && spec.resolve.scale;
+  // Share axes — when outer-faceted, resolve lives on the inner spec; otherwise on root.
+  const resolveOwner = (root.facet && root.spec) ? root.spec : spec;
+  const resolveScale = resolveOwner.resolve && resolveOwner.resolve.scale;
   document.getElementById('pp-facet-share-x').checked = !(resolveScale && resolveScale.x === 'independent');
   document.getElementById('pp-facet-share-y').checked = !(resolveScale && resolveScale.y === 'independent');
 
