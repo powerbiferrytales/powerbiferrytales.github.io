@@ -4032,6 +4032,9 @@ async function renderSpec(cfgOverride = null) {
 
     // Populate data table from the Vega view for URL/sample specs (no uploaded data)
     if (!userData) populateDataTableFromView(result.view);
+    // The Vega view is now populated, so refresh any filter value widget
+    // that may be sitting empty waiting for data.
+    if (typeof _buildFilterValueWidget === 'function') _buildFilterValueWidget();
   } catch(e) {
     err("Render: " + e.message);
   }
@@ -6305,24 +6308,51 @@ function _parseFilterValue(raw, op) {
 const _CATEGORICAL_OPS = new Set(['==', '!=', 'oneOf']);
 
 // Distinct, sorted values for a field from the active dataset (capped to
-// keep the widget usable for high-cardinality fields). Falls back to
-// _cachedRawRows when the dataset was loaded from a URL rather than uploaded.
+// keep the widget usable for high-cardinality fields). Tries multiple
+// sources so it works for uploaded data, URL-fetched data, and data that
+// only exists inside the rendered Vega view.
 function _getDistinctFieldValues(field, cap = 500) {
   if (!field) return [];
-  const rows = (userData?.length ? userData : _cachedRawRows);
-  if (!rows?.length) return [];
-  const set = new Set();
-  for (const row of rows) {
-    const v = row?.[field];
-    if (v == null || v === '') continue;
-    set.add(v);
-    if (set.size > cap) break;
-  }
-  return [...set].sort((a, b) => {
+  const sortVals = (set) => [...set].sort((a, b) => {
     const an = typeof a === 'number', bn = typeof b === 'number';
     if (an && bn) return a - b;
     return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
   });
+  const collect = (rows) => {
+    const set = new Set();
+    for (const row of rows) {
+      const v = row?.[field];
+      if (v == null || v === '') continue;
+      set.add(v);
+      if (set.size > cap) break;
+    }
+    return set;
+  };
+
+  // 1. Uploaded data
+  if (userData?.length) {
+    const set = collect(userData);
+    if (set.size) return sortVals(set);
+  }
+  // 2. Cached raw rows from a URL fetch
+  if (_cachedRawRows?.length) {
+    const set = collect(_cachedRawRows);
+    if (set.size) return sortVals(set);
+  }
+  // 3. Last-ditch: pull straight from the rendered Vega view.
+  // source_0/source_1/data_0/data_1 carry the chart's own pipeline rows.
+  if (embedResult?.view) {
+    for (const name of ['source_0', 'source_1', 'data_0', 'data_1']) {
+      try {
+        const d = embedResult.view.data(name);
+        if (Array.isArray(d) && d.length && field in d[0]) {
+          const set = collect(d);
+          if (set.size) return sortVals(set);
+        }
+      } catch(_) {}
+    }
+  }
+  return [];
 }
 
 // Selected values as a Set of strings (stringified for stable comparison
