@@ -2051,7 +2051,7 @@ const TEMPLATES = [
     spec: { "$schema":SCHEMA, "title":"Column Chart", "data":{"url":DS+"seattle-weather.csv"},
       "mark":"bar",
       "encoding":{
-        "x":{"field":"date","type":"temporal","timeUnit":"yearmonth","axis":{"title":"Month"}},
+        "x":{"field":"date","type":"ordinal","timeUnit":"yearmonth","axis":{"title":"Month"}},
         "y":{"field":"precipitation","type":"quantitative","aggregate":"mean","stack":null,"axis":{"title":"Avg Precipitation (mm)"}}
       }
     }
