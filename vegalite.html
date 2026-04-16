@@ -20,9 +20,9 @@
 <meta name="twitter:description" content="A browser-based Vega-Lite chart editor. Write JSON, preview live, no sign-in required.">
 <meta name="twitter:image"       content="https://powerbiferrytales.github.io/og-image.png">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/vega/5.25.0/vega.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/5.16.3/vega-lite.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/6.24.0/vega-embed.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vega/5.30.0/vega.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-lite/5.21.0/vega-lite.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/vega-embed/6.26.0/vega-embed.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
@@ -3984,23 +3984,6 @@ async function renderSpec(cfgOverride = null) {
   let renderableSpec = JSON.parse(JSON.stringify(spec));
   _migrateSpecHlTxtCat(renderableSpec); // silently fix old _hl_cat text layers for this render
   renderableSpec.config = config;
-
-  // Outer-facet compilation workaround: Vega-Lite 5.16 trips on a shared
-  // encoding sitting at the layered-spec level inside an outer facet operator
-  // (throws "Cannot read properties of undefined (reading 'concat')"). Push
-  // the shared encoding down into each layer before rendering — the visible
-  // spec stored in the editor keeps its clean shared-encoding form.
-  // Also lift any inner-spec transforms up to the outer root so they run
-  // before facet partitioning (and avoid another related compile path).
-  if (renderableSpec.facet && renderableSpec.spec && renderableSpec.spec.layer && renderableSpec.spec.encoding) {
-    const shared = renderableSpec.spec.encoding;
-    renderableSpec.spec.layer.forEach(l => { l.encoding = { ...shared, ...(l.encoding || {}) }; });
-    delete renderableSpec.spec.encoding;
-  }
-  if (renderableSpec.facet && renderableSpec.spec && Array.isArray(renderableSpec.spec.transform)) {
-    renderableSpec.transform = [...(renderableSpec.transform || []), ...renderableSpec.spec.transform];
-    delete renderableSpec.spec.transform;
-  }
 
   if (userData) {
     if (renderableSpec.data && renderableSpec.data.name === 'dataset') {
