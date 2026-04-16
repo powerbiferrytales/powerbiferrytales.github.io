@@ -5001,10 +5001,24 @@ function _detectHlInfo(spec, layerIdx) {
   for (const ch of ['x','y','theta','radius','size']) {
     const e = enc[ch];
     if (e && e.type === 'quantitative' && e.field) {
-      const groupby = Object.entries(enc)
-        .filter(([k, v]) => k !== ch && k !== 'color' && v?.field && v.type !== 'quantitative' && !v.aggregate)
-        .map(([, v]) => v.field);
-      return { field: e.field, aggregate: e.aggregate || null, groupby, channel: ch };
+      // Build the groupby list. For fields with a timeUnit (e.g. yearmonth on
+      // a temporal x axis) we group by the derived bucket, not the raw field —
+      // otherwise "max" would be computed across raw rows (e.g. per-day) and
+      // not across the bucketed groups the bars actually represent.
+      const groupby = [];
+      const groupbyDerive = [];
+      Object.entries(enc).forEach(([k, v]) => {
+        if (k === ch || k === 'color') return;
+        if (!v?.field || v.type === 'quantitative' || v.aggregate) return;
+        if (v.timeUnit) {
+          const derived = `_hl_tu_${v.timeUnit}_${v.field}`;
+          groupby.push(derived);
+          groupbyDerive.push({ timeUnit: v.timeUnit, field: v.field, as: derived });
+        } else {
+          groupby.push(v.field);
+        }
+      });
+      return { field: e.field, aggregate: e.aggregate || null, groupby, groupbyDerive, channel: ch };
     }
   }
   return null;
@@ -5119,6 +5133,9 @@ function _applyHlBarStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, info
   _liftLayerFilters(spec, layerIdx);
   let testField;
   if (info.aggregate && info.groupby.length > 0) {
+    // Derive any timeUnit groupby fields first, so joinaggregate can groupby them.
+    (info.groupbyDerive || []).forEach(d =>
+      spec.transform.push({ timeUnit: d.timeUnit, field: d.field, as: d.as }));
     const globalOps = [];
     if (hlMax) globalOps.push({ op: 'max', field: '_hl_grp', as: '_hl_max' });
     if (hlMin) globalOps.push({ op: 'min', field: '_hl_grp', as: '_hl_min' });
@@ -5155,6 +5172,8 @@ function _applyHlLineStyle(spec, layerIdx, hlMax, hlMin, maxColor, minColor, inf
   _liftLayerFilters(spec, layerIdx);
   let testField;
   if (info.aggregate && info.groupby?.length > 0) {
+    (info.groupbyDerive || []).forEach(d =>
+      spec.transform.push({ timeUnit: d.timeUnit, field: d.field, as: d.as }));
     const globalOps = [];
     if (hlMax) globalOps.push({ op: 'max', field: '_hl_grp', as: '_hl_max' });
     if (hlMin) globalOps.push({ op: 'min', field: '_hl_grp', as: '_hl_min' });
@@ -5277,6 +5296,8 @@ function _applyHlToSpec(spec, layerIdx, hlMax, hlMin, maxColor, minColor) {
   _liftLayerFilters(spec, toApply[0].layerIdx);
   let testField;
   if (info.aggregate && info.groupby?.length > 0) {
+    (info.groupbyDerive || []).forEach(d =>
+      spec.transform.push({ timeUnit: d.timeUnit, field: d.field, as: d.as }));
     const gOps = [];
     if (anyMax) gOps.push({ op: 'max', field: '_hl_grp', as: '_hl_max' });
     if (anyMin) gOps.push({ op: 'min', field: '_hl_grp', as: '_hl_min' });
