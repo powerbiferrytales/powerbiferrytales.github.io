@@ -2048,9 +2048,12 @@ const TEMPLATES = [
     }
   },
   { id:"col", name:"COLUMN", icon:"▐██",
-    spec: { "$schema":SCHEMA, "title":"Column Chart", "data":{"url":DS+"barley.json"},
-      "mark":{"type":"bar"},
-      "encoding":{ "x":{"field":"site","type":"nominal","axis":{"labelAngle":-30,"title":"Site"}}, "y":{"field":"yield","type":"quantitative","aggregate":"mean","axis":{"title":"Avg Yield"}} }
+    spec: { "$schema":SCHEMA, "title":"Column Chart", "data":{"url":DS+"seattle-weather.csv"},
+      "mark":"bar",
+      "encoding":{
+        "x":{"field":"date","type":"temporal","timeUnit":"yearmonth","axis":{"title":"Month"}},
+        "y":{"field":"precipitation","type":"quantitative","aggregate":"mean","axis":{"title":"Avg Precipitation (mm)"}}
+      }
     }
   },
   { id:"line", name:"LINE", icon:"╱╱╱",
