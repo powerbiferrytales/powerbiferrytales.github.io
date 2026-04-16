@@ -6271,11 +6271,20 @@ function applyLayoutProps() {
 }
 
 // ── TRANSFORM / FACET / SORT helpers ──────────────────────────
-// Our filter & facet additions are tagged so we can safely remove just our
-// own entries when the user clears or changes a field, without stomping on
-// any hand-edited transforms already in the spec.
-const _FTAG = '__ftsFilter';
-const _STAG = '__ftsSort';
+// We track which filter the panel currently "owns" by remembering the
+// field of the last filter we wrote. On the next apply we remove only
+// that filter, leaving any other (e.g. expression) transforms intact.
+let _ownedFilterField = null;
+
+// Match a transform entry that the panel could have written for `field`:
+// either { filter: { field, ... } } or { filter: { not: { field, ... } } }.
+function _isOwnedFilter(t, field) {
+  if (!field || !t || !t.filter) return false;
+  const f = t.filter;
+  if (f.field === field) return true;
+  if (f.not && f.not.field === field) return true;
+  return false;
+}
 
 function _populateFieldSelects() {
   const fields = _getDataFields();
@@ -6460,11 +6469,13 @@ function applyFilterProp() {
     const field = document.getElementById('pp-filter-field').value;
     const op    = document.getElementById('pp-filter-op').value;
 
-    // Drop any previous filter we owned
-    if (Array.isArray(spec.transform)) {
-      spec.transform = spec.transform.filter(t => !t[_FTAG]);
+    // Drop the previously-owned filter (if any) — we only remove the entry
+    // matching the field we last wrote, so hand-edited transforms stay put.
+    if (_ownedFilterField && Array.isArray(spec.transform)) {
+      spec.transform = spec.transform.filter(t => !_isOwnedFilter(t, _ownedFilterField));
       if (!spec.transform.length) delete spec.transform;
     }
+    _ownedFilterField = null;
 
     if (!field) return;
 
@@ -6491,8 +6502,8 @@ function applyFilterProp() {
     }
     if (!filter) return;
 
-    const entry = { filter, [_FTAG]: true };
-    spec.transform = [entry, ...(spec.transform || [])];
+    spec.transform = [{ filter }, ...(spec.transform || [])];
+    _ownedFilterField = field;
   });
 }
 
@@ -6556,36 +6567,46 @@ function applySortProp() {
 function syncTransformPanel(spec) {
   _populateFieldSelects();
 
-  // Filter — only reflect our tagged entry
-  const ownFilter = Array.isArray(spec.transform)
-    ? spec.transform.find(t => t[_FTAG])
-    : null;
+  // Filter — pick up the first filter entry that matches a shape the panel
+  // can represent (field+equal/oneOf/gt/gte/lt/lte, or its negation).
   let textPreserve = '';
   _filterSelected = new Set();
-  if (ownFilter && ownFilter.filter) {
-    const f = ownFilter.filter;
+  const matchPanelFilter = (t) => {
+    if (!t || !t.filter) return null;
+    const f = t.filter;
+    if (f.not && f.not.field && ('equal' in f.not || 'oneOf' in f.not)) return f;
+    if (f.field && ('equal' in f || 'oneOf' in f || 'gt' in f || 'gte' in f || 'lt' in f || 'lte' in f)) return f;
+    return null;
+  };
+  const ownFilter = Array.isArray(spec.transform)
+    ? spec.transform.map(matchPanelFilter).find(Boolean)
+    : null;
+  if (ownFilter) {
     let field = '', op = '==';
     const seedSelected = (v) => {
       if (Array.isArray(v)) v.forEach(x => _filterSelected.add(String(x)));
       else _filterSelected.add(String(v));
     };
-    if (f.not && f.not.field) {
-      field = f.not.field;
-      if ('oneOf' in f.not) { op = '!='; seedSelected(f.not.oneOf); }
-      else                  { op = '!='; seedSelected(f.not.equal); }
-    } else if (f.field) {
-      field = f.field;
-      if      ('equal' in f) { op = '==';    seedSelected(f.equal); }
-      else if ('oneOf' in f) { op = 'oneOf'; seedSelected(f.oneOf); }
-      else if ('gt'    in f) { op = '>';     textPreserve = String(f.gt);  }
-      else if ('gte'   in f) { op = '>=';    textPreserve = String(f.gte); }
-      else if ('lt'    in f) { op = '<';     textPreserve = String(f.lt);  }
-      else if ('lte'   in f) { op = '<=';    textPreserve = String(f.lte); }
+    if (ownFilter.not && ownFilter.not.field) {
+      field = ownFilter.not.field;
+      op = '!=';
+      if ('oneOf' in ownFilter.not) seedSelected(ownFilter.not.oneOf);
+      else                          seedSelected(ownFilter.not.equal);
+    } else {
+      field = ownFilter.field;
+      if      ('equal' in ownFilter) { op = '==';    seedSelected(ownFilter.equal); }
+      else if ('oneOf' in ownFilter) { op = 'oneOf'; seedSelected(ownFilter.oneOf); }
+      else if ('gt'    in ownFilter) { op = '>';     textPreserve = String(ownFilter.gt);  }
+      else if ('gte'   in ownFilter) { op = '>=';    textPreserve = String(ownFilter.gte); }
+      else if ('lt'    in ownFilter) { op = '<';     textPreserve = String(ownFilter.lt);  }
+      else if ('lte'   in ownFilter) { op = '<=';    textPreserve = String(ownFilter.lte); }
     }
     document.getElementById('pp-filter-field').value = field;
     document.getElementById('pp-filter-op').value    = op;
+    _ownedFilterField = field;
   } else {
     document.getElementById('pp-filter-field').value = '';
+    _ownedFilterField = null;
   }
   _buildFilterValueWidget({ preserveText: textPreserve });
 
