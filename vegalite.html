@@ -5823,8 +5823,11 @@ function rebuildMarkSection(spec) {
       const newStyleIsLine  = HL_LINE_MARKS.has(newType);
       const styleChanged    = oldStyleIsLine !== newStyleIsLine;
 
-      // Remove highlight if new type doesn't support it, or if the strategy is changing
-      if (!HL_MARKS.has(newType) || styleChanged) _removeHlFromSpec(target);
+      // Remove highlight only if THIS layer was carrying it. Otherwise
+      // _removeHlFromSpec would wipe HL from every other layer too — which
+      // is the bug that causes duplicating a highlighted bar and then
+      // changing the copy to text to disable HL on the original bar.
+      if (oldHlSt.active && (!HL_MARKS.has(newType) || styleChanged)) _removeHlFromSpec(target);
 
       // Apply the type change
       if (layerIdx !== null && target.layer?.[layerIdx]) {
