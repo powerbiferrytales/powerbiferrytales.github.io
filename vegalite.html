@@ -1207,6 +1207,77 @@ body.light-mode .hd-cn { color: #c2410c; }
           </div>
         </div>
 
+        <!-- TRANSFORM -->
+        <div class="props-section" id="ps-transform">
+          <div class="props-section-head" onclick="toggleSection('ps-transform')">
+            <span>TRANSFORM</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;margin-bottom:6px;">FILTER</div>
+            <div class="prop-row">
+              <span class="prop-label">Field</span>
+              <div class="prop-ctrl"><select id="pp-filter-field"><option value="">— none —</option></select></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Operator</span>
+              <div class="prop-ctrl">
+                <select id="pp-filter-op">
+                  <option value="==">equals</option>
+                  <option value="!=">not equals</option>
+                  <option value=">">greater than</option>
+                  <option value=">=">greater or equal</option>
+                  <option value="<">less than</option>
+                  <option value="<=">less or equal</option>
+                  <option value="oneOf">is one of</option>
+                </select>
+              </div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Value</span>
+              <div class="prop-ctrl"><input type="text" id="pp-filter-value" placeholder="e.g. 2020 or A,B,C"></div>
+            </div>
+
+            <div class="props-subsection-divider" style="margin:10px 0;"></div>
+
+            <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;margin-bottom:6px;">FACET</div>
+            <div class="prop-row">
+              <span class="prop-label">Field</span>
+              <div class="prop-ctrl"><select id="pp-facet-field"><option value="">— none —</option></select></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Type</span>
+              <div class="prop-ctrl">
+                <select id="pp-facet-type">
+                  <option value="nominal">Nominal</option>
+                  <option value="ordinal">Ordinal</option>
+                  <option value="temporal">Temporal</option>
+                </select>
+              </div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Columns</span>
+              <div class="prop-ctrl"><input type="number" id="pp-facet-cols" min="1" max="12" placeholder="auto"></div>
+            </div>
+
+            <div class="props-subsection-divider" style="margin:10px 0;"></div>
+
+            <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;margin-bottom:6px;">SORT (X axis)</div>
+            <div class="prop-row">
+              <span class="prop-label">By field</span>
+              <div class="prop-ctrl"><select id="pp-sort-field"><option value="">— default —</option></select></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Order</span>
+              <div class="prop-ctrl">
+                <select id="pp-sort-order">
+                  <option value="ascending">Ascending</option>
+                  <option value="descending">Descending</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- LAYOUT -->
         <div class="props-section" id="ps-layout">
           <div class="props-section-head" onclick="toggleSection('ps-layout')">
@@ -3391,6 +3462,7 @@ function setData(data, fields) {
   showFields(data, fields);
   renderDataTable(data, fields);
   injectData();
+  if (typeof _populateFieldSelects === 'function') _populateFieldSelects();
   switchTab('spec');
 }
 
@@ -4417,6 +4489,9 @@ function syncPropsFromSpec() {
   document.getElementById('pp-height').value   = (typeof spec.height === 'number') ? spec.height : '';
   document.getElementById('pp-padding').value  = spec.padding != null ? spec.padding : '';
   document.getElementById('pp-bg-color').value = cfg.background || '#020d18';
+
+  // ── TRANSFORM / FACET / SORT ─────────────────
+  syncTransformPanel(spec);
 }
 
 // ── Apply helpers ─────────────────────────────────────────────
@@ -6066,6 +6141,142 @@ function applyLayoutProps() {
   if (liveMode) renderSpec(); else dot('idle');
 }
 
+// ── TRANSFORM / FACET / SORT helpers ──────────────────────────
+// Our filter & facet additions are tagged so we can safely remove just our
+// own entries when the user clears or changes a field, without stomping on
+// any hand-edited transforms already in the spec.
+const _FTAG = '__ftsFilter';
+const _STAG = '__ftsSort';
+
+function _populateFieldSelects() {
+  const fields = _getDataFields();
+  ['pp-filter-field', 'pp-facet-field', 'pp-sort-field'].forEach(id => {
+    const sel = document.getElementById(id);
+    if (!sel) return;
+    const current = sel.value;
+    const placeholder = id === 'pp-sort-field' ? '— default —' : '— none —';
+    sel.innerHTML = `<option value="">${placeholder}</option>` +
+      fields.map(f => `<option value="${f}">${f}</option>`).join('');
+    if (fields.includes(current)) sel.value = current;
+  });
+}
+
+function _parseFilterValue(raw, op) {
+  const v = raw.trim();
+  if (op === 'oneOf') {
+    return v.split(',').map(s => {
+      const t = s.trim();
+      if (/^-?\d+(\.\d+)?$/.test(t)) return parseFloat(t);
+      return t;
+    });
+  }
+  if (/^-?\d+(\.\d+)?$/.test(v)) return parseFloat(v);
+  return v;
+}
+
+function applyFilterProp() {
+  patchSpec(spec => {
+    const field = document.getElementById('pp-filter-field').value;
+    const op    = document.getElementById('pp-filter-op').value;
+    const raw   = document.getElementById('pp-filter-value').value;
+
+    // Drop any previous filter we owned
+    if (Array.isArray(spec.transform)) {
+      spec.transform = spec.transform.filter(t => !t[_FTAG]);
+      if (!spec.transform.length) delete spec.transform;
+    }
+
+    if (!field || raw === '') return;
+    const value = _parseFilterValue(raw, op);
+    let filter;
+    if (op === 'oneOf')      filter = { field, oneOf: value };
+    else if (op === '==')    filter = { field, equal: value };
+    else if (op === '!=')    filter = { not: { field, equal: value } };
+    else if (op === '>')     filter = { field, gt:  value };
+    else if (op === '>=')    filter = { field, gte: value };
+    else if (op === '<')     filter = { field, lt:  value };
+    else if (op === '<=')    filter = { field, lte: value };
+
+    const entry = { filter, [_FTAG]: true };
+    spec.transform = [entry, ...(spec.transform || [])];
+  });
+}
+
+function applyFacetProp() {
+  patchSpec(spec => {
+    const field = document.getElementById('pp-facet-field').value;
+    const type  = document.getElementById('pp-facet-type').value;
+    const cols  = document.getElementById('pp-facet-cols').value;
+
+    if (!spec.encoding) spec.encoding = {};
+    if (!field) { delete spec.encoding.facet; return; }
+
+    const facet = { field, type };
+    if (cols !== '') facet.columns = parseInt(cols);
+    spec.encoding.facet = facet;
+  });
+}
+
+function applySortProp() {
+  patchSpec(spec => {
+    const field = document.getElementById('pp-sort-field').value;
+    const order = document.getElementById('pp-sort-order').value;
+
+    if (!spec.encoding || !spec.encoding.x) return;
+    if (!field) { if (spec.encoding.x.sort !== undefined) delete spec.encoding.x.sort; return; }
+    spec.encoding.x.sort = { field, order };
+  });
+}
+
+function syncTransformPanel(spec) {
+  _populateFieldSelects();
+
+  // Filter — only reflect our tagged entry
+  const ownFilter = Array.isArray(spec.transform)
+    ? spec.transform.find(t => t[_FTAG])
+    : null;
+  if (ownFilter && ownFilter.filter) {
+    const f = ownFilter.filter;
+    let field = '', op = '==', val = '';
+    if (f.not && f.not.field) { field = f.not.field; op = '!='; val = f.not.equal; }
+    else if (f.field) {
+      field = f.field;
+      if      ('equal' in f) { op = '==';    val = f.equal; }
+      else if ('oneOf' in f) { op = 'oneOf'; val = f.oneOf.join(','); }
+      else if ('gt'    in f) { op = '>';     val = f.gt;  }
+      else if ('gte'   in f) { op = '>=';    val = f.gte; }
+      else if ('lt'    in f) { op = '<';     val = f.lt;  }
+      else if ('lte'   in f) { op = '<=';    val = f.lte; }
+    }
+    document.getElementById('pp-filter-field').value = field;
+    document.getElementById('pp-filter-op').value    = op;
+    document.getElementById('pp-filter-value').value = String(val);
+  } else {
+    document.getElementById('pp-filter-field').value = '';
+    document.getElementById('pp-filter-value').value = '';
+  }
+
+  // Facet
+  const facet = spec.encoding && spec.encoding.facet;
+  if (facet && facet.field) {
+    document.getElementById('pp-facet-field').value = facet.field;
+    document.getElementById('pp-facet-type').value  = facet.type || 'nominal';
+    document.getElementById('pp-facet-cols').value  = facet.columns != null ? facet.columns : '';
+  } else {
+    document.getElementById('pp-facet-field').value = '';
+    document.getElementById('pp-facet-cols').value  = '';
+  }
+
+  // Sort (X)
+  const xSort = spec.encoding && spec.encoding.x && spec.encoding.x.sort;
+  if (xSort && typeof xSort === 'object' && xSort.field) {
+    document.getElementById('pp-sort-field').value = xSort.field;
+    document.getElementById('pp-sort-order').value = xSort.order || 'ascending';
+  } else {
+    document.getElementById('pp-sort-field').value = '';
+  }
+}
+
 // ── Wire up all controls ──────────────────────────────────────
 (function initPropsPanel() {
   document.getElementById('btn-collapse-all').onclick = () => {
@@ -6097,6 +6308,16 @@ function applyLayoutProps() {
   document.getElementById('pp-height').addEventListener('change', applyLayoutProps);
   document.getElementById('pp-padding').addEventListener('change', applyLayoutProps);
   document.getElementById('pp-bg-color').addEventListener('input', applyLayoutProps);
+
+  // Transform — filter
+  ['pp-filter-field', 'pp-filter-op', 'pp-filter-value'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyFilterProp));
+  // Transform — facet
+  ['pp-facet-field', 'pp-facet-type', 'pp-facet-cols'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applyFacetProp));
+  // Transform — sort
+  ['pp-sort-field', 'pp-sort-order'].forEach(id =>
+    document.getElementById(id).addEventListener('change', applySortProp));
 })();
 </script>
 </body>
