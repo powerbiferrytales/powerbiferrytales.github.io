@@ -2887,9 +2887,10 @@ function duplicateLayer(layerIdx, concatIdx) {
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
 
-  let target = spec;
+  // When outer-faceted, layers live inside spec.spec.
+  let target = _viewSpec(spec);
   if (concatIdx !== null) {
-    const vs = spec.vconcat || spec.hconcat || spec.concat;
+    const vs = target.vconcat || target.hconcat || target.concat;
     if (vs?.[concatIdx]) target = vs[concatIdx];
   }
 
@@ -2968,24 +2969,27 @@ function addLayer(type) {
   let spec;
   try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
 
+  // When outer-faceted, mark/layer/encoding live inside spec.spec.
+  const target = _viewSpec(spec);
+
   const template = JSON.parse(JSON.stringify(LAYER_TEMPLATES[type] || LAYER_TEMPLATES.point));
 
-  if (spec.layer) {
+  if (target.layer) {
     // Already layered — append the new template layer.
     // Copy non-hl transforms from the first non-hl layer so data filters
     // (e.g. datum.symbol === 'GOOG') apply to the new layer too.
     const isHlT = t => t.joinaggregate?.some(j => j.as?.startsWith('_hl_')) || t.as === '_hl_cat' || t.filter?.includes('_hl_cat');
-    const srcLayer = spec.layer.find(l => l.name !== '_hl_layer');
+    const srcLayer = target.layer.find(l => l.name !== '_hl_layer');
     const inheritedTransforms = (srcLayer?.transform || []).filter(t => !isHlT(t));
     if (inheritedTransforms.length) {
       template.transform = [...inheritedTransforms, ...(template.transform || [])];
     }
-    spec.layer.push(template);
+    target.layer.push(template);
   } else {
     // Convert flat spec: pull mark-level keys into the first layer; encoding stays top-level
     const firstLayer = {};
     ['mark', 'selection', 'params'].forEach(k => {
-      if (spec[k] !== undefined) { firstLayer[k] = spec[k]; delete spec[k]; }
+      if (target[k] !== undefined) { firstLayer[k] = target[k]; delete target[k]; }
     });
     // All transforms (filters + _hl_*) stay at root so:
     //   - _hl_cat fields are readable by every layer
@@ -2993,22 +2997,22 @@ function addLayer(type) {
     //     filtered data (not the full dataset)
     // If the root colour encoding references _hl_cat, move it to layer 0 only —
     // otherwise text/rule layers inherit it and fail to resolve the field.
-    if (spec.encoding?.color?.field === '_hl_cat') {
+    if (target.encoding?.color?.field === '_hl_cat') {
       firstLayer.encoding = firstLayer.encoding || {};
-      firstLayer.encoding.color = spec.encoding.color;
-      delete spec.encoding.color;
+      firstLayer.encoding.color = target.encoding.color;
+      delete target.encoding.color;
     }
-    spec.layer = [firstLayer, template];
+    target.layer = [firstLayer, template];
   }
 
   // If a text layer was just added and line-style highlight is active, immediately apply
   // the filter + default colour/size encodings so only max/min labels are shown.
   if (type === 'text') {
-    const newLayerIdx = spec.layer.length - 1;
-    const hlSt = _readHlState(spec);
+    const newLayerIdx = target.layer.length - 1;
+    const hlSt = _readHlState(target);
     if (hlSt.active) {
       const _hlDefs = _hlDefaultColors();
-      _applyTextHlToSpec(spec, newLayerIdx, _hlDefs.maxColor, 13, _hlDefs.minColor, 13);
+      _applyTextHlToSpec(target, newLayerIdx, _hlDefs.maxColor, 13, _hlDefs.minColor, 13);
     }
   }
 
@@ -4365,7 +4369,11 @@ function _viewSpec(spec) {
 }
 
 // Keys that stay at the true root when wrapping into outer-facet form.
-const _FACET_ROOT_KEYS = new Set(['$schema', 'title', 'description', 'data', 'config', 'usermeta', 'background', 'padding']);
+// Kept minimal — only things that must live at the chart-document root
+// (the spec identifier, the data reference, and the config). Everything
+// else (title, layout, encoding, transforms, layers) goes into spec.spec
+// so existing panels that read/write the inner view keep working.
+const _FACET_ROOT_KEYS = new Set(['$schema', 'data', 'config', 'usermeta']);
 
 function _isLayeredSpec(spec) {
   return !!(spec.layer || spec.hconcat || spec.vconcat || spec.concat || spec.repeat);
@@ -4775,6 +4783,7 @@ function _resolveRootAxisEnc(spec, axis) {
 
 // Fingerprint of root-level x/y encoding — used to know when to rebuild axis sections.
 function _axisSig(spec) {
+  spec = _viewSpec(spec);
   const e = ax => { const enc = _resolveRootAxisEnc(spec, ax); return enc ? `${enc.field||''}:${enc.type||''}:${enc.aggregate||''}` : '-'; };
   return e('x') + '|' + e('y');
 }
@@ -4850,6 +4859,8 @@ const AXIS_DATE_FMT_OPTIONS = [
 ];
 
 function rebuildAxisSection(spec, axis) {
+  // When the chart is outer-faceted, axis encodings live in spec.spec.
+  spec = _viewSpec(spec);
   const sectionId = axis === 'x' ? 'ps-xaxis' : 'ps-yaxis';
   const body = document.querySelector('#' + sectionId + ' .props-section-body');
   if (!body) return;
@@ -4981,6 +4992,7 @@ function _markObj(mark) {
   return (typeof mark === 'object' && mark !== null) ? mark : {};
 }
 function _markSig(spec) {
+  spec = _viewSpec(spec);
   // Include which layers carry their own x/y encoding so the section rebuilds
   // when a layer gains or loses its own axis encoding (not just when mark type changes).
   const lyrSig = l => _markType(l.mark) + (l.encoding?.x ? 'X' : '') + (l.encoding?.y ? 'Y' : '');
@@ -5840,6 +5852,8 @@ function _buildHighlightControls(spec, layerIdx, body) {
 }
 
 function rebuildMarkSection(spec) {
+  // When the chart is outer-faceted, marks/layers live in spec.spec.
+  spec = _viewSpec(spec);
   const body = document.querySelector('#ps-marks .props-section-body');
   if (!body) return;
   body.innerHTML = '';
