@@ -742,6 +742,23 @@ select {
 .prop-ctrl input:disabled {
   opacity: 0.35; cursor: not-allowed;
 }
+/* Filter value: checkbox-list picker */
+.fv-list {
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 3px;
+  max-height: 160px; overflow-y: auto; padding: 4px 0;
+  scrollbar-width: thin; scrollbar-color: var(--border2) transparent;
+}
+.fv-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 8px; font-size: 13px; color: var(--text);
+  cursor: pointer; user-select: none;
+}
+.fv-row:hover { background: rgba(245,158,11,0.08); }
+.fv-row input[type="checkbox"] { margin: 0; accent-color: var(--accent); cursor: pointer; }
+.fv-row.fv-all {
+  border-bottom: 1px solid var(--border); font-weight: 600;
+  color: var(--accent); margin-bottom: 2px;
+}
 .prop-ctrl input[type="color"] {
   width: 100%; height: 24px; border: 1px solid var(--border2);
   border-radius: 3px; background: none; cursor: pointer; padding: 1px;
@@ -1232,9 +1249,9 @@ body.light-mode .hd-cn { color: #c2410c; }
                 </select>
               </div>
             </div>
-            <div class="prop-row">
+            <div class="prop-row" id="pp-filter-value-row">
               <span class="prop-label">Value</span>
-              <div class="prop-ctrl"><input type="text" id="pp-filter-value" placeholder="e.g. 2020 or A,B,C"></div>
+              <div class="prop-ctrl" id="pp-filter-value-slot"></div>
             </div>
 
             <div class="props-subsection-divider" style="margin:10px 0;"></div>
@@ -3521,6 +3538,7 @@ function setData(data, fields) {
   renderDataTable(data, fields);
   injectData();
   if (typeof _populateFieldSelects === 'function') _populateFieldSelects();
+  if (typeof _buildFilterValueWidget === 'function') _buildFilterValueWidget();
   switchTab('spec');
 }
 
@@ -6277,11 +6295,132 @@ function _parseFilterValue(raw, op) {
   return v;
 }
 
+// Categorical operators get the checkbox-list value picker; comparison
+// operators keep a free-form text input.
+const _CATEGORICAL_OPS = new Set(['==', '!=', 'oneOf']);
+
+// Distinct, sorted values for a field from the active dataset (capped to
+// keep the widget usable for high-cardinality fields).
+function _getDistinctFieldValues(field, cap = 500) {
+  if (!field || !userData?.length) return [];
+  const set = new Set();
+  for (const row of userData) {
+    const v = row?.[field];
+    if (v == null || v === '') continue;
+    set.add(v);
+    if (set.size > cap) break;
+  }
+  return [...set].sort((a, b) => {
+    const an = typeof a === 'number', bn = typeof b === 'number';
+    if (an && bn) return a - b;
+    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+  });
+}
+
+// Selected values as a Set of strings (stringified for stable comparison
+// across the data round-trip; we coerce back to numbers in the spec).
+let _filterSelected = new Set();
+
+function _coerceForSpec(s) {
+  if (/^-?\d+(\.\d+)?$/.test(s)) return parseFloat(s);
+  return s;
+}
+
+function _buildFilterValueWidget(opts = {}) {
+  const slot  = document.getElementById('pp-filter-value-slot');
+  if (!slot) return;
+  const field = document.getElementById('pp-filter-field').value;
+  const op    = document.getElementById('pp-filter-op').value;
+  slot.innerHTML = '';
+
+  // Comparison operators: simple text input
+  if (!_CATEGORICAL_OPS.has(op)) {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.id   = 'pp-filter-value-text';
+    inp.placeholder = 'e.g. 2020';
+    if (opts.preserveText) inp.value = opts.preserveText;
+    inp.addEventListener('change', applyFilterProp);
+    slot.appendChild(inp);
+    return;
+  }
+
+  // Categorical: checkbox list
+  if (!field) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:12px;color:var(--muted);padding:4px 0;';
+    hint.textContent = 'Pick a field first';
+    slot.appendChild(hint);
+    return;
+  }
+  const values = _getDistinctFieldValues(field);
+  if (!values.length) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'font-size:12px;color:var(--muted);padding:4px 0;';
+    hint.textContent = 'No data — load a dataset first';
+    slot.appendChild(hint);
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.className = 'fv-list';
+
+  // "Select all" header row
+  const allRow = document.createElement('label');
+  allRow.className = 'fv-row fv-all';
+  const allCb = document.createElement('input');
+  allCb.type = 'checkbox';
+  const allSelected = values.every(v => _filterSelected.has(String(v)));
+  allCb.checked = allSelected;
+  allCb.indeterminate = !allSelected && values.some(v => _filterSelected.has(String(v)));
+  allRow.appendChild(allCb);
+  allRow.appendChild(document.createTextNode('Select all'));
+  list.appendChild(allRow);
+
+  // Per-value rows
+  const valueCbs = [];
+  values.forEach(v => {
+    const row = document.createElement('label');
+    row.className = 'fv-row';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = _filterSelected.has(String(v));
+    cb.dataset.value = String(v);
+    valueCbs.push(cb);
+    cb.addEventListener('change', () => {
+      if (cb.checked) _filterSelected.add(cb.dataset.value);
+      else _filterSelected.delete(cb.dataset.value);
+      // Refresh "Select all" state
+      const all = valueCbs.every(c => c.checked);
+      const some = valueCbs.some(c => c.checked);
+      allCb.checked = all;
+      allCb.indeterminate = !all && some;
+      applyFilterProp();
+    });
+    row.appendChild(cb);
+    row.appendChild(document.createTextNode(String(v)));
+    list.appendChild(row);
+  });
+
+  allCb.addEventListener('change', () => {
+    if (allCb.checked) {
+      values.forEach(v => _filterSelected.add(String(v)));
+      valueCbs.forEach(c => c.checked = true);
+    } else {
+      values.forEach(v => _filterSelected.delete(String(v)));
+      valueCbs.forEach(c => c.checked = false);
+    }
+    allCb.indeterminate = false;
+    applyFilterProp();
+  });
+
+  slot.appendChild(list);
+}
+
 function applyFilterProp() {
   patchSpec(spec => {
     const field = document.getElementById('pp-filter-field').value;
     const op    = document.getElementById('pp-filter-op').value;
-    const raw   = document.getElementById('pp-filter-value').value;
 
     // Drop any previous filter we owned
     if (Array.isArray(spec.transform)) {
@@ -6289,16 +6428,30 @@ function applyFilterProp() {
       if (!spec.transform.length) delete spec.transform;
     }
 
-    if (!field || raw === '') return;
-    const value = _parseFilterValue(raw, op);
+    if (!field) return;
+
     let filter;
-    if (op === 'oneOf')      filter = { field, oneOf: value };
-    else if (op === '==')    filter = { field, equal: value };
-    else if (op === '!=')    filter = { not: { field, equal: value } };
-    else if (op === '>')     filter = { field, gt:  value };
-    else if (op === '>=')    filter = { field, gte: value };
-    else if (op === '<')     filter = { field, lt:  value };
-    else if (op === '<=')    filter = { field, lte: value };
+    if (_CATEGORICAL_OPS.has(op)) {
+      const values  = _getDistinctFieldValues(field);
+      const sel     = [..._filterSelected].map(_coerceForSpec);
+      // No selection or "all" selected → no-op (leave data unfiltered)
+      if (sel.length === 0) return;
+      if (values.length && sel.length === values.length) return;
+
+      if (op === 'oneOf')      filter = { field, oneOf: sel };
+      else if (op === '==')    filter = sel.length === 1 ? { field, equal: sel[0] } : { field, oneOf: sel };
+      else if (op === '!=')    filter = sel.length === 1 ? { not: { field, equal: sel[0] } } : { not: { field, oneOf: sel } };
+    } else {
+      const inp = document.getElementById('pp-filter-value-text');
+      const raw = inp ? inp.value : '';
+      if (raw.trim() === '') return;
+      const value = _parseFilterValue(raw, op);
+      if (op === '>')        filter = { field, gt:  value };
+      else if (op === '>=')  filter = { field, gte: value };
+      else if (op === '<')   filter = { field, lt:  value };
+      else if (op === '<=')  filter = { field, lte: value };
+    }
+    if (!filter) return;
 
     const entry = { filter, [_FTAG]: true };
     spec.transform = [entry, ...(spec.transform || [])];
@@ -6369,26 +6522,34 @@ function syncTransformPanel(spec) {
   const ownFilter = Array.isArray(spec.transform)
     ? spec.transform.find(t => t[_FTAG])
     : null;
+  let textPreserve = '';
+  _filterSelected = new Set();
   if (ownFilter && ownFilter.filter) {
     const f = ownFilter.filter;
-    let field = '', op = '==', val = '';
-    if (f.not && f.not.field) { field = f.not.field; op = '!='; val = f.not.equal; }
-    else if (f.field) {
+    let field = '', op = '==';
+    const seedSelected = (v) => {
+      if (Array.isArray(v)) v.forEach(x => _filterSelected.add(String(x)));
+      else _filterSelected.add(String(v));
+    };
+    if (f.not && f.not.field) {
+      field = f.not.field;
+      if ('oneOf' in f.not) { op = '!='; seedSelected(f.not.oneOf); }
+      else                  { op = '!='; seedSelected(f.not.equal); }
+    } else if (f.field) {
       field = f.field;
-      if      ('equal' in f) { op = '==';    val = f.equal; }
-      else if ('oneOf' in f) { op = 'oneOf'; val = f.oneOf.join(','); }
-      else if ('gt'    in f) { op = '>';     val = f.gt;  }
-      else if ('gte'   in f) { op = '>=';    val = f.gte; }
-      else if ('lt'    in f) { op = '<';     val = f.lt;  }
-      else if ('lte'   in f) { op = '<=';    val = f.lte; }
+      if      ('equal' in f) { op = '==';    seedSelected(f.equal); }
+      else if ('oneOf' in f) { op = 'oneOf'; seedSelected(f.oneOf); }
+      else if ('gt'    in f) { op = '>';     textPreserve = String(f.gt);  }
+      else if ('gte'   in f) { op = '>=';    textPreserve = String(f.gte); }
+      else if ('lt'    in f) { op = '<';     textPreserve = String(f.lt);  }
+      else if ('lte'   in f) { op = '<=';    textPreserve = String(f.lte); }
     }
     document.getElementById('pp-filter-field').value = field;
     document.getElementById('pp-filter-op').value    = op;
-    document.getElementById('pp-filter-value').value = String(val);
   } else {
     document.getElementById('pp-filter-field').value = '';
-    document.getElementById('pp-filter-value').value = '';
   }
+  _buildFilterValueWidget({ preserveText: textPreserve });
 
   // Facet
   const facet = spec.encoding && spec.encoding.facet;
@@ -6452,15 +6613,26 @@ function syncTransformPanel(spec) {
   document.getElementById('pp-padding').addEventListener('change', applyLayoutProps);
   document.getElementById('pp-bg-color').addEventListener('input', applyLayoutProps);
 
-  // Transform — filter
-  ['pp-filter-field', 'pp-filter-op', 'pp-filter-value'].forEach(id =>
-    document.getElementById(id).addEventListener('change', applyFilterProp));
+  // Transform — filter. Field/operator changes rebuild the value widget;
+  // a field change also clears any previous value selection so we start fresh.
+  document.getElementById('pp-filter-field').addEventListener('change', () => {
+    _filterSelected = new Set();
+    _buildFilterValueWidget();
+    applyFilterProp();
+  });
+  document.getElementById('pp-filter-op').addEventListener('change', () => {
+    _buildFilterValueWidget();
+    applyFilterProp();
+  });
   // Transform — facet
   ['pp-facet-field', 'pp-facet-type', 'pp-facet-cols', 'pp-facet-share-x', 'pp-facet-share-y'].forEach(id =>
     document.getElementById(id).addEventListener('change', applyFacetProp));
   // Transform — sort
   ['pp-sort-axis', 'pp-sort-field', 'pp-sort-order'].forEach(id =>
     document.getElementById(id).addEventListener('change', applySortProp));
+
+  // Initial build of the filter value widget so the slot isn't empty on load
+  _buildFilterValueWidget();
 })();
 </script>
 </body>
