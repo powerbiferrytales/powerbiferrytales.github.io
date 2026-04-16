@@ -4722,6 +4722,19 @@ const AXIS_FMT_OPTIONS = [
   ['', 'Auto'], [',.0f', '1,234'], [',.1f', '1,234.5'], ['.1%', '12.3%'], ['.2s', '1.2M'],
   ['$,.0f', '$1,234'], ['$,.2f', '$1,234.56'], ['.3f', '1.234'],
 ];
+// Date format options (d3-time-format) — used when an axis is temporal or has a timeUnit.
+const AXIS_DATE_FMT_OPTIONS = [
+  ['', 'Auto'],
+  ['%Y', '2024'],
+  ['%b %Y', 'Jan 2024'],
+  ['%B %Y', 'January 2024'],
+  ['%b %d', 'Jan 15'],
+  ['%d %b %Y', '15 Jan 2024'],
+  ['%Y-%m-%d', '2024-01-15'],
+  ['%m/%d/%Y', '01/15/2024'],
+  ['%d/%m/%Y', '15/01/2024'],
+  ['%H:%M', '14:30'],
+];
 
 function rebuildAxisSection(spec, axis) {
   const sectionId = axis === 'x' ? 'ps-xaxis' : 'ps-yaxis';
@@ -4786,13 +4799,16 @@ function rebuildAxisSection(spec, axis) {
   mkTxtRow('Title text',  'pp-'+axis+'-title-text',
     typeof aO.title === 'string' ? aO.title : (typeof anyEnc.title === 'string' ? anyEnc.title : ''), 'auto');
 
-  // Format row — writes to enc.axis.format inline (not through applyAxisProps)
+  // Format row — writes to enc.axis.format inline (not through applyAxisProps).
+  // Use date formats when the axis is temporal or has a timeUnit, number formats otherwise.
+  const isTimeAxis = anyEnc.type === 'temporal' || !!anyEnc.timeUnit;
+  const fmtOptions = isTimeAxis ? AXIS_DATE_FMT_OPTIONS : AXIS_FMT_OPTIONS;
   const fmtRow = document.createElement('div'); fmtRow.className = 'prop-row';
   fmtRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Format' }));
   const fmtCtrl = document.createElement('div'); fmtCtrl.className = 'prop-ctrl';
   const fmtSel  = document.createElement('select');
   const curFmt  = aO.format || '';
-  AXIS_FMT_OPTIONS.forEach(([val, lbl]) => {
+  fmtOptions.forEach(([val, lbl]) => {
     const o = document.createElement('option'); o.value = val; o.textContent = lbl;
     if (val === curFmt) o.selected = true;
     fmtSel.appendChild(o);
@@ -4803,8 +4819,16 @@ function rebuildAxisSection(spec, axis) {
       if (!enc) return;
       if (enc.axis === null || enc.axis === false) return; // axis hidden — don't add format
       if (!enc.axis || typeof enc.axis !== 'object') enc.axis = {};
-      if (fmtSel.value) enc.axis.format = fmtSel.value;
-      else delete enc.axis.format;
+      if (fmtSel.value) {
+        enc.axis.format = fmtSel.value;
+        // For date formats on non-temporal axes (e.g. ordinal+timeUnit), we need
+        // to tell Vega-Lite explicitly to use the time formatter.
+        if (isTimeAxis) enc.axis.formatType = 'time';
+        else delete enc.axis.formatType;
+      } else {
+        delete enc.axis.format;
+        delete enc.axis.formatType;
+      }
     });
   });
   fmtCtrl.appendChild(fmtSel); fmtRow.appendChild(fmtCtrl); body.appendChild(fmtRow);
