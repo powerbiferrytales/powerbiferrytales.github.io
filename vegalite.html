@@ -3981,6 +3981,17 @@ async function renderSpec(cfgOverride = null) {
   _migrateSpecHlTxtCat(renderableSpec); // silently fix old _hl_cat text layers for this render
   renderableSpec.config = config;
 
+  // Outer-facet compilation workaround: Vega-Lite 5.16 trips on a shared
+  // encoding sitting at the layered-spec level inside an outer facet operator
+  // (throws "Cannot read properties of undefined (reading 'concat')"). Push
+  // the shared encoding down into each layer before rendering — the visible
+  // spec stored in the editor keeps its clean shared-encoding form.
+  if (renderableSpec.facet && renderableSpec.spec && renderableSpec.spec.layer && renderableSpec.spec.encoding) {
+    const shared = renderableSpec.spec.encoding;
+    renderableSpec.spec.layer.forEach(l => { l.encoding = { ...shared, ...(l.encoding || {}) }; });
+    delete renderableSpec.spec.encoding;
+  }
+
   if (userData) {
     if (renderableSpec.data && renderableSpec.data.name === 'dataset') {
       renderableSpec.data = { values: userData };
