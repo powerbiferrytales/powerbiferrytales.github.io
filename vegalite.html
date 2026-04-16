@@ -1196,34 +1196,6 @@ body.light-mode .hd-cn { color: #c2410c; }
           <div class="props-section-body"></div>
         </div>
 
-        <!-- LEGEND -->
-        <div class="props-section" id="ps-legend">
-          <div class="props-section-head" onclick="toggleSection('ps-legend')">
-            <span>LEGEND</span><span class="props-section-arrow">▶</span>
-          </div>
-          <div class="props-section-body">
-            <div class="prop-row">
-              <span class="prop-label">Show</span>
-              <div class="prop-ctrl"><input type="checkbox" id="pp-legend-show" checked></div>
-            </div>
-            <div class="prop-row">
-              <span class="prop-label">Orient</span>
-              <div class="prop-ctrl">
-                <select id="pp-legend-orient">
-                  <option value="right">Right</option>
-                  <option value="left">Left</option>
-                  <option value="top">Top</option>
-                  <option value="bottom">Bottom</option>
-                  <option value="top-right">Top Right</option>
-                  <option value="top-left">Top Left</option>
-                  <option value="bottom-right">Bottom Right</option>
-                  <option value="bottom-left">Bottom Left</option>
-                </select>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <!-- TRANSFORM -->
         <div class="props-section" id="ps-transform">
           <div class="props-section-head" onclick="toggleSection('ps-transform')">
@@ -1333,6 +1305,34 @@ body.light-mode .hd-cn { color: #c2410c; }
             <div class="prop-row">
               <span class="prop-label">Background</span>
               <div class="prop-ctrl"><input type="color" id="pp-bg-color" value="#020d18"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- LEGEND -->
+        <div class="props-section" id="ps-legend">
+          <div class="props-section-head" onclick="toggleSection('ps-legend')">
+            <span>LEGEND</span><span class="props-section-arrow">▶</span>
+          </div>
+          <div class="props-section-body">
+            <div class="prop-row">
+              <span class="prop-label">Show</span>
+              <div class="prop-ctrl"><input type="checkbox" id="pp-legend-show" checked></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Orient</span>
+              <div class="prop-ctrl">
+                <select id="pp-legend-orient">
+                  <option value="right">Right</option>
+                  <option value="left">Left</option>
+                  <option value="top">Top</option>
+                  <option value="bottom">Bottom</option>
+                  <option value="top-right">Top Right</option>
+                  <option value="top-left">Top Left</option>
+                  <option value="bottom-right">Bottom Right</option>
+                  <option value="bottom-left">Bottom Left</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -4294,7 +4294,17 @@ function clearErr() {
 // ─────────────────────────────────────────────────────────────
 
 function toggleSection(id) {
-  document.getElementById(id).classList.toggle('open');
+  const el = document.getElementById(id);
+  if (!el) return;
+  const willOpen = !el.classList.contains('open');
+  // Accordion: when opening a section, close every other sibling section
+  // inside the same props panel so only one is expanded at a time.
+  if (willOpen && el.parentElement) {
+    el.parentElement.querySelectorAll('.props-section.open').forEach(s => {
+      if (s !== el) s.classList.remove('open');
+    });
+  }
+  el.classList.toggle('open');
 }
 
 // Collapse/expand the whole panel
