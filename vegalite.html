@@ -1261,7 +1261,16 @@ body.light-mode .hd-cn { color: #c2410c; }
 
             <div class="props-subsection-divider" style="margin:10px 0;"></div>
 
-            <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;margin-bottom:6px;">SORT (X axis)</div>
+            <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;margin-bottom:6px;">SORT</div>
+            <div class="prop-row">
+              <span class="prop-label">Axis</span>
+              <div class="prop-ctrl">
+                <select id="pp-sort-axis">
+                  <option value="x">X axis</option>
+                  <option value="y">Y axis</option>
+                </select>
+              </div>
+            </div>
             <div class="prop-row">
               <span class="prop-label">By field</span>
               <div class="prop-ctrl"><select id="pp-sort-field"><option value="">— default —</option></select></div>
@@ -6219,12 +6228,18 @@ function applyFacetProp() {
 
 function applySortProp() {
   patchSpec(spec => {
+    const axis  = document.getElementById('pp-sort-axis').value;   // 'x' or 'y'
+    const other = axis === 'x' ? 'y' : 'x';
     const field = document.getElementById('pp-sort-field').value;
     const order = document.getElementById('pp-sort-order').value;
 
-    if (!spec.encoding || !spec.encoding.x) return;
-    if (!field) { if (spec.encoding.x.sort !== undefined) delete spec.encoding.x.sort; return; }
-    spec.encoding.x.sort = { field, order };
+    if (!spec.encoding || !spec.encoding[axis]) return;
+    // Clear sort on the non-selected axis so only one axis carries the sort
+    if (spec.encoding[other] && spec.encoding[other].sort !== undefined) {
+      delete spec.encoding[other].sort;
+    }
+    if (!field) { if (spec.encoding[axis].sort !== undefined) delete spec.encoding[axis].sort; return; }
+    spec.encoding[axis].sort = { field, order };
   });
 }
 
@@ -6267,11 +6282,16 @@ function syncTransformPanel(spec) {
     document.getElementById('pp-facet-cols').value  = '';
   }
 
-  // Sort (X)
+  // Sort (X or Y) — prefer whichever axis currently carries a sort
   const xSort = spec.encoding && spec.encoding.x && spec.encoding.x.sort;
-  if (xSort && typeof xSort === 'object' && xSort.field) {
-    document.getElementById('pp-sort-field').value = xSort.field;
-    document.getElementById('pp-sort-order').value = xSort.order || 'ascending';
+  const ySort = spec.encoding && spec.encoding.y && spec.encoding.y.sort;
+  const activeSort = (xSort && typeof xSort === 'object' && xSort.field) ? { axis: 'x', sort: xSort }
+                   : (ySort && typeof ySort === 'object' && ySort.field) ? { axis: 'y', sort: ySort }
+                   : null;
+  if (activeSort) {
+    document.getElementById('pp-sort-axis').value  = activeSort.axis;
+    document.getElementById('pp-sort-field').value = activeSort.sort.field;
+    document.getElementById('pp-sort-order').value = activeSort.sort.order || 'ascending';
   } else {
     document.getElementById('pp-sort-field').value = '';
   }
@@ -6316,7 +6336,7 @@ function syncTransformPanel(spec) {
   ['pp-facet-field', 'pp-facet-type', 'pp-facet-cols'].forEach(id =>
     document.getElementById(id).addEventListener('change', applyFacetProp));
   // Transform — sort
-  ['pp-sort-field', 'pp-sort-order'].forEach(id =>
+  ['pp-sort-axis', 'pp-sort-field', 'pp-sort-order'].forEach(id =>
     document.getElementById(id).addEventListener('change', applySortProp));
 })();
 </script>
