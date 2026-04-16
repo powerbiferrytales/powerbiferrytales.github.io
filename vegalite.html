@@ -3986,10 +3986,16 @@ async function renderSpec(cfgOverride = null) {
   // (throws "Cannot read properties of undefined (reading 'concat')"). Push
   // the shared encoding down into each layer before rendering — the visible
   // spec stored in the editor keeps its clean shared-encoding form.
+  // Also lift any inner-spec transforms up to the outer root so they run
+  // before facet partitioning (and avoid another related compile path).
   if (renderableSpec.facet && renderableSpec.spec && renderableSpec.spec.layer && renderableSpec.spec.encoding) {
     const shared = renderableSpec.spec.encoding;
     renderableSpec.spec.layer.forEach(l => { l.encoding = { ...shared, ...(l.encoding || {}) }; });
     delete renderableSpec.spec.encoding;
+  }
+  if (renderableSpec.facet && renderableSpec.spec && Array.isArray(renderableSpec.spec.transform)) {
+    renderableSpec.transform = [...(renderableSpec.transform || []), ...renderableSpec.spec.transform];
+    delete renderableSpec.spec.transform;
   }
 
   if (userData) {
