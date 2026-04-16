@@ -1249,6 +1249,18 @@ body.light-mode .hd-cn { color: #c2410c; }
               <div class="prop-ctrl"><input type="number" id="pp-facet-cols" min="1" max="12" placeholder="auto"></div>
             </div>
             <div class="prop-row">
+              <span class="prop-label">Title</span>
+              <div class="prop-ctrl"><input type="text" id="pp-facet-title" placeholder="auto"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Title size</span>
+              <div class="prop-ctrl"><input type="number" id="pp-facet-title-size" min="6" max="48" placeholder="12"></div>
+            </div>
+            <div class="prop-row">
+              <span class="prop-label">Label size</span>
+              <div class="prop-ctrl"><input type="number" id="pp-facet-label-size" min="6" max="32" placeholder="11"></div>
+            </div>
+            <div class="prop-row">
               <span class="prop-label">Share X axis</span>
               <div class="prop-ctrl"><input type="checkbox" id="pp-facet-share-x" checked></div>
             </div>
@@ -6697,11 +6709,25 @@ function applyFacetProp() {
   // patchRootSpec: we may need to wrap/unwrap the root, which means editing
   // the true root of the spec (not the outer-facet inner view).
   patchRootSpec(root => {
-    const field  = document.getElementById('pp-facet-field').value;
-    const type   = document.getElementById('pp-facet-type').value;
-    const cols   = document.getElementById('pp-facet-cols').value;
-    const shareX = document.getElementById('pp-facet-share-x').checked;
-    const shareY = document.getElementById('pp-facet-share-y').checked;
+    const field     = document.getElementById('pp-facet-field').value;
+    const type      = document.getElementById('pp-facet-type').value;
+    const cols      = document.getElementById('pp-facet-cols').value;
+    const title     = document.getElementById('pp-facet-title').value;
+    const titleSize = document.getElementById('pp-facet-title-size').value;
+    const labelSize = document.getElementById('pp-facet-label-size').value;
+    const shareX    = document.getElementById('pp-facet-share-x').checked;
+    const shareY    = document.getElementById('pp-facet-share-y').checked;
+
+    // Write title/header styling into facet.header. Vega-Lite ignores
+    // styling props placed directly on the facet field definition.
+    const writeHeader = (facetObj) => {
+      const header = {};
+      if (title.trim() !== '')       header.title         = title;
+      if (titleSize !== '')          header.titleFontSize = parseInt(titleSize);
+      if (labelSize !== '')          header.labelFontSize = parseInt(labelSize);
+      if (Object.keys(header).length) facetObj.header = header;
+      else delete facetObj.header;
+    };
 
     // Clean-up helper for axis sharing on whichever object carries resolve.
     const writeShare = (target) => {
@@ -6748,6 +6774,7 @@ function applyFacetProp() {
       } else {
         _wrapAsOuterFacet(root, facetDef);
       }
+      writeHeader(root.facet);
       // For the outer-facet operator, `columns` is a sibling of `facet` at
       // root, not a property on facet itself.
       if (colsNum != null) root.columns = colsNum; else delete root.columns;
@@ -6758,6 +6785,7 @@ function applyFacetProp() {
       root.encoding = root.encoding || {};
       if (colsNum != null) facetDef.columns = colsNum;
       root.encoding.facet = facetDef;
+      writeHeader(root.encoding.facet);
       writeShare(root);
     }
   });
@@ -6853,9 +6881,18 @@ function syncTransformPanel(root) {
       ? (root.columns != null ? root.columns : (facet.columns != null ? facet.columns : ''))
       : (facet.columns != null ? facet.columns : '');
     document.getElementById('pp-facet-cols').value = cols;
+    // Title + header sizes — live under facet.header in both forms.
+    const header = facet.header || {};
+    const title  = header.title != null ? header.title : (typeof facet.title === 'string' ? facet.title : '');
+    document.getElementById('pp-facet-title').value      = title;
+    document.getElementById('pp-facet-title-size').value = header.titleFontSize != null ? header.titleFontSize : '';
+    document.getElementById('pp-facet-label-size').value = header.labelFontSize != null ? header.labelFontSize : '';
   } else {
-    document.getElementById('pp-facet-field').value = '';
-    document.getElementById('pp-facet-cols').value  = '';
+    document.getElementById('pp-facet-field').value      = '';
+    document.getElementById('pp-facet-cols').value       = '';
+    document.getElementById('pp-facet-title').value      = '';
+    document.getElementById('pp-facet-title-size').value = '';
+    document.getElementById('pp-facet-label-size').value = '';
   }
   // Share axes — when outer-faceted, resolve lives on the inner spec; otherwise on root.
   const resolveOwner = (root.facet && root.spec) ? root.spec : spec;
@@ -6922,7 +6959,9 @@ function syncTransformPanel(root) {
     applyFilterProp();
   });
   // Transform — facet
-  ['pp-facet-field', 'pp-facet-type', 'pp-facet-cols', 'pp-facet-share-x', 'pp-facet-share-y'].forEach(id =>
+  ['pp-facet-field', 'pp-facet-type', 'pp-facet-cols', 'pp-facet-title',
+   'pp-facet-title-size', 'pp-facet-label-size',
+   'pp-facet-share-x', 'pp-facet-share-y'].forEach(id =>
     document.getElementById(id).addEventListener('change', applyFacetProp));
   // Transform — sort
   ['pp-sort-axis', 'pp-sort-field', 'pp-sort-order'].forEach(id =>
