@@ -2487,6 +2487,7 @@ const MARK_CTRL_DEFS = {
 // ─────────────────────────────────────────────────────────────
 let userData = null;
 let _cachedRawFields = [];  // full raw field list from URL fetch or uploaded data
+let _cachedRawRows   = [];  // full raw rows (used for distinct-value pickers)
 let activeTemplateId = null;
 const templateCache = {};  // { templateId: specJSON } — preserves edits across template switches
 let embedResult = null;
@@ -3444,7 +3445,7 @@ function resetCurrentTemplate() {
 
 function setSpec(spec) {
   // Clear field cache — new spec may have a different data source
-  if (!userData) _cachedRawFields = [];
+  if (!userData) { _cachedRawFields = []; _cachedRawRows = []; }
   // Split config from spec into separate buffers
   const specOnly = Object.assign({}, spec);
   delete specOnly.config;
@@ -3532,7 +3533,7 @@ function clearSampleActive() {
 // ─────────────────────────────────────────────────────────────
 function setData(data, fields) {
   userData = data;
-  if (data?.length) _cachedRawFields = Object.keys(data[0]);
+  if (data?.length) { _cachedRawFields = Object.keys(data[0]); _cachedRawRows = data; }
   ftMapCache = null; // invalidate field type cache
   showFields(data, fields);
   renderDataTable(data, fields);
@@ -4060,7 +4061,9 @@ async function populateDataTableFromView(view) {
       }
       if (rows.length && fields.length) {
         _cachedRawFields = fields;   // cache full raw field list for dropdowns
+        _cachedRawRows   = rows;     // cache rows for distinct-value pickers
         renderDataTable(rows, fields);
+        if (typeof _buildFilterValueWidget === 'function') _buildFilterValueWidget();
         return;
       }
     }
@@ -4079,7 +4082,9 @@ async function populateDataTableFromView(view) {
     if (!rows || !rows.length) return;
     const fields = Object.keys(rows[0]).filter(k => !k.startsWith('_vg'));
     _cachedRawFields = [...new Set(fields.map(k => _rawFieldName(k)))];
+    _cachedRawRows   = rows;
     renderDataTable(rows, fields);
+    if (typeof _buildFilterValueWidget === 'function') _buildFilterValueWidget();
   } catch(_) {}
 }
 
@@ -6300,11 +6305,14 @@ function _parseFilterValue(raw, op) {
 const _CATEGORICAL_OPS = new Set(['==', '!=', 'oneOf']);
 
 // Distinct, sorted values for a field from the active dataset (capped to
-// keep the widget usable for high-cardinality fields).
+// keep the widget usable for high-cardinality fields). Falls back to
+// _cachedRawRows when the dataset was loaded from a URL rather than uploaded.
 function _getDistinctFieldValues(field, cap = 500) {
-  if (!field || !userData?.length) return [];
+  if (!field) return [];
+  const rows = (userData?.length ? userData : _cachedRawRows);
+  if (!rows?.length) return [];
   const set = new Set();
-  for (const row of userData) {
+  for (const row of rows) {
     const v = row?.[field];
     if (v == null || v === '') continue;
     set.add(v);
@@ -6357,7 +6365,7 @@ function _buildFilterValueWidget(opts = {}) {
   if (!values.length) {
     const hint = document.createElement('div');
     hint.style.cssText = 'font-size:12px;color:var(--muted);padding:4px 0;';
-    hint.textContent = 'No data — load a dataset first';
+    hint.textContent = 'No values yet — render the chart first';
     slot.appendChild(hint);
     return;
   }
