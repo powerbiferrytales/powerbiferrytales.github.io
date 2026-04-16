@@ -129,12 +129,49 @@
       if (lightMatch) document.body.classList.add('light');
       else document.body.classList.remove('light');
 
-      // Use the spec's own dimensions if provided; otherwise fill the viewer
+      // Outer-facet compilation workaround (same as the editor's renderSpec).
+      // Vega-Lite 5.21 still trips when a layered spec with shared encoding
+      // or transforms sits inside the outer facet operator. Push shared
+      // encoding down into each layer, lift transforms to the outer root,
+      // and inject the facet field into joinaggregate groupby so Highlight
+      // Max/Min is computed per facet partition rather than globally.
+      if (spec.facet && spec.spec) {
+        if (spec.spec.layer && spec.spec.encoding) {
+          const shared = spec.spec.encoding;
+          spec.spec.layer.forEach(l => { l.encoding = { ...shared, ...(l.encoding || {}) }; });
+          delete spec.spec.encoding;
+        }
+        if (Array.isArray(spec.spec.transform)) {
+          const facetField = spec.facet.field;
+          const lifted = spec.spec.transform.map(t => {
+            if (!t.joinaggregate || !facetField) return t;
+            const gb = Array.isArray(t.groupby) ? t.groupby.slice() : [];
+            if (!gb.includes(facetField)) gb.push(facetField);
+            return Object.assign({}, t, { groupby: gb });
+          });
+          spec.transform = (spec.transform || []).concat(lifted);
+          delete spec.spec.transform;
+        }
+      }
+      // Flat spec with encoding.facet also benefits from facet-aware HL.
+      const flatFacetField = spec.encoding && spec.encoding.facet && spec.encoding.facet.field;
+      if (flatFacetField && Array.isArray(spec.transform)) {
+        spec.transform = spec.transform.map(t => {
+          if (!t.joinaggregate) return t;
+          const gb = Array.isArray(t.groupby) ? t.groupby.slice() : [];
+          if (!gb.includes(flatFacetField)) gb.push(flatFacetField);
+          return Object.assign({}, t, { groupby: gb });
+        });
+      }
+
+      // Use the spec's own dimensions if provided; otherwise fill the viewer.
+      // For outer-facet form, width/height belong inside spec.spec (per facet cell).
       const wrap = document.getElementById('chart-wrap');
       const availW = wrap.clientWidth  - 48;
       const availH = wrap.clientHeight - 48;
-      if (typeof spec.width  !== 'number') spec.width  = Math.round(availW * 0.75);
-      if (typeof spec.height !== 'number') spec.height = Math.round(availH * 0.75);
+      const dimTarget = (spec.facet && spec.spec) ? spec.spec : spec;
+      if (typeof dimTarget.width  !== 'number') dimTarget.width  = Math.round(availW * 0.75);
+      if (typeof dimTarget.height !== 'number') dimTarget.height = Math.round(availH * 0.75);
 
       // Suppress vega-embed's built-in theme when we provide our own config
       const embedTheme = (hasInlineConfig || matchedConfig) ? null : (lightMatch ? 'default' : 'dark');
