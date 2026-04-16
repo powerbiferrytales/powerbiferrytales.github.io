@@ -3985,6 +3985,43 @@ async function renderSpec(cfgOverride = null) {
   _migrateSpecHlTxtCat(renderableSpec); // silently fix old _hl_cat text layers for this render
   renderableSpec.config = config;
 
+  // ── Per-facet HL helper ──────────────────────────────────────
+  // Append facetField to every joinaggregate's groupby so Highlight Max/Min
+  // is computed within each facet partition rather than across all data.
+  const _injectFacet = (transforms, facetField) => {
+    if (!facetField || !Array.isArray(transforms)) return transforms;
+    return transforms.map(t => {
+      if (!t.joinaggregate) return t;
+      const gb = Array.isArray(t.groupby) ? t.groupby.slice() : [];
+      if (!gb.includes(facetField)) gb.push(facetField);
+      return Object.assign({}, t, { groupby: gb });
+    });
+  };
+
+  // Flat spec + encoding.facet: HL transforms at root. Inject facet field
+  // into their groupby so the HL is computed per facet.
+  const flatFacetField = renderableSpec.encoding?.facet?.field;
+  if (flatFacetField && Array.isArray(renderableSpec.transform)) {
+    renderableSpec.transform = _injectFacet(renderableSpec.transform, flatFacetField);
+  }
+
+  // Outer-facet operator form (layered spec wrapped). Vega-Lite still trips on
+  // transforms at the inner layered-spec level, so push shared encoding down
+  // into each layer and lift transforms to the outer root — injecting the
+  // facet field into joinaggregate groupby on the way so HL is per-facet.
+  if (renderableSpec.facet && renderableSpec.spec) {
+    if (renderableSpec.spec.layer && renderableSpec.spec.encoding) {
+      const shared = renderableSpec.spec.encoding;
+      renderableSpec.spec.layer.forEach(l => { l.encoding = { ...shared, ...(l.encoding || {}) }; });
+      delete renderableSpec.spec.encoding;
+    }
+    if (Array.isArray(renderableSpec.spec.transform)) {
+      const injected = _injectFacet(renderableSpec.spec.transform, renderableSpec.facet.field);
+      renderableSpec.transform = (renderableSpec.transform || []).concat(injected);
+      delete renderableSpec.spec.transform;
+    }
+  }
+
   if (userData) {
     if (renderableSpec.data && renderableSpec.data.name === 'dataset') {
       renderableSpec.data = { values: userData };
