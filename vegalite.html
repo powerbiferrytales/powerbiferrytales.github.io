@@ -672,9 +672,10 @@ select {
   white-space: nowrap; letter-spacing: 0.04em;
 }
 
-/* Preview zoom wrapper — scale is applied here, origin top-center */
+/* Preview zoom wrapper — use the `zoom` property so layout reflows with the
+   visual scale. transform:scale keeps the natural layout size and leaves a
+   big empty area below tall charts when zoomed out. */
 #preview-zoom-wrap {
-  transform-origin: top center;
   display: inline-block;
 }
 
@@ -2740,7 +2741,7 @@ let previewZoomIdx = 6; // 1.0
 function setPreviewZoom(idx) {
   previewZoomIdx = Math.max(0, Math.min(PVZ_STEPS.length - 1, idx));
   const z = PVZ_STEPS[previewZoomIdx];
-  document.getElementById('preview-zoom-wrap').style.transform = `scale(${z})`;
+  document.getElementById('preview-zoom-wrap').style.zoom = z;
   document.getElementById('pvz-label').textContent = Math.round(z * 100) + '%';
   // Deactivate fit mode — user has manually overridden the zoom
   deactivateFit();
@@ -2792,9 +2793,9 @@ function deactivateFit() {
 async function fitToFrame() {
   const previewTop = document.getElementById('preview-top');
 
-  // Reset any manual zoom transform so the chart fills the frame correctly
+  // Reset any manual zoom so the chart fills the frame correctly
   previewZoomIdx = 6; // 100%
-  document.getElementById('preview-zoom-wrap').style.transform = 'scale(1)';
+  document.getElementById('preview-zoom-wrap').style.zoom = 1;
   document.getElementById('pvz-label').textContent = '100%';
 
   const availW = previewTop.clientWidth  - 40;
