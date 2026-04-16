@@ -2929,6 +2929,20 @@ function duplicateLayer(layerIdx, concatIdx) {
     selectedLayerIdx = 1;
   }
 
+  // Layered specs can't carry encoding.facet. If the flat spec had one, lift
+  // the facet definition to the outer-facet operator form so facet still
+  // works after the duplication.
+  if (target.encoding && target.encoding.facet && target.layer && !(spec.facet && spec.spec)) {
+    const facetDef = target.encoding.facet;
+    const colsNum  = facetDef.columns != null ? facetDef.columns : null;
+    const onlyFacetField = { field: facetDef.field };
+    if (facetDef.type) onlyFacetField.type = facetDef.type;
+    delete target.encoding.facet;
+    if (Object.keys(target.encoding).length === 0) delete target.encoding;
+    _wrapAsOuterFacet(spec, onlyFacetField);
+    if (colsNum != null) spec.columns = colsNum;
+  }
+
   const oldText = cmEditor.getValue();
   specBuffer = JSON.stringify(spec, null, 2);
   _clearPatchHighlight();
@@ -3014,6 +3028,20 @@ function addLayer(type) {
       const _hlDefs = _hlDefaultColors();
       _applyTextHlToSpec(target, newLayerIdx, _hlDefs.maxColor, 13, _hlDefs.minColor, 13);
     }
+  }
+
+  // Layered specs can't carry encoding.facet. If the flat spec had one, lift
+  // the facet definition to the outer-facet operator form so facet still
+  // works after the new layer is added.
+  if (target.encoding && target.encoding.facet && target.layer && !(spec.facet && spec.spec)) {
+    const facetDef = target.encoding.facet;
+    const colsNum  = facetDef.columns != null ? facetDef.columns : null;
+    const onlyFacetField = { field: facetDef.field };
+    if (facetDef.type) onlyFacetField.type = facetDef.type;
+    delete target.encoding.facet;
+    if (Object.keys(target.encoding).length === 0) delete target.encoding;
+    _wrapAsOuterFacet(spec, onlyFacetField);
+    if (colsNum != null) spec.columns = colsNum;
   }
 
   const oldText = cmEditor.getValue();
@@ -6677,6 +6705,7 @@ function applyFacetProp() {
     if (!field) {
       if (root.facet && root.spec) {
         _unwrapOuterFacet(root);
+        delete root.columns;   // outer-form columns sibling
         writeShare(root); // resolve lives on root after unwrapping
       } else if (root.encoding) {
         delete root.encoding.facet;
@@ -6686,7 +6715,7 @@ function applyFacetProp() {
     }
 
     const facetDef = { field, type };
-    if (cols !== '') facetDef.columns = parseInt(cols);
+    const colsNum  = cols !== '' ? parseInt(cols) : null;
 
     // Is the target spec layered/compound? If so, use the outer facet operator
     // form; otherwise the lightweight encoding.facet form is sufficient.
@@ -6699,15 +6728,18 @@ function applyFacetProp() {
       if (root.facet && root.spec) {
         // Already outer-faceted — just update the facet definition in place.
         root.facet = facetDef;
-        writeShare(root.spec);
       } else {
         _wrapAsOuterFacet(root, facetDef);
-        writeShare(root.spec);
       }
+      // For the outer-facet operator, `columns` is a sibling of `facet` at
+      // root, not a property on facet itself.
+      if (colsNum != null) root.columns = colsNum; else delete root.columns;
+      writeShare(root.spec);
     } else {
       // Flat spec. If we were previously outer-faceted, unwrap first.
-      if (root.facet && root.spec) _unwrapOuterFacet(root);
+      if (root.facet && root.spec) { _unwrapOuterFacet(root); delete root.columns; }
       root.encoding = root.encoding || {};
+      if (colsNum != null) facetDef.columns = colsNum;
       root.encoding.facet = facetDef;
       writeShare(root);
     }
@@ -6793,13 +6825,17 @@ function syncTransformPanel(root) {
   _buildFilterValueWidget({ preserveText: textPreserve });
 
   // Facet — check outer-facet form first, then fall back to encoding.facet.
-  const facet = (root.facet && root.spec)
-    ? root.facet
-    : (spec.encoding && spec.encoding.facet);
+  const isOuterFaceted = !!(root.facet && root.spec);
+  const facet = isOuterFaceted ? root.facet : (spec.encoding && spec.encoding.facet);
   if (facet && facet.field) {
     document.getElementById('pp-facet-field').value = facet.field;
     document.getElementById('pp-facet-type').value  = facet.type || 'nominal';
-    document.getElementById('pp-facet-cols').value  = facet.columns != null ? facet.columns : '';
+    // For outer-facet form, columns sits at root (sibling of facet). For
+    // encoding.facet form, columns lives inside the facet object.
+    const cols = isOuterFaceted
+      ? (root.columns != null ? root.columns : (facet.columns != null ? facet.columns : ''))
+      : (facet.columns != null ? facet.columns : '');
+    document.getElementById('pp-facet-cols').value = cols;
   } else {
     document.getElementById('pp-facet-field').value = '';
     document.getElementById('pp-facet-cols').value  = '';
