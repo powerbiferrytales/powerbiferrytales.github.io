@@ -836,6 +836,16 @@ select {
 }
 .mark-layer-tab:hover { border-color: var(--accent); color: var(--accent); }
 .mark-layer-tab.active { border-color: var(--accent); color: var(--accent); background: var(--accent-glow); }
+.mark-layer-tab-wrap { display: flex; align-items: stretch; }
+.mark-layer-arrow {
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--dim);
+  font-size: 9px; cursor: pointer; padding: 0 4px; line-height: 1;
+  transition: all 0.12s; display: flex; align-items: center;
+}
+.mark-layer-arrow:first-child { border-radius: 2px 0 0 2px; border-right: none; }
+.mark-layer-arrow:last-child  { border-radius: 0 2px 2px 0; border-left: none; }
+.mark-layer-arrow:hover { color: var(--accent); border-color: var(--accent); }
+.mark-layer-tab-wrap .mark-layer-tab { border-radius: 0; }
 .mark-type-badge {
   font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: var(--accent);
 }
@@ -5078,7 +5088,29 @@ function _markSig(spec) {
 function _buildLayerTabs(layers) {
   const wrap = document.createElement('div');
   wrap.className = 'mark-layer-tabs';
+
+  const swapLayers = (fromIdx, toIdx) => {
+    patchSpec(spec => {
+      if (!spec.layer || toIdx < 0 || toIdx >= spec.layer.length) return;
+      const tmp = spec.layer[fromIdx];
+      spec.layer[fromIdx] = spec.layer[toIdx];
+      spec.layer[toIdx] = tmp;
+      selectedLayerIdx = toIdx;
+    });
+  };
+
   layers.forEach((layer, i) => {
+    if (layer.name === '_hl_layer') return;
+    const tabWrap = document.createElement('div');
+    tabWrap.className = 'mark-layer-tab-wrap';
+
+    const leftArr = document.createElement('button');
+    leftArr.className = 'mark-layer-arrow';
+    leftArr.textContent = '◀';
+    leftArr.title = 'Move layer earlier (behind)';
+    leftArr.style.visibility = i === 0 ? 'hidden' : '';
+    leftArr.onclick = (e) => { e.stopPropagation(); swapLayers(i, i - 1); };
+
     const btn = document.createElement('button');
     btn.className = 'mark-layer-tab' + (i === selectedLayerIdx ? ' active' : '');
     btn.textContent = `L${i + 1}: ${_markType(layer.mark).toUpperCase()}`;
@@ -5086,7 +5118,18 @@ function _buildLayerTabs(layers) {
       selectedLayerIdx = i;
       try { rebuildMarkSection(JSON.parse(specBuffer)); } catch(_) {}
     };
-    wrap.appendChild(btn);
+
+    const rightArr = document.createElement('button');
+    rightArr.className = 'mark-layer-arrow';
+    rightArr.textContent = '▶';
+    rightArr.title = 'Move layer later (in front)';
+    rightArr.style.visibility = i === layers.length - 1 ? 'hidden' : '';
+    rightArr.onclick = (e) => { e.stopPropagation(); swapLayers(i, i + 1); };
+
+    tabWrap.appendChild(leftArr);
+    tabWrap.appendChild(btn);
+    tabWrap.appendChild(rightArr);
+    wrap.appendChild(tabWrap);
   });
   return wrap;
 }
