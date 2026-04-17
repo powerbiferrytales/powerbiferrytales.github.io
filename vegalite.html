@@ -2418,6 +2418,57 @@ const TEMPLATES = [
       ]
     }
   },
+  { id:"target", name:"TARGET", icon:"▭─",
+    spec: { "$schema":SCHEMA, "data":{"url":DS+"stocks.csv"},
+      "transform":[
+        {"filter":"datum.symbol === 'GOOG'"},
+        {"calculate":"(400)","as":"_target"}
+      ],
+      "spacing":20,
+      "vconcat":[
+        {
+          "title":{"text":"Average Price vs Target","anchor":"middle"},
+          "width":400, "height":30,
+          "transform":[
+            {"aggregate":[{"op":"mean","field":"price","as":"_avg"}]},
+            {"calculate":"(400)","as":"_target"}
+          ],
+          "layer":[
+            {"mark":{"type":"bar","color":{"expr":"datum._avg > datum._target ? '#ec7629' : '#454545'"}},
+             "encoding":{"x":{"field":"_avg","type":"quantitative","title":null,"axis":null}}},
+            {"mark":{"type":"tick","color":"#454545","height":40,"thickness":2},
+             "encoding":{"x":{"field":"_target","type":"quantitative","axis":null}}},
+            {"mark":{"type":"rect","color":"#454545","height":1,"yOffset":15},
+             "encoding":{"x":{"field":"_target","type":"quantitative","axis":null}}},
+            {"mark":{"type":"text","yOffset":-25,"size":14,"fontWeight":600},
+             "encoding":{"text":{"field":"_target","format":",.0f"},
+                         "x":{"field":"_target","type":"quantitative","axis":null}}},
+            {"mark":{"type":"text","size":16,"color":"#ffffff","align":"right","dx":-5},
+             "encoding":{"text":{"field":"_avg","format":",.0f"},
+                         "x":{"field":"_avg","type":"quantitative","axis":null}}}
+          ]
+        },
+        {
+          "title":{"text":"Monthly Max Price","anchor":"middle","offset":15},
+          "width":400, "height":120,
+          "transform":[{"filter":"isValid(datum.price)"}],
+          "layer":[
+            {"mark":"line",
+             "encoding":{
+               "x":{"field":"date","type":"temporal","timeUnit":"yearmonth","axis":{"title":null}},
+               "y":{"field":"price","type":"quantitative","aggregate":"max","axis":{"title":null,"format":",.0f"}}
+             }},
+            {"mark":{"type":"text","fontWeight":600,"size":9,"yOffset":-10},
+             "encoding":{
+               "text":{"field":"price","aggregate":"max","format":",.0f"},
+               "x":{"field":"date","type":"temporal","timeUnit":"yearmonth"},
+               "y":{"field":"price","type":"quantitative","aggregate":"max"}
+             }}
+          ]
+        }
+      ]
+    }
+  },
   { id:"blank", name:"BLANK", icon:"◻",
     spec: { "$schema":SCHEMA, "title":"My Chart",
       "data":{"name":"dataset"},
