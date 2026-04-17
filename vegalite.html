@@ -6431,8 +6431,8 @@ function rebuildMarkSection(spec) {
 
     const dupBtn = document.createElement('button');
     dupBtn.className = 'btn';
-    dupBtn.style.cssText = 'flex:1;font-size:12px;letter-spacing:0.08em;';
-    dupBtn.textContent = '⊕ DUPLICATE MARK';
+    dupBtn.style.cssText = 'flex:1;font-size:10px;padding:4px 6px;letter-spacing:0.05em;';
+    dupBtn.textContent = '⊕ DUPLICATE';
     dupBtn.onclick = () => duplicateLayer(layerIdx, concatIdx);
     btnRow.appendChild(dupBtn);
 
@@ -6440,8 +6440,8 @@ function rebuildMarkSection(spec) {
     if (spec.layer && spec.layer.length > 1 && layerIdx !== null) {
       const delBtn = document.createElement('button');
       delBtn.className = 'btn';
-      delBtn.style.cssText = 'flex:1;font-size:12px;letter-spacing:0.08em;color:var(--red);';
-      delBtn.textContent = '⊖ DELETE MARK';
+      delBtn.style.cssText = 'flex:1;font-size:10px;padding:4px 6px;letter-spacing:0.05em;color:var(--red);';
+      delBtn.textContent = '⊖ DELETE';
       delBtn.onclick = () => deleteLayer(layerIdx, concatIdx);
       btnRow.appendChild(delBtn);
     }
