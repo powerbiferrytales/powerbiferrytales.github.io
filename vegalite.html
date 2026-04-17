@@ -3000,6 +3000,54 @@ const LAYER_TEMPLATES = {
   }
 };
 
+function deleteLayer(layerIdx, concatIdx) {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  let spec;
+  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
+
+  let target = _viewSpec(spec);
+  if (concatIdx !== null) {
+    const vs = target.vconcat || target.hconcat || target.concat;
+    if (vs?.[concatIdx]) target = vs[concatIdx];
+  }
+
+  if (!target.layer || target.layer.length <= 1 || layerIdx === null) return;
+
+  // Remove HL state that referenced this layer before deleting it
+  _removeHlFromSpec(target);
+
+  target.layer.splice(layerIdx, 1);
+
+  // If only one layer remains, unwrap back to a flat spec
+  if (target.layer.length === 1) {
+    const sole = target.layer[0];
+    delete target.layer;
+    ['mark', 'selection', 'params'].forEach(k => {
+      if (sole[k] !== undefined) target[k] = sole[k];
+    });
+    // Merge the sole layer's encoding into root encoding
+    if (sole.encoding) {
+      target.encoding = target.encoding || {};
+      Object.assign(target.encoding, sole.encoding);
+    }
+    // Merge any per-layer transforms into root
+    if (sole.transform) {
+      target.transform = [...(target.transform || []), ...sole.transform];
+    }
+  }
+
+  selectedLayerIdx = Math.min(selectedLayerIdx, (target.layer ? target.layer.length : 1) - 1);
+
+  const oldText = cmEditor.getValue();
+  specBuffer = JSON.stringify(spec, null, 2);
+  _clearPatchHighlight();
+  suppressRender = true;
+  cmEditor.setValue(specBuffer);
+  suppressRender = false;
+  _applyPatchHighlight(oldText, specBuffer);
+  renderSpec();
+}
+
 function addLayer(type) {
   if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
 
@@ -6375,15 +6423,30 @@ function rebuildMarkSection(spec) {
     }
   }
 
-  // Duplicate mark button — not shown for the synthetic _hl_layer
+  // Duplicate / Delete mark buttons — not shown for the synthetic _hl_layer
   const isHlLayer = layerIdx !== null && spec.layer?.[layerIdx]?.name === '_hl_layer';
   if (!concatViews && !isHlLayer) {
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display:flex;gap:4px;margin-top:8px;';
+
     const dupBtn = document.createElement('button');
     dupBtn.className = 'btn';
-    dupBtn.style.cssText = 'width:100%;margin-top:8px;font-size:12px;letter-spacing:0.08em;';
+    dupBtn.style.cssText = 'flex:1;font-size:12px;letter-spacing:0.08em;';
     dupBtn.textContent = '⊕ DUPLICATE MARK';
     dupBtn.onclick = () => duplicateLayer(layerIdx, concatIdx);
-    body.appendChild(dupBtn);
+    btnRow.appendChild(dupBtn);
+
+    // Only show delete when there are 2+ layers (can't delete the last mark)
+    if (spec.layer && spec.layer.length > 1 && layerIdx !== null) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'btn';
+      delBtn.style.cssText = 'flex:1;font-size:12px;letter-spacing:0.08em;color:var(--red);';
+      delBtn.textContent = '⊖ DELETE MARK';
+      delBtn.onclick = () => deleteLayer(layerIdx, concatIdx);
+      btnRow.appendChild(delBtn);
+    }
+
+    body.appendChild(btnRow);
   }
 
   _lastMarkSig = _markSig(spec);
