@@ -2270,6 +2270,8 @@ const TEMPLATES = [
       ],
       "title":{"text":"Unemployment Rate","subtitle":"Construction","fontSize":25,"subtitleFontSize":14,"anchor":"start"},
       "width":300, "height":150,
+      "padding":{"top":90},
+      "view":{"clip":false},
       "layer":[
         {
           "mark":{"type":"line","tooltip":true,"strokeWidth":2},
@@ -2293,11 +2295,10 @@ const TEMPLATES = [
             {"window":[{"op":"row_number","as":"_rn"}],"sort":[{"field":"_yr","order":"descending"}]},
             {"filter":"datum._rn === 1"}
           ],
-          "mark":{"type":"text","fontWeight":600,"size":48,"align":"left","dy":-100},
+          "mark":{"type":"text","fontWeight":600,"size":48,"align":"left","baseline":"top"},
           "encoding":{
             "text":{"field":"_avg","type":"quantitative","format":".1f"},
-            "x":{"field":"_yr","type":"temporal"},
-            "y":{"field":"_avg","type":"quantitative"}
+            "x":{"value":0},"y":{"value":-85}
           }
         },
         {
@@ -2306,11 +2307,10 @@ const TEMPLATES = [
             {"filter":"datum._rn === 1"},
             {"calculate":"(datum._yoy >= 0 ? '+' : '') + format(datum._yoy,',.1%') + ' vs PY'","as":"_label"}
           ],
-          "mark":{"type":"text","align":"left","size":20,"dy":-55,"color":{"expr":"datum._yoy >= 0 ? 'green' : 'red'"}},
+          "mark":{"type":"text","align":"left","size":20,"baseline":"top","color":{"expr":"datum._yoy >= 0 ? 'green' : 'red'"}},
           "encoding":{
             "text":{"field":"_label"},
-            "x":{"field":"_yr","type":"temporal"},
-            "y":{"field":"_avg","type":"quantitative"}
+            "x":{"value":0},"y":{"value":-40}
           }
         }
       ]
