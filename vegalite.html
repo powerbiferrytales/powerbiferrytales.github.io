@@ -2431,14 +2431,15 @@ const TEMPLATES = [
           "width":400, "height":30,
           "transform":[
             {"aggregate":[{"op":"mean","field":"price","as":"_avg"}]},
-            {"calculate":"(430)","as":"_target"}
+            {"calculate":"(450)","as":"_target"}
           ],
           "layer":[
-            {"mark":{"type":"tick","color":"#454545","height":40,"thickness":2},
+            {"mark":{"type":"tick","filled":true,"color":"#454545","size":35,"thickness":1,"opacity":1},
              "encoding":{"x":{"field":"_target","type":"quantitative","axis":null}}},
             {"mark":{"type":"rect","color":"#454545","height":1,"yOffset":15},
              "encoding":{"x":{"field":"_target","type":"quantitative","axis":null}}},
-            {"mark":{"type":"rect","color":{"expr":"datum._avg < datum._target ? '#ec7629' : '#0c4d25'"}},
+            {"mark":{"type":"bar","cornerRadius":10,"height":25,
+                     "color":{"expr":"datum._avg < datum._target ? '#ec7629' : '#0c4d25'"}},
              "encoding":{"x":{"field":"_avg","type":"quantitative","title":null,"axis":null}}},
             {"mark":{"type":"text","yOffset":-30,"size":14,"fontWeight":600},
              "encoding":{"text":{"field":"_target","format":",.0f"},
