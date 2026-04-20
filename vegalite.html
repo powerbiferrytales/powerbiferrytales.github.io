@@ -1105,7 +1105,7 @@ body.light-mode .hd-cn { color: #c2410c; }
       <div>
         <div class="logo-text">FERRY TALES STUDIO</div>
         <div class="logo-sub">vega-lite builder</div>
-        <div style="background:#ec7629;color:#fff;font-size:10px;font-family:monospace;padding:2px 8px;border-radius:3px;margin-left:8px;">TEST: kpi-facet-v4</div>
+        <div style="background:#ec7629;color:#fff;font-size:10px;font-family:monospace;padding:2px 8px;border-radius:3px;margin-left:8px;">TEST: kpi-facet-v5</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -4182,16 +4182,15 @@ async function renderSpec(cfgOverride = null) {
       renderableSpec.transform = (renderableSpec.transform || []).concat(injected);
       delete renderableSpec.spec.transform;
     }
-    // padding and view are top-level chart properties, not valid on a
-    // LayerSpec inside a facet operator. Move padding to outer root and
-    // strip view to avoid the compile error.
-    if (renderableSpec.spec.padding) {
-      renderableSpec.padding = renderableSpec.spec.padding;
-      delete renderableSpec.spec.padding;
-    }
-    if (renderableSpec.spec.view) {
-      delete renderableSpec.spec.view;
-    }
+    // Vega-Lite's outer-facet compile path is extremely sensitive about
+    // what sits on the inner LayerSpec. Aggressively strip everything
+    // except `layer` (and optionally width/height which set cell size).
+    ['padding', 'view', 'title', 'description', 'spacing'].forEach(k => {
+      if (renderableSpec.spec[k] != null) {
+        renderableSpec[k] = renderableSpec.spec[k];
+        delete renderableSpec.spec[k];
+      }
+    });
   }
 
   if (userData) {
