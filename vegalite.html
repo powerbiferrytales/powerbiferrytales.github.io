@@ -4149,9 +4149,9 @@ async function renderSpec(cfgOverride = null) {
   const _injectFacet = (transforms, facetField) => {
     if (!facetField || !Array.isArray(transforms)) return transforms;
     return transforms.map(t => {
-      // Both joinaggregate and aggregate have groupby arrays that need
-      // the facet field so the computation runs per facet partition.
-      if (!t.joinaggregate && !t.aggregate) return t;
+      // aggregate, joinaggregate AND window all have groupby arrays that
+      // need the facet field so the computation runs per facet partition.
+      if (!t.joinaggregate && !t.aggregate && !t.window) return t;
       const gb = Array.isArray(t.groupby) ? t.groupby.slice() : [];
       if (!gb.includes(facetField)) gb.push(facetField);
       return Object.assign({}, t, { groupby: gb });
