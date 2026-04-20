@@ -2269,40 +2269,48 @@ const TEMPLATES = [
         {"window":[{"op":"rank","as":"_rank"}],"sort":[{"field":"_avg","order":"descending"}]}
       ],
       "title":{"text":"Unemployment Rate","subtitle":"Construction","fontSize":25,"subtitleFontSize":14,"anchor":"start"},
-      "width":300,
-      "spacing":8,
-      "vconcat":[
+      "width":300, "height":150,
+      "padding":{"top":90},
+      "view":{"clip":false},
+      "layer":[
         {
-          "height":63,
+          "mark":{"type":"line","tooltip":true,"strokeWidth":2},
+          "encoding":{
+            "x":{"field":"_yr","type":"temporal","title":null,"axis":{"format":"%Y","labelAngle":0,"grid":false}},
+            "y":{"field":"_avg","type":"quantitative","title":null,"axis":{"grid":false}}
+          }
+        },
+        {
+          "mark":{"type":"point","filled":true,"opacity":1,
+            "size":{"expr":"datum._rank === 1 ? 125 : 0"},
+            "color":{"expr":"datum._rank === 1 ? '#ec7629' : 'transparent'"}
+          },
+          "encoding":{
+            "x":{"field":"_yr","type":"temporal"},
+            "y":{"field":"_avg","type":"quantitative"}
+          }
+        },
+        {
           "transform":[
             {"window":[{"op":"row_number","as":"_rn"}],"sort":[{"field":"_yr","order":"descending"}]},
             {"filter":"datum._rn === 1"}
           ],
-          "mark":{"type":"text","fontWeight":600,"size":48,"align":"left"},
-          "encoding":{"text":{"field":"_avg","type":"quantitative","format":".1f"}}
+          "mark":{"type":"text","fontWeight":600,"size":48,"align":"left","baseline":"top"},
+          "encoding":{
+            "text":{"field":"_avg","type":"quantitative","format":".1f"},
+            "x":{"value":0},"y":{"value":-85}
+          }
         },
         {
-          "height":31,
           "transform":[
             {"window":[{"op":"row_number","as":"_rn"}],"sort":[{"field":"_yr","order":"descending"}]},
             {"filter":"datum._rn === 1"},
             {"calculate":"(datum._yoy >= 0 ? '+' : '') + format(datum._yoy,',.1%') + ' vs PY'","as":"_label"}
           ],
-          "mark":{"type":"text","align":"left","size":23,"color":{"expr":"datum._yoy >= 0 ? 'green' : 'red'"}},
-          "encoding":{"text":{"field":"_label"}}
-        },
-        {
-          "height":125,
-          "layer":[
-            {"mark":{"type":"line","tooltip":true,"strokeWidth":2}},
-            {"mark":{"type":"point","filled":true,"opacity":1,
-              "size":{"expr":"datum._rank === 1 ? 125 : 0"},
-              "color":{"expr":"datum._rank === 1 ? '#ec7629' : 'transparent'"}
-            }}
-          ],
+          "mark":{"type":"text","align":"left","size":20,"baseline":"top","color":{"expr":"datum._yoy >= 0 ? 'green' : 'red'"}},
           "encoding":{
-            "x":{"field":"_yr","type":"temporal","title":null,"axis":{"format":"%Y","labelAngle":0,"grid":false}},
-            "y":{"field":"_avg","type":"quantitative","title":null,"axis":{"title":null,"grid":false}}
+            "text":{"field":"_label"},
+            "x":{"value":0},"y":{"value":-40}
           }
         }
       ]
@@ -4141,7 +4149,9 @@ async function renderSpec(cfgOverride = null) {
   const _injectFacet = (transforms, facetField) => {
     if (!facetField || !Array.isArray(transforms)) return transforms;
     return transforms.map(t => {
-      if (!t.joinaggregate) return t;
+      // Both joinaggregate and aggregate have groupby arrays that need
+      // the facet field so the computation runs per facet partition.
+      if (!t.joinaggregate && !t.aggregate) return t;
       const gb = Array.isArray(t.groupby) ? t.groupby.slice() : [];
       if (!gb.includes(facetField)) gb.push(facetField);
       return Object.assign({}, t, { groupby: gb });
