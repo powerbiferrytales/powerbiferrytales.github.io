@@ -6372,6 +6372,95 @@ function rebuildMarkSection(spec) {
     fmtCtrl.appendChild(fmtSel);
     fmtRow.appendChild(fmtCtrl);
     body.appendChild(fmtRow);
+
+    // ── Prefix / Suffix (text marks only) ─────────────────────────
+    // Adds a per-layer calculate that wraps the text field value with
+    // a prefix and/or suffix string.
+    const _TXT_PFX_AS = '_txt_pfx';
+    const curCalc = (() => {
+      const lyr = layerIdx !== null ? spec.layer?.[layerIdx] : null;
+      const tx = (lyr?.transform || []).find(t => t.as === _TXT_PFX_AS);
+      if (!tx) return { prefix: '', suffix: '' };
+      // Parse: 'prefix' + format(datum['field'], 'fmt') + 'suffix'
+      // or:    'prefix' + datum['field'] + 'suffix'
+      const m = tx.calculate.match(/^'(.*?)'\s*\+\s*(?:format\()?datum\['[^']*'\](?:,\s*'[^']*'\))?.*\+\s*'(.*?)'$/);
+      return m ? { prefix: m[1], suffix: m[2] } : { prefix: '', suffix: '' };
+    })();
+
+    const pfxRow = document.createElement('div'); pfxRow.className = 'prop-row';
+    pfxRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Prefix' }));
+    const pfxCtrl = document.createElement('div'); pfxCtrl.className = 'prop-ctrl';
+    const pfxInp = document.createElement('input'); pfxInp.type = 'text';
+    pfxInp.placeholder = 'e.g. Avg: '; pfxInp.value = curCalc.prefix;
+    pfxCtrl.appendChild(pfxInp); pfxRow.appendChild(pfxCtrl); body.appendChild(pfxRow);
+
+    const sfxRow = document.createElement('div'); sfxRow.className = 'prop-row';
+    sfxRow.appendChild(Object.assign(document.createElement('span'), { className: 'prop-label', textContent: 'Suffix' }));
+    const sfxCtrl = document.createElement('div'); sfxCtrl.className = 'prop-ctrl';
+    const sfxInp = document.createElement('input'); sfxInp.type = 'text';
+    sfxInp.placeholder = 'e.g.  pts'; sfxInp.value = curCalc.suffix;
+    sfxCtrl.appendChild(sfxInp); sfxRow.appendChild(sfxCtrl); body.appendChild(sfxRow);
+
+    const applyPfxSfx = () => {
+      patchSpec(ps => {
+        let t = ps;
+        if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+        const lyr = layerIdx !== null ? t.layer?.[layerIdx] : null;
+        const enc = lyr ? (lyr.encoding = lyr.encoding || {}) : (t.encoding = t.encoding || {});
+        const pfx = pfxInp.value;
+        const sfx = sfxInp.value;
+
+        // Remove any existing prefix/suffix calculate
+        if (lyr && lyr.transform) {
+          const origCalc = lyr.transform.find(tx => tx.as === _TXT_PFX_AS);
+          lyr.transform = lyr.transform.filter(tx => tx.as !== _TXT_PFX_AS);
+          if (!lyr.transform.length) delete lyr.transform;
+
+          // If clearing prefix/suffix, restore original text encoding from the calc
+          if (!pfx && !sfx) {
+            if (origCalc && origCalc._srcField) {
+              enc.text = { field: origCalc._srcField, type: 'quantitative' };
+              if (origCalc._srcFormat) enc.text.format = origCalc._srcFormat;
+              if (origCalc._srcAggregate) enc.text.aggregate = origCalc._srcAggregate;
+            }
+            return;
+          }
+        }
+
+        if (!pfx && !sfx) return;
+
+        // Read the source text field (either from current encoding or from the existing calc)
+        let srcField, srcFmt, srcAgg;
+        if (enc.text?.field && enc.text.field !== _TXT_PFX_AS) {
+          srcField = enc.text.field;
+          srcFmt   = enc.text.format || '';
+          srcAgg   = enc.text.aggregate || '';
+        } else {
+          // Already using _txt_pfx — read source from the calc metadata
+          const existingCalc = (lyr?.transform || []).find(tx => tx.as === _TXT_PFX_AS);
+          srcField = existingCalc?._srcField || '';
+          srcFmt   = existingCalc?._srcFormat || '';
+          srcAgg   = existingCalc?._srcAggregate || '';
+        }
+        if (!srcField) return;
+
+        // Build the calculate expression
+        const valExpr = srcFmt
+          ? "format(datum['" + srcField + "'], '" + srcFmt + "')"
+          : "datum['" + srcField + "']";
+        const expr = "'" + pfx.replace(/'/g, "\\'") + "' + " + valExpr + " + '" + sfx.replace(/'/g, "\\'") + "'";
+
+        // Add the calculate transform (with source metadata for round-tripping)
+        if (!lyr) return;
+        lyr.transform = lyr.transform || [];
+        lyr.transform.push({ calculate: expr, as: _TXT_PFX_AS, _srcField: srcField, _srcFormat: srcFmt, _srcAggregate: srcAgg });
+
+        // Point text encoding at the calculated field
+        enc.text = { field: _TXT_PFX_AS };
+      });
+    };
+    pfxInp.addEventListener('change', applyPfxSfx);
+    sfxInp.addEventListener('change', applyPfxSfx);
   }
 
   // ── Tooltip select (Off / Basic / Advanced) ──────────────────
