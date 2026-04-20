@@ -6375,16 +6375,26 @@ function rebuildMarkSection(spec) {
 
     // ── Prefix / Suffix (text marks only) ─────────────────────────
     // Adds a per-layer calculate that wraps the text field value with
-    // a prefix and/or suffix string.
+    // a prefix and/or suffix string. The calculate is a clean, readable
+    // Vega-Lite transform with no hidden metadata.
     const _TXT_PFX_AS = '_txt_pfx';
+
+    // Parse prefix/suffix/field/format from an existing calculate expression
+    const _parsePfxCalc = (expr) => {
+      // 'pfx' + format(datum['field'], 'fmt') + 'sfx'
+      const m1 = expr.match(/^'(.*?)'\s*\+\s*format\(datum\['([^']+)'\],\s*'([^']*)'\)\s*\+\s*'(.*?)'$/);
+      if (m1) return { prefix: m1[1], field: m1[2], format: m1[3], suffix: m1[4] };
+      // 'pfx' + datum['field'] + 'sfx'
+      const m2 = expr.match(/^'(.*?)'\s*\+\s*datum\['([^']+)'\]\s*\+\s*'(.*?)'$/);
+      if (m2) return { prefix: m2[1], field: m2[2], format: '', suffix: m2[3] };
+      return null;
+    };
+
     const curCalc = (() => {
       const lyr = layerIdx !== null ? spec.layer?.[layerIdx] : null;
       const tx = (lyr?.transform || []).find(t => t.as === _TXT_PFX_AS);
-      if (!tx) return { prefix: '', suffix: '' };
-      // Parse: 'prefix' + format(datum['field'], 'fmt') + 'suffix'
-      // or:    'prefix' + datum['field'] + 'suffix'
-      const m = tx.calculate.match(/^'(.*?)'\s*\+\s*(?:format\()?datum\['[^']*'\](?:,\s*'[^']*'\))?.*\+\s*'(.*?)'$/);
-      return m ? { prefix: m[1], suffix: m[2] } : { prefix: '', suffix: '' };
+      if (!tx) return { prefix: '', suffix: '', field: '', format: '' };
+      return _parsePfxCalc(tx.calculate) || { prefix: '', suffix: '', field: '', format: '' };
     })();
 
     const pfxRow = document.createElement('div'); pfxRow.className = 'prop-row';
@@ -6410,52 +6420,47 @@ function rebuildMarkSection(spec) {
         const pfx = pfxInp.value;
         const sfx = sfxInp.value;
 
-        // Remove any existing prefix/suffix calculate
+        // Find and parse any existing prefix/suffix calculate
+        const existingTx = lyr && (lyr.transform || []).find(tx => tx.as === _TXT_PFX_AS);
+        const parsed = existingTx ? _parsePfxCalc(existingTx.calculate) : null;
+
+        // Remove the old calculate
         if (lyr && lyr.transform) {
-          const origCalc = lyr.transform.find(tx => tx.as === _TXT_PFX_AS);
           lyr.transform = lyr.transform.filter(tx => tx.as !== _TXT_PFX_AS);
           if (!lyr.transform.length) delete lyr.transform;
-
-          // If clearing prefix/suffix, restore original text encoding from the calc
-          if (!pfx && !sfx) {
-            if (origCalc && origCalc._srcField) {
-              enc.text = { field: origCalc._srcField, type: 'quantitative' };
-              if (origCalc._srcFormat) enc.text.format = origCalc._srcFormat;
-              if (origCalc._srcAggregate) enc.text.aggregate = origCalc._srcAggregate;
-            }
-            return;
-          }
         }
 
-        if (!pfx && !sfx) return;
-
-        // Read the source text field (either from current encoding or from the existing calc)
-        let srcField, srcFmt, srcAgg;
-        if (enc.text?.field && enc.text.field !== _TXT_PFX_AS) {
+        // Determine the source field and format
+        let srcField, srcFmt;
+        if (parsed) {
+          srcField = parsed.field;
+          srcFmt   = parsed.format;
+        } else if (enc.text?.field && enc.text.field !== _TXT_PFX_AS) {
           srcField = enc.text.field;
           srcFmt   = enc.text.format || '';
-          srcAgg   = enc.text.aggregate || '';
-        } else {
-          // Already using _txt_pfx — read source from the calc metadata
-          const existingCalc = (lyr?.transform || []).find(tx => tx.as === _TXT_PFX_AS);
-          srcField = existingCalc?._srcField || '';
-          srcFmt   = existingCalc?._srcFormat || '';
-          srcAgg   = existingCalc?._srcAggregate || '';
         }
+
+        // Clearing both: restore original text encoding
+        if (!pfx && !sfx) {
+          if (srcField) {
+            enc.text = { field: srcField, type: 'quantitative' };
+            if (srcFmt) enc.text.format = srcFmt;
+          }
+          return;
+        }
+
         if (!srcField) return;
 
-        // Build the calculate expression
+        // Build a clean calculate expression
         const valExpr = srcFmt
           ? "format(datum['" + srcField + "'], '" + srcFmt + "')"
           : "datum['" + srcField + "']";
         const expr = "'" + pfx.replace(/'/g, "\\'") + "' + " + valExpr + " + '" + sfx.replace(/'/g, "\\'") + "'";
 
-        // Add the calculate transform (with source metadata for round-tripping)
         if (!lyr) return;
         lyr.transform = lyr.transform || [];
-        lyr.transform.push({ calculate: expr, as: _TXT_PFX_AS, _srcField: srcField, _srcFormat: srcFmt, _srcAggregate: srcAgg });
+        lyr.transform.push({ calculate: expr, as: _TXT_PFX_AS });
 
-        // Point text encoding at the calculated field
         enc.text = { field: _TXT_PFX_AS };
       });
     };
