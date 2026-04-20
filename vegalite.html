@@ -4166,9 +4166,10 @@ async function renderSpec(cfgOverride = null) {
   }
 
   // Outer-facet operator form (layered spec wrapped). Vega-Lite still trips on
-  // transforms at the inner layered-spec level, so push shared encoding down
-  // into each layer and lift transforms to the outer root — injecting the
-  // facet field into joinaggregate groupby on the way so HL is per-facet.
+  // certain properties at the inner layered-spec level, so clean it up:
+  // - Push shared encoding down into each layer
+  // - Lift transforms to the outer root (with facet-field injection)
+  // - Strip properties that aren't valid on a nested LayerSpec (padding, view)
   if (renderableSpec.facet && renderableSpec.spec) {
     if (renderableSpec.spec.layer && renderableSpec.spec.encoding) {
       const shared = renderableSpec.spec.encoding;
@@ -4179,6 +4180,16 @@ async function renderSpec(cfgOverride = null) {
       const injected = _injectFacet(renderableSpec.spec.transform, renderableSpec.facet.field);
       renderableSpec.transform = (renderableSpec.transform || []).concat(injected);
       delete renderableSpec.spec.transform;
+    }
+    // padding and view are top-level chart properties, not valid on a
+    // LayerSpec inside a facet operator. Move padding to outer root and
+    // strip view to avoid the compile error.
+    if (renderableSpec.spec.padding) {
+      renderableSpec.padding = renderableSpec.spec.padding;
+      delete renderableSpec.spec.padding;
+    }
+    if (renderableSpec.spec.view) {
+      delete renderableSpec.spec.view;
     }
   }
 
