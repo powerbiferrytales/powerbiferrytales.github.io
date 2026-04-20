@@ -1105,7 +1105,6 @@ body.light-mode .hd-cn { color: #c2410c; }
       <div>
         <div class="logo-text">FERRY TALES STUDIO</div>
         <div class="logo-sub">vega-lite builder</div>
-        <div style="background:#ec7629;color:#fff;font-size:10px;font-family:monospace;padding:2px 8px;border-radius:3px;margin-left:8px;">TEST: kpi-facet-v6</div>
       </div>
     </div>
     <div class="divider"></div>
@@ -2430,29 +2429,30 @@ const TEMPLATES = [
   { id:"target", name:"TARGET", icon:"▭─",
     spec: { "$schema":SCHEMA, "data":{"url":DS+"stocks.csv"},
       "transform":[
-        {"filter":"datum.symbol === 'GOOG'"},
-        {"calculate":"(400)","as":"_target"}
+        {"filter":{"field":"symbol","equal":"GOOG"}},
+        {"calculate":"(430)","as":"_target"}
       ],
-      "spacing":20,
+      "spacing":50,
       "vconcat":[
         {
           "title":{"text":"Average Price vs Target","anchor":"middle"},
           "width":400, "height":30,
           "transform":[
             {"aggregate":[{"op":"mean","field":"price","as":"_avg"}]},
-            {"calculate":"(400)","as":"_target"}
+            {"calculate":"(430)","as":"_target"}
           ],
           "layer":[
-            {"mark":{"type":"bar","color":{"expr":"datum._avg > datum._target ? '#ec7629' : '#454545'"}},
-             "encoding":{"x":{"field":"_avg","type":"quantitative","title":null,"axis":null}}},
             {"mark":{"type":"tick","color":"#454545","height":40,"thickness":2},
              "encoding":{"x":{"field":"_target","type":"quantitative","axis":null}}},
             {"mark":{"type":"rect","color":"#454545","height":1,"yOffset":15},
              "encoding":{"x":{"field":"_target","type":"quantitative","axis":null}}},
-            {"mark":{"type":"text","yOffset":-25,"size":14,"fontWeight":600},
+            {"mark":{"type":"rect","color":{"expr":"datum._avg < datum._target ? '#ec7629' : '#0c4d25'"}},
+             "encoding":{"x":{"field":"_avg","type":"quantitative","title":null,"axis":null}}},
+            {"mark":{"type":"text","yOffset":-30,"size":14,"fontWeight":600},
              "encoding":{"text":{"field":"_target","format":",.0f"},
                          "x":{"field":"_target","type":"quantitative","axis":null}}},
-            {"mark":{"type":"text","size":16,"color":"#ffffff","align":"right","dx":-5},
+            {"mark":{"type":"text","size":14,"align":"right","dx":-5,
+                     "color":{"expr":"datum._avg < datum._target ? '#ffffff' : '#0c4d25'"}},
              "encoding":{"text":{"field":"_avg","format":",.0f"},
                          "x":{"field":"_avg","type":"quantitative","axis":null}}}
           ]
@@ -2462,15 +2462,15 @@ const TEMPLATES = [
           "width":400, "height":120,
           "transform":[{"filter":"isValid(datum.price)"}],
           "layer":[
-            {"mark":"line",
+            {"mark":{"type":"line","point":false,"interpolate":"catmull-rom"},
              "encoding":{
-               "x":{"field":"date","type":"temporal","timeUnit":"yearmonth","axis":{"title":null}},
-               "y":{"field":"price","type":"quantitative","aggregate":"max","axis":{"title":null,"format":",.0f"}}
+               "x":{"field":"date","type":"temporal","timeUnit":"year","axis":{"title":null,"grid":false,"ticks":false,"domainWidth":0.2,"domainColor":"#454545"}},
+               "y":{"field":"price","type":"quantitative","aggregate":"max","axis":null}
              }},
             {"mark":{"type":"text","fontWeight":600,"size":9,"yOffset":-10},
              "encoding":{
                "text":{"field":"price","aggregate":"max","format":",.0f"},
-               "x":{"field":"date","type":"temporal","timeUnit":"yearmonth"},
+               "x":{"field":"date","type":"temporal","timeUnit":"year"},
                "y":{"field":"price","type":"quantitative","aggregate":"max"}
              }}
           ]
