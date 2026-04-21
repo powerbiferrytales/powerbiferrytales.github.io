@@ -6278,6 +6278,64 @@ function rebuildMarkSection(spec) {
     body.appendChild(row);
   });
 
+  // ── Per-layer X / Y field override (layered specs only) ──────
+  // When the spec has multiple layers, each layer can override the
+  // shared x/y encoding to show a different field.
+  if (layerIdx !== null && spec.layer && spec.layer.length > 1) {
+    const axisFields = _getDataFields();
+    if (axisFields.length) {
+      ['x', 'y'].forEach(axis => {
+        const axRow = document.createElement('div'); axRow.className = 'prop-row';
+        axRow.appendChild(Object.assign(document.createElement('span'), {
+          className: 'prop-label', textContent: axis.toUpperCase() + ' Field'
+        }));
+        const axCtrl = document.createElement('div'); axCtrl.className = 'prop-ctrl';
+        const axSel = document.createElement('select');
+
+        // "Inherited" option — uses the shared encoding
+        const inhOpt = document.createElement('option');
+        inhOpt.value = ''; inhOpt.textContent = '— inherited —';
+        axSel.appendChild(inhOpt);
+
+        // The layer's own encoding for this axis (if any)
+        const lyrEnc = spec.layer[layerIdx].encoding || {};
+        const curField = lyrEnc[axis]?.field ? _rawFieldName(lyrEnc[axis].field) : '';
+
+        axisFields.forEach(f => {
+          const opt = document.createElement('option');
+          opt.value = f; opt.textContent = f;
+          if (f === curField) opt.selected = true;
+          axSel.appendChild(opt);
+        });
+
+        axSel.addEventListener('change', () => {
+          patchSpec(ps => {
+            let t = ps;
+            if (concatIdx !== null) { const vs = ps.vconcat||ps.hconcat||ps.concat; if (vs?.[concatIdx]) t = vs[concatIdx]; }
+            const lyr = t.layer[layerIdx];
+            lyr.encoding = lyr.encoding || {};
+
+            if (!axSel.value) {
+              // "Inherited" — remove the layer-level override
+              delete lyr.encoding[axis];
+              if (Object.keys(lyr.encoding).length === 0) delete lyr.encoding;
+            } else {
+              // Look at the shared encoding to inherit type/aggregate/axis config
+              const shared = t.encoding?.[axis] || {};
+              lyr.encoding[axis] = {
+                field: axSel.value,
+                type: shared.type || 'quantitative'
+              };
+              if (shared.aggregate) lyr.encoding[axis].aggregate = shared.aggregate;
+            }
+          });
+        });
+
+        axCtrl.appendChild(axSel); axRow.appendChild(axCtrl); body.appendChild(axRow);
+      });
+    }
+  }
+
   // ── Text field + format (text marks only) ────────────────────
   if (markType === 'text') {
     const txtFields = _getDataFields();
