@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferry Tales Studio — Infographic Builder</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/theme/material-darker.min.css">
+<style>
+  body { background: #0a0a0b; }
+
+  .ig-page {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 90px);
+    background: #0a0a0b;
+    color: #e4e4e8;
+  }
+
+  .ig-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    background: #111113;
+    border-bottom: 1px solid #2e2e34;
+    flex-wrap: wrap;
+  }
+
+  .ig-toolbar label {
+    font-size: 0.85rem;
+    color: #7e7e92;
+    font-family: system-ui, sans-serif;
+  }
+
+  .ig-toolbar select,
+  .ig-toolbar button {
+    font-family: system-ui, sans-serif;
+    font-size: 0.85rem;
+    padding: 7px 14px;
+    background: #19191d;
+    color: #e4e4e8;
+    border: 1px solid #2e2e34;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .ig-toolbar select:hover,
+  .ig-toolbar button:hover { background: #222226; border-color: #3a3a42; }
+
+  .ig-toolbar button.primary {
+    background: #c9185b;
+    border-color: #c9185b;
+    color: #fff;
+    font-weight: 600;
+  }
+  .ig-toolbar button.primary:hover { background: #dd2a6d; border-color: #dd2a6d; }
+
+  .ig-toolbar .spacer { flex: 1; }
+
+  .ig-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #19191d;
+    color: #e4e4e8;
+    padding: 10px 22px;
+    border-radius: 6px;
+    border: 1px solid #2e2e34;
+    font-family: system-ui, sans-serif;
+    font-size: 0.9rem;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 10;
+  }
+  .ig-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .ig-split {
+    flex: 1;
+    display: flex;
+    min-height: 600px;
+  }
+
+  .ig-pane {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .ig-pane-header {
+    padding: 8px 16px;
+    background: #111113;
+    border-bottom: 1px solid #2e2e34;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    color: #7e7e92;
+    font-weight: 700;
+    font-family: system-ui, sans-serif;
+  }
+
+  .ig-editor-wrap {
+    flex: 1;
+    min-height: 600px;
+    position: relative;
+    background: #212121;
+  }
+  .ig-editor-wrap .CodeMirror {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    height: auto;
+    font-size: 13px;
+    font-family: 'Fira Code', Menlo, Consolas, monospace;
+  }
+  .ig-editor-wrap textarea {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%;
+    height: 100%;
+    background: #212121;
+    color: #e4e4e8;
+    border: 0;
+    padding: 12px;
+    font-family: 'Fira Code', Menlo, Consolas, monospace;
+    font-size: 13px;
+    resize: none;
+  }
+
+  .ig-divider {
+    width: 4px;
+    background: #2e2e34;
+    cursor: col-resize;
+    transition: background 0.12s;
+  }
+  .ig-divider:hover, .ig-divider.dragging { background: #c9185b; }
+
+  .ig-preview {
+    flex: 1;
+    background: #fff;
+    border: none;
+    width: 100%;
+    min-height: 600px;
+    display: block;
+  }
+
+  @media (max-width: 780px) {
+    .ig-split { flex-direction: column; }
+    .ig-divider { width: 100%; height: 4px; cursor: row-resize; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="site-title" href="index.html">Power BI Ferry Tales</a>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="vegalite.html">Vega-Lite Builder</a>
+    <a href="infographic.html" class="active">Infographic</a>
+    <a href="https://github.com/powerbiferrytales" target="_blank">GitHub</a>
+  </nav>
+</header>
+
+<div class="ig-page">
+  <div class="ig-toolbar">
+    <label for="tpl">Template</label>
+    <select id="tpl">
+      <option value="blank">Blank</option>
+      <option value="stat" selected>Stat card</option>
+      <option value="kpis">KPI grid</option>
+      <option value="quote">Quote callout</option>
+      <option value="steps">Process steps</option>
+      <option value="compare">Comparison</option>
+    </select>
+    <button id="reset" title="Reload the current template">Reset</button>
+    <div class="spacer"></div>
+    <button id="copy">Copy HTML</button>
+    <button id="download" class="primary">&#8595; Download .html</button>
+  </div>
+
+  <div class="ig-split" id="split">
+    <div class="ig-pane" id="editorPane">
+      <div class="ig-pane-header">EDITOR &mdash; HTML + CSS</div>
+      <div class="ig-editor-wrap"><textarea id="code" spellcheck="false"></textarea></div>
+    </div>
+    <div class="ig-divider" id="divider"></div>
+    <div class="ig-pane" id="previewPane">
+      <div class="ig-pane-header">PREVIEW</div>
+      <iframe class="ig-preview" id="preview" title="Preview" srcdoc="<!DOCTYPE html><html><body style='margin:0;font-family:system-ui;display:flex;align-items:center;justify-content:center;height:100vh;background:#f5f5f7;color:#7e7e92'>Loading preview&hellip;</body></html>"></iframe>
+    </div>
+  </div>
+</div>
+
+<div class="ig-toast" id="toast">Copied to clipboard</div>
+
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/javascript/javascript.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/closetag.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/addon/edit/matchbrackets.min.js"></script>
+
+<script>
+const TEMPLATES = {
+  blank: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Infographic</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 40px; }
+</style>
+</head>
+<body>
+  <h1>Start building</h1>
+  <p>Edit this HTML on the left &mdash; the preview updates live.</p>
+</body>
+</html>`,
+
+  stat: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Stat card</title>
+<style>
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: linear-gradient(135deg, #1e2060 0%, #c9185b 100%);
+    min-height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+  }
+  .card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 56px 72px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    text-align: center;
+    max-width: 480px;
+  }
+  .label {
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #7e7e92;
+    margin-bottom: 14px;
+  }
+  .number {
+    font-size: 6rem;
+    font-weight: 800;
+    color: #c9185b;
+    line-height: 1;
+    margin-bottom: 12px;
+  }
+  .sub {
+    font-size: 1.05rem;
+    color: #1e2060;
+    line-height: 1.5;
+  }
+  .trend {
+    display: inline-block;
+    margin-top: 20px;
+    padding: 6px 14px;
+    background: #e6fbee;
+    color: #15803d;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="label">Monthly active users</div>
+    <div class="number">42.8K</div>
+    <div class="sub">Power BI dashboard viewers across all published reports</div>
+    <div class="trend">&#9650; 18.4% vs. last month</div>
+  </div>
+</body>
+</html>`,
+
+  kpis: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>KPI grid</title>
+<style>
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0a0a0b;
+    color: #e4e4e8;
+    margin: 0;
+    padding: 40px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 6px;
+    color: #fff;
+  }
+  .sub {
+    color: #7e7e92;
+    margin-bottom: 32px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+  }
+  .kpi {
+    background: #111113;
+    border: 1px solid #2e2e34;
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .kpi::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 4px; height: 100%;
+    background: var(--accent, #c9185b);
+  }
+  .kpi-label {
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #7e7e92;
+    margin-bottom: 10px;
+  }
+  .kpi-value {
+    font-size: 2.4rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+  }
+  .kpi-delta {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: #4ade80;
+  }
+  .kpi-delta.down { color: #f87171; }
+</style>
+</head>
+<body>
+  <h1>Q3 performance</h1>
+  <div class="sub">Key metrics at a glance</div>
+  <div class="grid">
+    <div class="kpi" style="--accent:#c9185b">
+      <div class="kpi-label">Revenue</div>
+      <div class="kpi-value">&pound;1.24M</div>
+      <div class="kpi-delta">&#9650; 12.3%</div>
+    </div>
+    <div class="kpi" style="--accent:#f59e0b">
+      <div class="kpi-label">New customers</div>
+      <div class="kpi-value">318</div>
+      <div class="kpi-delta">&#9650; 8.1%</div>
+    </div>
+    <div class="kpi" style="--accent:#60a5fa">
+      <div class="kpi-label">Avg order value</div>
+      <div class="kpi-value">&pound;214</div>
+      <div class="kpi-delta down">&#9660; 2.4%</div>
+    </div>
+    <div class="kpi" style="--accent:#34d399">
+      <div class="kpi-label">NPS</div>
+      <div class="kpi-value">64</div>
+      <div class="kpi-delta">&#9650; 6 pts</div>
+    </div>
+  </div>
+</body>
+</html>`,
+
+  quote: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Quote</title>
+<style>
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: #f7f4ed;
+    margin: 0;
+    padding: 60px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  .quote {
+    max-width: 720px;
+    text-align: center;
+  }
+  .mark {
+    font-size: 6rem;
+    color: #c9185b;
+    line-height: 1;
+    margin-bottom: -10px;
+  }
+  blockquote {
+    font-size: 1.9rem;
+    line-height: 1.5;
+    color: #1e2060;
+    margin: 0 0 28px;
+    font-style: italic;
+  }
+  .attrib {
+    font-family: system-ui, sans-serif;
+    font-size: 0.95rem;
+    color: #7e7e92;
+    letter-spacing: 0.04em;
+  }
+  .attrib strong { color: #1e2060; font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="quote">
+    <div class="mark">&ldquo;</div>
+    <blockquote>The data doesn't speak for itself &mdash; design is how you make it say something.</blockquote>
+    <div class="attrib">&mdash; <strong>Ferry Tales</strong>, Power BI Ferry Tales</div>
+  </div>
+</body>
+</html>`,
+
+  steps: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Process steps</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #fff;
+    margin: 0;
+    padding: 60px 40px;
+    color: #1e2060;
+  }
+  .container { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 2rem; margin: 0 0 8px; }
+  .intro { color: #7e7e92; margin-bottom: 40px; }
+  .step {
+    display: flex;
+    gap: 22px;
+    margin-bottom: 28px;
+    position: relative;
+  }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 23px; top: 56px; bottom: -18px;
+    width: 2px; background: #e6e6eb;
+  }
+  .num {
+    flex-shrink: 0;
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: #c9185b;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+    position: relative;
+    z-index: 1;
+  }
+  .content h3 { margin: 6px 0 6px; font-size: 1.15rem; }
+  .content p { margin: 0; color: #4a4a5a; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>How it works</h1>
+    <p class="intro">Four steps from raw data to a shareable infographic.</p>
+
+    <div class="step">
+      <div class="num">1</div>
+      <div class="content">
+        <h3>Connect your data</h3>
+        <p>Pull figures from Power BI, Excel, or paste them straight in.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">2</div>
+      <div class="content">
+        <h3>Pick a template</h3>
+        <p>Start from a KPI grid, stat card, or quote &mdash; or go blank.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">3</div>
+      <div class="content">
+        <h3>Customise</h3>
+        <p>Edit the HTML and CSS. The preview updates as you type.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="num">4</div>
+      <div class="content">
+        <h3>Download &amp; share</h3>
+        <p>Grab the standalone .html file and send it anywhere.</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`,
+
+  compare: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Comparison</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #f5f5f7;
+    margin: 0;
+    padding: 50px 30px;
+    min-height: 100vh;
+  }
+  h1 { text-align: center; margin: 0 0 6px; color: #1e2060; }
+  .sub { text-align: center; color: #7e7e92; margin-bottom: 36px; }
+  .cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 860px;
+    margin: 0 auto;
+  }
+  .col {
+    background: #fff;
+    border-radius: 14px;
+    padding: 32px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+  }
+  .col.winner {
+    background: linear-gradient(160deg, #c9185b 0%, #1e2060 100%);
+    color: #fff;
+  }
+  .col h2 { margin: 0 0 18px; font-size: 1.3rem; }
+  .num {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 4px;
+    color: #c9185b;
+  }
+  .col.winner .num { color: #fff; }
+  .num-label { font-size: 0.85rem; color: #7e7e92; margin-bottom: 20px; }
+  .col.winner .num-label { color: rgba(255,255,255,0.8); }
+  ul { list-style: none; padding: 0; margin: 0; }
+  li {
+    padding: 8px 0;
+    border-top: 1px solid #eee;
+    font-size: 0.95rem;
+  }
+  .col.winner li { border-color: rgba(255,255,255,0.2); }
+  li::before { content: '\\2713  '; color: #34d399; font-weight: 700; }
+  .col.winner li::before { color: #86efac; }
+  @media (max-width: 640px) { .cols { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+  <h1>Before vs. After</h1>
+  <div class="sub">What changed when we moved to the new dashboard</div>
+  <div class="cols">
+    <div class="col">
+      <h2>Before</h2>
+      <div class="num">14</div>
+      <div class="num-label">minutes to find a number</div>
+      <ul>
+        <li>Static screenshots</li>
+        <li>Emailed weekly</li>
+        <li>No drill-through</li>
+      </ul>
+    </div>
+    <div class="col winner">
+      <h2>After</h2>
+      <div class="num">30s</div>
+      <div class="num-label">minutes to find a number</div>
+      <ul>
+        <li>Live Power BI service</li>
+        <li>Always up to date</li>
+        <li>Full drill-through</li>
+        <li>Mobile-ready</li>
+      </ul>
+    </div>
+  </div>
+</body>
+</html>`,
+};
+
+const ta = document.getElementById('code');
+const preview = document.getElementById('preview');
+const tplSelect = document.getElementById('tpl');
+const toast = document.getElementById('toast');
+
+ta.value = TEMPLATES.stat;
+preview.srcdoc = TEMPLATES.stat;
+
+let editor = null;
+let renderTimer = null;
+
+function render(value) {
+  clearTimeout(renderTimer);
+  renderTimer = setTimeout(() => {
+    preview.srcdoc = value;
+  }, 250);
+}
+
+function currentValue() {
+  return editor ? editor.getValue() : ta.value;
+}
+
+function setValue(v) {
+  if (editor) {
+    editor.setValue(v);
+    editor.clearHistory();
+  } else {
+    ta.value = v;
+  }
+  render(v);
+}
+
+function loadTemplate(name) {
+  setValue(TEMPLATES[name] || TEMPLATES.blank);
+}
+
+if (typeof CodeMirror !== 'undefined') {
+  editor = CodeMirror.fromTextArea(ta, {
+    mode: 'htmlmixed',
+    theme: 'material-darker',
+    lineNumbers: true,
+    lineWrapping: true,
+    autoCloseTags: true,
+    matchBrackets: true,
+    indentUnit: 2,
+    tabSize: 2,
+  });
+  editor.on('change', () => render(editor.getValue()));
+} else {
+  ta.addEventListener('input', () => render(ta.value));
+}
+
+tplSelect.addEventListener('change', () => loadTemplate(tplSelect.value));
+document.getElementById('reset').addEventListener('click', () => loadTemplate(tplSelect.value));
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 1600);
+}
+
+document.getElementById('copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(currentValue());
+    showToast('Copied to clipboard');
+  } catch {
+    showToast('Copy failed — select + copy manually');
+  }
+});
+
+document.getElementById('download').addEventListener('click', () => {
+  const blob = new Blob([currentValue()], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `infographic-${tplSelect.value}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Downloaded');
+});
+
+const divider = document.getElementById('divider');
+const split = document.getElementById('split');
+const leftPane = document.getElementById('editorPane');
+let dragging = false;
+
+divider.addEventListener('mousedown', () => {
+  if (window.innerWidth <= 780) return;
+  dragging = true;
+  divider.classList.add('dragging');
+  document.body.style.userSelect = 'none';
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!dragging) return;
+  const rect = split.getBoundingClientRect();
+  const pct = ((e.clientX - rect.left) / rect.width) * 100;
+  leftPane.style.flex = `0 0 ${Math.max(20, Math.min(80, pct))}%`;
+});
+
+window.addEventListener('mouseup', () => {
+  if (!dragging) return;
+  dragging = false;
+  divider.classList.remove('dragging');
+  document.body.style.userSelect = '';
+});
+</script>
+
+</body>
+</html>
