@@ -718,8 +718,19 @@ const preview = document.getElementById('preview');
 const tplSelect = document.getElementById('tpl');
 const toast = document.getElementById('toast');
 
+const PROD_BASE = 'https://powerbiferrytales.github.io';
+
+function rewriteForPreview(value) {
+  // Swap the production data URL for the current origin so previews work
+  // on localhost, raw.githack (test branches), or github.io. Downloaded
+  // HTML keeps the production URL so it works anywhere.
+  const base = location.origin + location.pathname.replace(/\/[^/]*$/, '');
+  if (base === PROD_BASE) return value;
+  return value.split(PROD_BASE).join(base);
+}
+
 ta.value = TEMPLATES.stat;
-preview.srcdoc = TEMPLATES.stat;
+preview.srcdoc = rewriteForPreview(TEMPLATES.stat);
 
 let editor = null;
 let renderTimer = null;
@@ -727,7 +738,7 @@ let renderTimer = null;
 function render(value) {
   clearTimeout(renderTimer);
   renderTimer = setTimeout(() => {
-    preview.srcdoc = value;
+    preview.srcdoc = rewriteForPreview(value);
   }, 250);
 }
 
