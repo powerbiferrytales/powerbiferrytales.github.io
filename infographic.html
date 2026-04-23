@@ -538,7 +538,10 @@ const TEMPLATES = {
 <meta data-prop="dataUrl"  content="https://powerbiferrytales.github.io/data/sales.csv">
 <meta data-prop="labelCol" content="month">
 <meta data-prop="valueCol" content="revenue">
-<meta data-prop="barColor" content="#c9185b">
+<meta data-prop="barColor"      content="#c9185b">
+<meta data-prop="showYAxis"     content="true">
+<meta data-prop="axisLabelSize" content="12">
+<meta data-prop="dataLabelSize" content="11">
 <title>Bar chart</title>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"><\/script>
 <style>
@@ -555,8 +558,8 @@ const TEMPLATES = {
   svg { width: 100%; height: auto; display: block; }
   .bar { fill: var(--bar-color, #c9185b); transition: filter 0.2s; }
   .bar:hover { filter: brightness(1.1); }
-  .axis text { font-size: 12px; fill: #7e7e92; }
-  .value-label { font-size: 11px; fill: #1e2060; font-weight: 600; }
+  text.axis { font-size: var(--axis-label-size, 12px); fill: #7e7e92; }
+  text.value-label { font-size: var(--data-label-size, 11px); fill: #1e2060; font-weight: 600; }
   .error { color: #991b1b; background: #fee2e2; padding: 12px; border-radius: 6px; }
 </style>
 </head>
@@ -568,10 +571,16 @@ const TEMPLATES = {
   </div>
   <script>
     const meta = p => document.querySelector('meta[data-prop="' + p + '"]').content;
-    const DATA_URL  = meta('dataUrl');
-    const LABEL_COL = meta('labelCol');
-    const VALUE_COL = meta('valueCol');
-    document.documentElement.style.setProperty('--bar-color', meta('barColor'));
+    const DATA_URL        = meta('dataUrl');
+    const LABEL_COL       = meta('labelCol');
+    const VALUE_COL       = meta('valueCol');
+    const SHOW_Y_AXIS     = meta('showYAxis') === 'true';
+    const AXIS_LABEL_SIZE = meta('axisLabelSize');
+    const DATA_LABEL_SIZE = meta('dataLabelSize');
+    const root = document.documentElement.style;
+    root.setProperty('--bar-color',        meta('barColor'));
+    root.setProperty('--axis-label-size',  AXIS_LABEL_SIZE + 'px');
+    root.setProperty('--data-label-size',  DATA_LABEL_SIZE + 'px');
 
     Papa.parse(DATA_URL, {
       download: true,
@@ -594,7 +603,7 @@ const TEMPLATES = {
     }
 
     function renderChart(rows) {
-      const W = 760, H = 320, P = { top: 20, right: 10, bottom: 36, left: 50 };
+      const W = 760, H = 320, P = { top: 20, right: 10, bottom: 36, left: SHOW_Y_AXIS ? 50 : 10 };
       const innerW = W - P.left - P.right;
       const innerH = H - P.top - P.bottom;
       const max = Math.max(...rows.map(r => r[VALUE_COL]));
@@ -602,12 +611,14 @@ const TEMPLATES = {
       const gap = innerW / rows.length * 0.3;
 
       let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
-      // gridlines
-      for (let i = 0; i <= 4; i++) {
-        const y = P.top + (innerH * i / 4);
-        const val = Math.round(max * (1 - i / 4));
-        svg += '<line x1="' + P.left + '" y1="' + y + '" x2="' + (P.left + innerW) + '" y2="' + y + '" stroke="#eee"/>';
-        svg += '<text class="axis" x="' + (P.left - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + val.toLocaleString() + '</text>';
+      // gridlines + Y axis labels
+      if (SHOW_Y_AXIS) {
+        for (let i = 0; i <= 4; i++) {
+          const y = P.top + (innerH * i / 4);
+          const val = Math.round(max * (1 - i / 4));
+          svg += '<line x1="' + P.left + '" y1="' + y + '" x2="' + (P.left + innerW) + '" y2="' + y + '" stroke="#eee"/>';
+          svg += '<text class="axis" x="' + (P.left - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + val.toLocaleString() + '</text>';
+        }
       }
       // bars + labels
       rows.forEach((r, i) => {
@@ -982,11 +993,14 @@ const SCHEMAS = {
   },
   chart: {
     fields: [
-      { prop: 'title',    label: 'Chart title',   type: 'text' },
-      { prop: 'dataUrl',  label: 'CSV URL',       type: 'url' },
-      { prop: 'labelCol', label: 'Label column',  type: 'text' },
-      { prop: 'valueCol', label: 'Value column',  type: 'text' },
-      { prop: 'barColor', label: 'Bar colour',    type: 'color' },
+      { prop: 'title',         label: 'Chart title',          type: 'text' },
+      { prop: 'dataUrl',       label: 'CSV URL',              type: 'url' },
+      { prop: 'labelCol',      label: 'Label column',         type: 'text' },
+      { prop: 'valueCol',      label: 'Value column',         type: 'text' },
+      { prop: 'barColor',      label: 'Bar colour',           type: 'color' },
+      { prop: 'showYAxis',     label: 'Show Y axis',          type: 'checkbox' },
+      { prop: 'axisLabelSize', label: 'Axis label size (px)', type: 'number', min: 6, max: 48 },
+      { prop: 'dataLabelSize', label: 'Data label size (px)', type: 'number', min: 6, max: 48 },
     ],
   },
   quote: {
@@ -1053,7 +1067,12 @@ function detectTemplate(html) {
 }
 
 function readFrom(el, field) {
-  if (el.tagName === 'META') return el.getAttribute('content') || '';
+  if (el.tagName === 'META') {
+    const v = el.getAttribute('content') || '';
+    if (field.type === 'checkbox') return v === 'true';
+    if (field.type === 'number') return v === '' ? '' : Number(v);
+    return v;
+  }
   if (field.target === 'bullets') {
     return [...el.querySelectorAll('li')].map(li => li.textContent).join('\n');
   }
@@ -1061,7 +1080,11 @@ function readFrom(el, field) {
 }
 
 function writeTo(el, field, value) {
-  if (el.tagName === 'META') { el.setAttribute('content', String(value)); return; }
+  if (el.tagName === 'META') {
+    const str = field.type === 'checkbox' ? (value ? 'true' : 'false') : String(value);
+    el.setAttribute('content', str);
+    return;
+  }
   if (field.target === 'bullets') {
     const lines = String(value).split('\n').map(s => s.trim()).filter(Boolean);
     el.innerHTML = lines.map(l => '<li>' + escapeHtml(l) + '</li>').join('');
@@ -1176,6 +1199,11 @@ function buildFieldInput(field, value, onInput) {
   } else {
     input = document.createElement('input');
     input.type = field.type === 'url' ? 'url' : (field.type === 'color' ? 'color' : (field.type === 'number' ? 'number' : 'text'));
+    if (field.type === 'number') {
+      if (field.min != null) input.min = field.min;
+      if (field.max != null) input.max = field.max;
+      if (field.step != null) input.step = field.step;
+    }
   }
   input.value = value == null ? '' : String(value);
   input.addEventListener('input', () => onInput(input.value));
