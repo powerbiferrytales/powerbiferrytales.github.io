@@ -292,6 +292,7 @@
       <option value="stat" selected>Stat card</option>
       <option value="kpis">KPI grid</option>
       <option value="chart">Bar chart (CSV)</option>
+      <option value="satellite">Satellite chart (CSV)</option>
       <option value="quote">Quote callout</option>
       <option value="steps">Process steps</option>
       <option value="compare">Comparison</option>
@@ -321,6 +322,537 @@
 </div>
 
 <div class="ig-toast" id="toast">Copied to clipboard</div>
+
+<script type="text/html" id="tpl-satellite"><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta data-template="satellite">
+<meta data-prop="dataUrl"   content="https://powerbiferrytales.github.io/data/satellite.csv">
+<meta data-prop="labelCol"  content="name">
+<meta data-prop="valueCol"  content="pct">
+<meta data-prop="baseColor" content="#e08c00">
+<meta data-prop="overColor" content="#3b9eff">
+<meta data-prop="threshold" content="100">
+<title>Satellite chart</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"><\/script>
+<style>
+  :root {
+    --bg:        #0e0f11;
+    --surface:   #16181c;
+    --border:    #272a30;
+    --base-color:    #e08c00;
+    --base-color-lt: #f5a623;
+    --over-color:    #3b9eff;
+    --text:      #e8e8e8;
+    --muted:     #6b7280;
+    --pill-bg:   #1e2026;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  header {
+    position: relative; z-index: 10;
+    padding: 32px 40px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+  }
+
+  .header-left { flex: 1; }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--base-color);
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-size: clamp(24px, 4vw, 42px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  h1 .accent { color: var(--base-color); }
+
+  .subtitle {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 400;
+    max-width: 440px;
+    line-height: 1.6;
+  }
+
+  .controls {
+    position: relative; z-index: 10;
+    padding: 24px 40px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ctrl-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 4px;
+  }
+
+  .pill-group { display: flex; gap: 6px; }
+
+  .pill {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    padding: 5px 14px;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    background: var(--pill-bg);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+
+  .pill:hover { border-color: var(--base-color); color: var(--base-color-lt); }
+  .pill.active { background: var(--base-color); border-color: var(--base-color); color: #000; font-weight: 500; }
+
+  .search-wrap { margin-left: auto; position: relative; }
+
+  .search-wrap input {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    background: var(--pill-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 6px 12px 6px 32px;
+    outline: none;
+    width: 200px;
+    transition: border-color 0.15s;
+  }
+
+  .search-wrap input:focus { border-color: var(--base-color); }
+  .search-wrap input::placeholder { color: var(--muted); }
+
+  .search-wrap svg {
+    position: absolute;
+    left: 10px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  .stats-bar {
+    position: relative; z-index: 10;
+    padding: 14px 40px;
+    display: flex;
+    gap: 32px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat-val { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+  .stat-val.base { color: var(--base-color-lt); }
+  .stat-val.over { color: var(--over-color); }
+  .stat-lbl { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+
+  #chart-wrap {
+    position: relative; z-index: 1;
+    padding: 32px 32px 40px;
+    overflow-x: auto;
+  }
+
+  #chart-svg-container svg { display: block; }
+
+  #tooltip {
+    position: fixed;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.12s, transform 0.12s;
+    z-index: 1000;
+    min-width: 160px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  #tooltip.visible { opacity: 1; transform: translateY(0); }
+
+  .tt-name {
+    font-size: 12px; font-weight: 700; color: #fff;
+    margin-bottom: 6px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tt-row { display: flex; justify-content: space-between; gap: 16px; font-family: 'DM Mono', monospace; font-size: 11px; margin-top: 4px; }
+  .tt-key { color: var(--muted); }
+  .tt-val { font-weight: 500; color: #fff; }
+  .tt-val.base { color: var(--base-color-lt); }
+  .tt-val.over { color: var(--over-color); }
+
+  .legend {
+    position: relative; z-index: 10;
+    padding: 16px 40px;
+    display: flex; gap: 24px; align-items: center;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 8px; font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+  .legend-swatch { width: 24px; height: 3px; border-radius: 2px; }
+
+  .empty {
+    padding: 60px 40px;
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .arc-cell { cursor: pointer; }
+  .arc-cell:hover .arc-bg { opacity: 1; }
+  .arc-bg { opacity: 0; transition: opacity 0.15s; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="eyebrow" data-prop="eyebrow">Ferry Tales Studio &middot; Satellite Chart</div>
+    <h1><span data-prop="titleMain">Demand vs</span><br><span class="accent" data-prop="titleHl">Capacity</span></h1>
+    <p class="subtitle" data-prop="subtitle">Spiral arcs encode percentage values &mdash; a single stroke tells the whole story. Values above the threshold spiral outward in the overflow colour.</p>
+  </div>
+</header>
+
+<div class="controls">
+  <span class="ctrl-label">Sort</span>
+  <div class="pill-group">
+    <button class="pill active" data-sort="desc">High &rarr; Low</button>
+    <button class="pill" data-sort="asc">Low &rarr; High</button>
+    <button class="pill" data-sort="alpha">A &rarr; Z</button>
+  </div>
+  <span class="ctrl-label" style="margin-left:16px">Filter</span>
+  <div class="pill-group">
+    <button class="pill active" data-filter="all">All</button>
+    <button class="pill" data-filter="over">Over threshold</button>
+    <button class="pill" data-filter="under">Under threshold</button>
+  </div>
+  <div class="search-wrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    <input type="text" id="search" placeholder="Search&hellip;">
+  </div>
+</div>
+
+<div class="stats-bar" id="stats-bar"></div>
+
+<div id="chart-wrap">
+  <div id="chart-svg-container"></div>
+  <div class="empty" id="empty-state" style="display:none">No results match your filter.</div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" id="legend-base"></div>&le; threshold</div>
+  <div class="legend-item"><div class="legend-swatch" id="legend-over"></div>&gt; threshold overflow</div>
+</div>
+
+<div id="tooltip"></div>
+
+<script>
+const meta = p => document.querySelector('meta[data-prop="' + p + '"]').content;
+
+const DATA_URL   = meta('dataUrl');
+const LABEL_COL  = meta('labelCol');
+const VALUE_COL  = meta('valueCol');
+const BASE_COLOR = meta('baseColor');
+const OVER_COLOR = meta('overColor');
+const THRESHOLD  = Number(meta('threshold')) || 100;
+
+document.documentElement.style.setProperty('--base-color', BASE_COLOR);
+document.documentElement.style.setProperty('--over-color', OVER_COLOR);
+document.getElementById('legend-base').style.background = BASE_COLOR;
+document.getElementById('legend-over').style.background = OVER_COLOR;
+
+let RAW_DATA = [];
+
+const CFG = {
+  COLS:      10,
+  CELL_W:    138,
+  CELL_H:    150,
+  CX_OFF:    64,
+  CY_OFF:    60,
+  R_START:   30,
+  R_PER_REV: 7,
+  STEPS:     90,
+  STROKE_W:  3.4,
+  DOT_R:     5.2,
+  BASE:      BASE_COLOR,
+  OVER:      OVER_COLOR,
+  BG:        '#0e0f11',
+  MUTED_COL: '#6b7280',
+  FONT:      'Syne, sans-serif',
+  MONO:      'DM Mono, monospace',
+  ANIM_DUR:  0.6,
+  ANIM_STAG: 0.04,
+};
+
+let currentSort   = 'desc';
+let currentFilter = 'all';
+let searchQuery   = '';
+
+const rAt = ca => CFG.R_START + (ca / (2*Math.PI)) * CFG.R_PER_REV;
+const f2  = n  => Math.round(n * 10) / 10;
+
+function spiralPoints(cx, cy, startCumul, arcAngle) {
+  const pts = [];
+  for (let s = 0; s <= CFG.STEPS; s++) {
+    const t  = s / CFG.STEPS;
+    const ca = startCumul + t * arcAngle;
+    const a  = -Math.PI/2 + ca;
+    const r  = rAt(ca);
+    pts.push(f2(cx + r*Math.cos(a)) + ',' + f2(cy + r*Math.sin(a)));
+  }
+  return pts.join(' ');
+}
+
+function polylineLength(cx, cy, startCumul, arcAngle) {
+  let len = 0, px, py;
+  for (let s = 0; s <= CFG.STEPS; s++) {
+    const t  = s / CFG.STEPS;
+    const ca = startCumul + t * arcAngle;
+    const a  = -Math.PI/2 + ca;
+    const r  = rAt(ca);
+    const x  = cx + r*Math.cos(a);
+    const y  = cy + r*Math.sin(a);
+    if (s > 0) len += Math.hypot(x - px, y - py);
+    px = x; py = y;
+  }
+  return Math.ceil(len) + 2;
+}
+
+function getDisplayData() {
+  let d = [...RAW_DATA];
+  if (currentFilter === 'over')  d = d.filter(r => r.pct > THRESHOLD);
+  if (currentFilter === 'under') d = d.filter(r => r.pct <= THRESHOLD);
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    d = d.filter(r => String(r.name).toLowerCase().includes(q));
+  }
+  if (currentSort === 'desc')  d.sort((a,b) => b.pct - a.pct);
+  if (currentSort === 'asc')   d.sort((a,b) => a.pct - b.pct);
+  if (currentSort === 'alpha') d.sort((a,b) => String(a.name).localeCompare(String(b.name)));
+  return d;
+}
+
+function buildSVG(data) {
+  if (!data.length) return null;
+  const cols  = Math.min(CFG.COLS, data.length);
+  const nRows = Math.ceil(data.length / cols);
+  const svgW  = cols * CFG.CELL_W + 20;
+  const svgH  = nRows * CFG.CELL_H + 20;
+
+  const parts = ['<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' + svgH + '" font-family="' + CFG.FONT + '">'];
+  const styleRules = [];
+
+  data.forEach((d, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const cx  = col * CFG.CELL_W + CFG.CX_OFF;
+    const cy  = row * CFG.CELL_H + CFG.CY_OFF;
+    const pct = d.pct;
+
+    const basePct   = Math.min(pct, THRESHOLD);
+    const ovfPct    = Math.max(pct - THRESHOLD, 0);
+    const baseAngle = (basePct / THRESHOLD) * 2 * Math.PI;
+    const ovfAngle  = (ovfPct  / THRESHOLD) * 2 * Math.PI;
+    const color     = pct >= THRESHOLD ? CFG.OVER : CFG.BASE;
+    const labelY    = cy + CFG.R_START + CFG.R_PER_REV + 14;
+    const delay     = (i * CFG.ANIM_STAG).toFixed(2);
+    const cellId    = 'cell-' + i;
+    const cellX     = col * CFG.CELL_W;
+    const cellY     = row * CFG.CELL_H;
+
+    parts.push('<g class="arc-cell" data-name="' + d.name + '" data-pct="' + pct + '" data-idx="' + i + '">');
+    parts.push('<rect class="arc-bg" x="' + (cellX+4) + '" y="' + (cellY+4) + '" width="' + (CFG.CELL_W-8) + '" height="' + (CFG.CELL_H-8) + '" rx="10" fill="white" fill-opacity="0.04"/>');
+
+    if (basePct > 0) {
+      const pts = spiralPoints(cx, cy, 0, baseAngle);
+      const len = polylineLength(cx, cy, 0, baseAngle);
+      const pid = cellId + '-base';
+      styleRules.push('#' + pid + '{stroke-dasharray:' + len + ';stroke-dashoffset:' + len + ';animation:draw ' + CFG.ANIM_DUR + 's ' + delay + 's ease-out forwards}');
+      parts.push('<polyline id="' + pid + '" points="' + pts + '" fill="none" stroke="' + CFG.BASE + '" stroke-width="' + CFG.STROKE_W + '" stroke-linecap="round" stroke-linejoin="round"/>');
+    }
+
+    if (ovfPct > 0) {
+      const pts = spiralPoints(cx, cy, 2*Math.PI, ovfAngle);
+      const len = polylineLength(cx, cy, 2*Math.PI, ovfAngle);
+      const pid = cellId + '-over';
+      const ovDelay = (i * CFG.ANIM_STAG + CFG.ANIM_DUR).toFixed(2);
+      styleRules.push('#' + pid + '{stroke-dasharray:' + len + ';stroke-dashoffset:' + len + ';animation:draw ' + (CFG.ANIM_DUR * 0.6) + 's ' + ovDelay + 's ease-out forwards}');
+      parts.push('<polyline id="' + pid + '" points="' + pts + '" fill="none" stroke="' + CFG.OVER + '" stroke-width="' + CFG.STROKE_W + '" stroke-linecap="round" stroke-linejoin="round"/>');
+    }
+
+    if (pct > 0) {
+      const tipCa = ovfPct > 0 ? 2*Math.PI + ovfAngle : baseAngle;
+      const tipA  = -Math.PI/2 + tipCa;
+      const tipR  = rAt(tipCa);
+      const dx    = f2(cx + tipR * Math.cos(tipA));
+      const dy    = f2(cy + tipR * Math.sin(tipA));
+      const dotDelay = ovfPct > 0
+        ? (i * CFG.ANIM_STAG + CFG.ANIM_DUR + CFG.ANIM_DUR * 0.6).toFixed(2)
+        : (i * CFG.ANIM_STAG + CFG.ANIM_DUR).toFixed(2);
+      const did = cellId + '-dot';
+      styleRules.push('#' + did + '{opacity:0;animation:fade 0.2s ' + dotDelay + 's ease-out forwards}');
+      parts.push('<circle id="' + did + '" cx="' + dx + '" cy="' + dy + '" r="' + CFG.DOT_R + '" fill="' + color + '" stroke="' + CFG.BG + '" stroke-width="1.8"/>');
+    }
+
+    const pctDelay = (i * CFG.ANIM_STAG + 0.1).toFixed(2);
+    const lid = cellId + '-lbl';
+    styleRules.push('#' + lid + '{opacity:0;animation:fade 0.3s ' + pctDelay + 's ease-out forwards}');
+    parts.push('<text id="' + lid + '" x="' + cx + '" y="' + cy + '" text-anchor="middle" dominant-baseline="middle" font-size="15" font-weight="700" fill="' + color + '" dy="-1">' + pct + '%</text>');
+
+    parts.push('<text x="' + cx + '" y="' + labelY + '" text-anchor="middle" dominant-baseline="hanging" font-size="11" font-family="' + CFG.MONO + '" fill="' + CFG.MUTED_COL + '" letter-spacing="0">' + d.name + '</text>');
+    parts.push('</g>');
+  });
+
+  parts.unshift('<style>@keyframes draw{to{stroke-dashoffset:0}}@keyframes fade{to{opacity:1}}' + styleRules.join('') + '</style>');
+  parts.push('</svg>');
+  return parts.join('');
+}
+
+function render() {
+  const data = getDisplayData();
+  const container = document.getElementById('chart-svg-container');
+  const empty     = document.getElementById('empty-state');
+
+  if (!data.length) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    container.innerHTML = buildSVG(data);
+    attachHoverEvents();
+  }
+  updateStats(data);
+}
+
+function updateStats(data) {
+  const total   = RAW_DATA.length;
+  const showing = data.length;
+  const over    = data.filter(d => d.pct > THRESHOLD).length;
+  const avg     = data.length ? Math.round(data.reduce((s,d) => s+d.pct, 0) / data.length) : 0;
+  const max     = data.length ? Math.max(...data.map(d => d.pct)) : 0;
+
+  document.getElementById('stats-bar').innerHTML =
+    '<div class="stat"><span class="stat-val">' + showing + '<span style="font-size:13px;color:var(--muted)">/' + total + '</span></span><span class="stat-lbl">Showing</span></div>' +
+    '<div class="stat"><span class="stat-val over">' + over + '</span><span class="stat-lbl">Over threshold</span></div>' +
+    '<div class="stat"><span class="stat-val base">' + avg + '%</span><span class="stat-lbl">Average</span></div>' +
+    '<div class="stat"><span class="stat-val">' + max + '%</span><span class="stat-lbl">Peak</span></div>';
+}
+
+const tooltip = document.getElementById('tooltip');
+
+function attachHoverEvents() {
+  document.querySelectorAll('.arc-cell').forEach(el => {
+    el.addEventListener('mouseenter', () => {
+      const name = el.dataset.name;
+      const pct  = parseFloat(el.dataset.pct);
+      const over = Math.max(pct - THRESHOLD, 0);
+      const color = pct >= THRESHOLD ? 'over' : 'base';
+      tooltip.innerHTML =
+        '<div class="tt-name">' + name + '</div>' +
+        '<div class="tt-row"><span class="tt-key">Value</span><span class="tt-val ' + color + '">' + pct + '%</span></div>' +
+        (over > 0 ? '<div class="tt-row"><span class="tt-key">Overflow</span><span class="tt-val over">+' + over.toFixed(0) + '%</span></div>' : '') +
+        '<div class="tt-row"><span class="tt-key">Status</span><span class="tt-val ' + color + '">' + (pct >= THRESHOLD ? 'Over threshold' : 'Within range') + '</span></div>';
+      tooltip.classList.add('visible');
+    });
+    el.addEventListener('mousemove', e => {
+      const x = e.clientX + 16, y = e.clientY - 10;
+      const tw = tooltip.offsetWidth, th = tooltip.offsetHeight;
+      tooltip.style.left = (x + tw > window.innerWidth ? e.clientX - tw - 16 : x) + 'px';
+      tooltip.style.top  = (y + th > window.innerHeight ? e.clientY - th - 10 : y) + 'px';
+    });
+    el.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+  });
+}
+
+document.querySelectorAll('[data-sort]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-sort]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentSort = btn.dataset.sort;
+    render();
+  });
+});
+
+document.querySelectorAll('[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    render();
+  });
+});
+
+let searchTimer;
+document.getElementById('search').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchQuery = e.target.value.trim();
+    render();
+  }, 200);
+});
+
+Papa.parse(DATA_URL, {
+  download: true, header: true, dynamicTyping: true, skipEmptyLines: true,
+  complete: (res) => {
+    RAW_DATA = res.data
+      .filter(r => r[LABEL_COL] != null && r[VALUE_COL] != null)
+      .map(r => ({ name: r[LABEL_COL], pct: Number(r[VALUE_COL]) || 0 }));
+    render();
+  },
+  error: (err) => {
+    document.getElementById('chart-svg-container').innerHTML =
+      '<div class="empty" style="color:#f87171">CSV error: ' + (err.message || err) + '</div>';
+  },
+});
+<\/script>
+</body>
+</html></script>
 
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
@@ -863,6 +1395,10 @@ const TEMPLATES = {
 </html>`,
 };
 
+TEMPLATES.satellite = (document.getElementById('tpl-satellite').textContent || '')
+  .replace(/<\\\/script>/gi, '<\/script>')
+  .trim();
+
 const ta = document.getElementById('code');
 const preview = document.getElementById('preview');
 const tplSelect = document.getElementById('tpl');
@@ -1001,6 +1537,20 @@ const SCHEMAS = {
       { prop: 'showYAxis',     label: 'Show Y axis',          type: 'checkbox' },
       { prop: 'axisLabelSize', label: 'Axis label size (px)', type: 'number', min: 6, max: 48 },
       { prop: 'dataLabelSize', label: 'Data label size (px)', type: 'number', min: 6, max: 48 },
+    ],
+  },
+  satellite: {
+    fields: [
+      { prop: 'eyebrow',   label: 'Eyebrow',          type: 'text' },
+      { prop: 'titleMain', label: 'Title',            type: 'text' },
+      { prop: 'titleHl',   label: 'Title accent',     type: 'text' },
+      { prop: 'subtitle',  label: 'Subtitle',         type: 'textarea' },
+      { prop: 'dataUrl',   label: 'CSV URL',          type: 'url' },
+      { prop: 'labelCol',  label: 'Label column',     type: 'text' },
+      { prop: 'valueCol',  label: 'Value column',     type: 'text' },
+      { prop: 'baseColor', label: 'Base colour',      type: 'color' },
+      { prop: 'overColor', label: 'Overflow colour',  type: 'color' },
+      { prop: 'threshold', label: 'Threshold',        type: 'number', min: 1, max: 1000 },
     ],
   },
   quote: {
