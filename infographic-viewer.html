@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ferry Tales Studio &mdash; Infographic</title>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0a0a0b; }
+  iframe { width: 100%; height: 100vh; border: 0; display: block; background: #fff; }
+  .msg {
+    padding: 40px;
+    text-align: center;
+    font-family: system-ui, sans-serif;
+    color: #7e7e92;
+    line-height: 1.6;
+  }
+  .msg.error { color: #f87171; }
+  .msg a { color: #c9185b; text-decoration: none; font-weight: 600; }
+  .msg a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<iframe id="frame" title="Infographic" sandbox="allow-scripts allow-popups allow-forms allow-same-origin"></iframe>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<script>
+(function () {
+  const hash = location.hash.replace(/^#/, '');
+  const frame = document.getElementById('frame');
+
+  function showMessage(html, isError) {
+    frame.remove();
+    const div = document.createElement('div');
+    div.className = 'msg' + (isError ? ' error' : '');
+    div.innerHTML = html;
+    document.body.appendChild(div);
+  }
+
+  if (!hash) {
+    showMessage(
+      'No infographic in this URL.<br><br>' +
+      'Build one at <a href="infographic.html">the builder</a>, ' +
+      'then click &ldquo;Share link&rdquo; to generate a viewer URL.',
+      false
+    );
+    return;
+  }
+
+  try {
+    const html = LZString.decompressFromEncodedURIComponent(hash);
+    if (!html) throw new Error('Could not decompress URL data.');
+    frame.srcdoc = html;
+  } catch (e) {
+    showMessage('Could not load this infographic: ' + e.message, true);
+  }
+})();
+</script>
+</body>
+</html>
