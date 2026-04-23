@@ -172,6 +172,7 @@
       <option value="blank">Blank</option>
       <option value="stat" selected>Stat card</option>
       <option value="kpis">KPI grid</option>
+      <option value="chart">Bar chart (CSV)</option>
       <option value="quote">Quote callout</option>
       <option value="steps">Process steps</option>
       <option value="compare">Comparison</option>
@@ -279,11 +280,31 @@ const TEMPLATES = {
 </head>
 <body>
   <div class="card">
-    <div class="label">Monthly active users</div>
-    <div class="number">42.8K</div>
-    <div class="sub">Power BI dashboard viewers across all published reports</div>
-    <div class="trend">&#9650; 18.4% vs. last month</div>
+    <div class="label">Loading&hellip;</div>
+    <div class="number">&mdash;</div>
+    <div class="sub"></div>
+    <div class="trend"></div>
   </div>
+  <script>
+    // Swap this URL for your own JSON file.
+    // Shape: { "label": "...", "value": "...", "sub": "...", "trend": 18.4 }
+    const DATA_URL = 'https://powerbiferrytales.github.io/data/stat.json';
+    fetch(DATA_URL)
+      .then(r => r.json())
+      .then(d => {
+        document.querySelector('.label').textContent = d.label;
+        document.querySelector('.number').textContent = d.value;
+        document.querySelector('.sub').textContent = d.sub;
+        const tr = document.querySelector('.trend');
+        const up = d.trend >= 0;
+        tr.textContent = (up ? '\u25B2' : '\u25BC') + ' ' + Math.abs(d.trend) + '% vs. last month';
+        if (!up) { tr.style.background = '#fee2e2'; tr.style.color = '#991b1b'; }
+      })
+      .catch(e => {
+        document.querySelector('.label').textContent = 'Error';
+        document.querySelector('.sub').textContent = e.message;
+      });
+  <\/script>
 </body>
 </html>`,
 
@@ -351,30 +372,126 @@ const TEMPLATES = {
 </style>
 </head>
 <body>
-  <h1>Q3 performance</h1>
-  <div class="sub">Key metrics at a glance</div>
-  <div class="grid">
-    <div class="kpi" style="--accent:#c9185b">
-      <div class="kpi-label">Revenue</div>
-      <div class="kpi-value">&pound;1.24M</div>
-      <div class="kpi-delta">&#9650; 12.3%</div>
-    </div>
-    <div class="kpi" style="--accent:#f59e0b">
-      <div class="kpi-label">New customers</div>
-      <div class="kpi-value">318</div>
-      <div class="kpi-delta">&#9650; 8.1%</div>
-    </div>
-    <div class="kpi" style="--accent:#60a5fa">
-      <div class="kpi-label">Avg order value</div>
-      <div class="kpi-value">&pound;214</div>
-      <div class="kpi-delta down">&#9660; 2.4%</div>
-    </div>
-    <div class="kpi" style="--accent:#34d399">
-      <div class="kpi-label">NPS</div>
-      <div class="kpi-value">64</div>
-      <div class="kpi-delta">&#9650; 6 pts</div>
-    </div>
+  <h1 id="title">Loading&hellip;</h1>
+  <div class="sub" id="subtitle"></div>
+  <div class="grid" id="grid"></div>
+  <script>
+    // Swap this URL for your own JSON file.
+    // Shape: { title, subtitle, items: [{ label, value, delta, accent, deltaSuffix? }] }
+    const DATA_URL = 'https://powerbiferrytales.github.io/data/kpis.json';
+    fetch(DATA_URL)
+      .then(r => r.json())
+      .then(d => {
+        document.getElementById('title').textContent = d.title;
+        document.getElementById('subtitle').textContent = d.subtitle;
+        const grid = document.getElementById('grid');
+        grid.innerHTML = d.items.map(it => {
+          const down = it.delta < 0;
+          const arrow = down ? '\u25BC' : '\u25B2';
+          const suffix = it.deltaSuffix || '%';
+          return '<div class="kpi" style="--accent:' + it.accent + '">'
+            + '<div class="kpi-label">' + it.label + '</div>'
+            + '<div class="kpi-value">' + it.value + '</div>'
+            + '<div class="kpi-delta' + (down ? ' down' : '') + '">'
+              + arrow + ' ' + Math.abs(it.delta) + suffix
+            + '</div>'
+          + '</div>';
+        }).join('');
+      })
+      .catch(e => {
+        document.getElementById('title').textContent = 'Error';
+        document.getElementById('subtitle').textContent = e.message;
+      });
+  <\/script>
+</body>
+</html>`,
+
+  chart: `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Bar chart</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"><\/script>
+<style>
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #fff;
+    margin: 0;
+    padding: 48px 40px;
+    color: #1e2060;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; }
+  h1 { font-size: 1.9rem; margin: 0 0 6px; }
+  .sub { color: #7e7e92; margin-bottom: 32px; }
+  svg { width: 100%; height: auto; display: block; }
+  .bar { fill: #c9185b; transition: fill 0.2s; }
+  .bar:hover { fill: #dd2a6d; }
+  .axis text { font-size: 12px; fill: #7e7e92; }
+  .value-label { font-size: 11px; fill: #1e2060; font-weight: 600; }
+  .error { color: #991b1b; background: #fee2e2; padding: 12px; border-radius: 6px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Monthly revenue</h1>
+    <div class="sub">Loading CSV&hellip;</div>
+    <div id="chart"></div>
   </div>
+  <script>
+    // Swap this URL for your own CSV. Expected columns: label, value
+    const DATA_URL = 'https://powerbiferrytales.github.io/data/sales.csv';
+    const VALUE_COL = 'revenue';
+    const LABEL_COL = 'month';
+
+    Papa.parse(DATA_URL, {
+      download: true,
+      header: true,
+      dynamicTyping: true,
+      skipEmptyLines: true,
+      complete: (res) => {
+        const rows = res.data.filter(r => r[LABEL_COL] != null && r[VALUE_COL] != null);
+        if (!rows.length) { showError('No data rows found'); return; }
+        document.querySelector('.sub').textContent =
+          rows.length + ' rows \u00B7 ' + VALUE_COL + ' by ' + LABEL_COL;
+        renderChart(rows);
+      },
+      error: (err) => showError(err.message || 'CSV fetch failed'),
+    });
+
+    function showError(msg) {
+      document.getElementById('chart').innerHTML =
+        '<div class="error">Error: ' + msg + '</div>';
+    }
+
+    function renderChart(rows) {
+      const W = 760, H = 320, P = { top: 20, right: 10, bottom: 36, left: 50 };
+      const innerW = W - P.left - P.right;
+      const innerH = H - P.top - P.bottom;
+      const max = Math.max(...rows.map(r => r[VALUE_COL]));
+      const barW = innerW / rows.length * 0.7;
+      const gap = innerW / rows.length * 0.3;
+
+      let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg">';
+      // gridlines
+      for (let i = 0; i <= 4; i++) {
+        const y = P.top + (innerH * i / 4);
+        const val = Math.round(max * (1 - i / 4));
+        svg += '<line x1="' + P.left + '" y1="' + y + '" x2="' + (P.left + innerW) + '" y2="' + y + '" stroke="#eee"/>';
+        svg += '<text class="axis" x="' + (P.left - 8) + '" y="' + (y + 4) + '" text-anchor="end">' + val.toLocaleString() + '</text>';
+      }
+      // bars + labels
+      rows.forEach((r, i) => {
+        const x = P.left + i * (barW + gap) + gap / 2;
+        const h = (r[VALUE_COL] / max) * innerH;
+        const y = P.top + innerH - h;
+        svg += '<rect class="bar" x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '" rx="3"/>';
+        svg += '<text class="value-label" x="' + (x + barW / 2) + '" y="' + (y - 6) + '" text-anchor="middle">' + r[VALUE_COL].toLocaleString() + '</text>';
+        svg += '<text class="axis" x="' + (x + barW / 2) + '" y="' + (H - P.bottom + 18) + '" text-anchor="middle">' + r[LABEL_COL] + '</text>';
+      });
+      svg += '</svg>';
+      document.getElementById('chart').innerHTML = svg;
+    }
+  <\/script>
 </body>
 </html>`,
 
