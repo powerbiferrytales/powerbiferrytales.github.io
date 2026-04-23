@@ -300,6 +300,7 @@
     <button id="reset" title="Reload the current template">Reset</button>
     <button id="togglePanel" title="Show/hide the properties panel">&#9776; Properties</button>
     <div class="spacer"></div>
+    <button id="share">&#128279; Share link</button>
     <button id="copy">Copy HTML</button>
     <button id="download" class="primary">&#8595; Download .html</button>
   </div>
@@ -856,6 +857,7 @@ Papa.parse(DATA_URL, {
 </body>
 </html></script>
 
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/lib/codemirror.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/xml/xml.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/codemirror@5.65.16/mode/css/css.min.js"></script>
@@ -1479,6 +1481,23 @@ document.getElementById('copy').addEventListener('click', async () => {
     showToast('Copied to clipboard');
   } catch {
     showToast('Copy failed — select + copy manually');
+  }
+});
+
+document.getElementById('share').addEventListener('click', async () => {
+  if (typeof LZString === 'undefined') {
+    showToast('Share library not loaded');
+    return;
+  }
+  const compressed = LZString.compressToEncodedURIComponent(currentValue());
+  const viewer = new URL('infographic-viewer.html', location.href);
+  viewer.hash = compressed;
+  const urlStr = viewer.toString();
+  try {
+    await navigator.clipboard.writeText(urlStr);
+    showToast('Share URL copied (' + Math.round(urlStr.length / 1024) + ' KB)');
+  } catch {
+    window.prompt('Copy this URL:', urlStr);
   }
 });
 

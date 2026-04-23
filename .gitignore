@@ -4,6 +4,7 @@
 !vegalite.html
 !make-og.html
 !infographic.html
+!infographic-viewer.html
 !data/
 !data/*.json
 !data/*.csv
