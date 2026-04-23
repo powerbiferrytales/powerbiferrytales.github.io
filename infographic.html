@@ -335,6 +335,7 @@
 <meta data-prop="baseColor" content="#e08c00">
 <meta data-prop="overColor" content="#3b9eff">
 <meta data-prop="threshold" content="100">
+<meta data-prop="cols"      content="5">
 <title>Satellite chart</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"><\/script>
@@ -601,6 +602,7 @@ const VALUE_COL  = meta('valueCol');
 const BASE_COLOR = meta('baseColor');
 const OVER_COLOR = meta('overColor');
 const THRESHOLD  = Number(meta('threshold')) || 100;
+const COLS       = Math.max(1, Math.round(Number(meta('cols')) || 5));
 
 document.documentElement.style.setProperty('--base-color', BASE_COLOR);
 document.documentElement.style.setProperty('--over-color', OVER_COLOR);
@@ -610,7 +612,7 @@ document.getElementById('legend-over').style.background = OVER_COLOR;
 let RAW_DATA = [];
 
 const CFG = {
-  COLS:      10,
+  COLS:      COLS,
   CELL_W:    138,
   CELL_H:    150,
   CX_OFF:    64,
@@ -1551,6 +1553,7 @@ const SCHEMAS = {
       { prop: 'baseColor', label: 'Base colour',      type: 'color' },
       { prop: 'overColor', label: 'Overflow colour',  type: 'color' },
       { prop: 'threshold', label: 'Threshold',        type: 'number', min: 1, max: 1000 },
+      { prop: 'cols',      label: 'Columns',          type: 'number', min: 1, max: 20 },
     ],
   },
   quote: {
