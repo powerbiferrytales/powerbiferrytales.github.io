@@ -3,6 +3,10 @@
 !index.html
 !vegalite.html
 !make-og.html
+!infographic.html
+!data/
+!data/*.json
+!data/*.csv
 !deneb.html
 !fpl.html
 !viewer.html

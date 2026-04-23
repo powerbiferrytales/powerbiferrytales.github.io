@@ -40,5 +40,7 @@ For every change (feature, fix, refactor, etc.):
   surface for most changes)
 - `viewer.html` — standalone viewer for shared chart links
 - `deneb.html`, `fpl.html` — Power BI report embed pages
+- `infographic.html` — HTML/CSS infographic builder (CodeMirror editor +
+  live preview iframe, template picker, copy/download)
 - `make-og.html` — OG image generator utility
 - `style.css` — shared styles for the static pages
