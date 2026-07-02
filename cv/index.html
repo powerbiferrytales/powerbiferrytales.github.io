@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ben Ferry — CV</title>
+  <meta name="description" content="Living CV of Ben Ferry — Senior Internal BI Consultant. Power BI &amp; Microsoft Fabric, data visualisation, and a builder of data products.">
+  <meta property="og:title" content="Ben Ferry — CV">
+  <meta property="og:description" content="Senior Internal BI Consultant. Power BI &amp; Microsoft Fabric, data visualisation, builder of data products.">
+  <meta property="og:type" content="profile">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ── Tokens — one accent, neutrals exempt ── */
+    :root{
+      --accent:#c9185b;       /* the single brand accent */
+      --ink:#222426;          /* primary text */
+      --muted:#6b7280;        /* secondary text / dates */
+      --rule:#e6e6e6;         /* hairline separators */
+      --paper:#ffffff;
+      --chip:#f4f4f5;         /* neutral chip fill */
+      --maxw:820px;
+    }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html{-webkit-text-size-adjust:100%}
+    body{
+      font-family:'Poppins',system-ui,sans-serif;
+      color:var(--ink);
+      background:#fafafa;
+      line-height:1.6;
+      font-size:15px;
+    }
+
+    /* ── Toolbar (screen only) ── */
+    .toolbar{
+      max-width:var(--maxw);
+      margin:0 auto;
+      padding:14px 32px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:16px;
+      flex-wrap:wrap;
+    }
+    .toolbar a.home{color:var(--accent);text-decoration:none;font-weight:600;font-size:.95rem}
+    .toolbar a.home:hover{opacity:.7}
+    .toolbar .right{display:flex;gap:10px;align-items:center}
+    .updated{color:var(--muted);font-size:.8rem}
+    .btn{
+      font-family:inherit;font-size:.85rem;font-weight:600;
+      color:#fff;background:var(--accent);
+      border:none;border-radius:8px;
+      padding:8px 16px;cursor:pointer;
+      transition:opacity .15s;
+    }
+    .btn:hover{opacity:.85}
+
+    /* ── Sheet ── */
+    .sheet{
+      max-width:var(--maxw);
+      margin:0 auto 60px;
+      background:var(--paper);
+      border:1px solid var(--rule);
+      padding:56px 64px;
+    }
+
+    /* ── Masthead ── */
+    .masthead{border-bottom:2px solid var(--accent);padding-bottom:20px;margin-bottom:28px}
+    .masthead h1{
+      font-size:2.5rem;font-weight:700;letter-spacing:.04em;
+      color:var(--ink);line-height:1.1;
+    }
+    .masthead .role{
+      color:var(--accent);font-weight:600;font-size:1.05rem;
+      letter-spacing:.16em;text-transform:uppercase;margin-top:6px;
+    }
+    .masthead .tagline{color:var(--muted);margin-top:8px;font-size:.95rem}
+    .contact{
+      display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:16px;
+      font-size:.85rem;
+    }
+    .contact a,.contact span{color:var(--muted);text-decoration:none}
+    .contact a:hover{color:var(--accent)}
+
+    /* ── Sections ── */
+    section{margin-top:30px}
+    h2{
+      font-size:.8rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+      color:var(--accent);
+      padding-bottom:6px;border-bottom:1px solid var(--rule);
+      margin-bottom:16px;
+    }
+    .profile p{margin-bottom:10px}
+    .profile p:last-child{margin-bottom:0}
+
+    /* ── Entry (experience / now) ── */
+    .entry{margin-bottom:22px;break-inside:avoid}
+    .entry:last-child{margin-bottom:0}
+    .entry-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+    .entry-title{font-weight:600;font-size:1.02rem}
+    .entry-org{color:var(--muted);font-size:.9rem}
+    .entry-dates{color:var(--muted);font-size:.82rem;white-space:nowrap;font-weight:500}
+    .entry-summary{margin-top:6px}
+    .entry ul{margin:8px 0 0 0;padding-left:1.1em;list-style:none}
+    .entry ul li{position:relative;padding-left:14px;margin-bottom:3px}
+    .entry ul li::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;background:var(--accent);border-radius:50%}
+
+    /* ── Tags ── */
+    .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+    .tag{
+      font-size:.74rem;color:var(--muted);
+      background:var(--chip);border:1px solid var(--rule);
+      border-radius:999px;padding:2px 10px;
+    }
+
+    /* ── Skills ── */
+    .skill-group{margin-bottom:12px}
+    .skill-group h3{font-size:.82rem;font-weight:600;color:var(--ink);margin-bottom:6px}
+    .skill-group .items{display:flex;flex-wrap:wrap;gap:6px}
+
+    /* ── Speaking ── */
+    .talk{display:flex;justify-content:space-between;gap:16px;padding:7px 0;border-bottom:1px solid var(--rule)}
+    .talk:last-child{border-bottom:none}
+    .talk .meta{min-width:0}
+    .talk .title{font-weight:500}
+    .talk .event{color:var(--muted);font-size:.85rem}
+    .talk .date{color:var(--muted);font-size:.82rem;white-space:nowrap}
+
+    /* ── Two-up footer sections ── */
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:30px}
+    .pill-list{display:flex;flex-wrap:wrap;gap:6px}
+    .note{color:var(--muted);font-size:.85rem;font-style:italic;margin-top:10px}
+
+    @media(max-width:680px){
+      .sheet{padding:32px 22px}
+      .masthead h1{font-size:2rem}
+      .grid2{grid-template-columns:1fr;gap:20px}
+      .toolbar{padding:14px 20px}
+    }
+
+    /* ── Print / PDF ── */
+    @media print{
+      body{background:#fff;font-size:11.5px}
+      .toolbar{display:none}
+      .sheet{border:none;max-width:none;margin:0;padding:0 6mm}
+      h2{break-after:avoid}
+      .entry,.talk,.skill-group{break-inside:avoid}
+      a{color:inherit;text-decoration:none}
+      @page{margin:14mm}
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toolbar">
+    <a class="home" href="../index.html">← Power BI Ferry Tales</a>
+    <div class="right">
+      <span class="updated" id="updated"></span>
+      <button class="btn" onclick="window.print()">Save as PDF</button>
+    </div>
+  </div>
+
+  <main class="sheet" id="cv" aria-busy="true">
+    <p style="color:var(--muted)">Loading…</p>
+  </main>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       CV DATA — single source of truth. Edit this block to update the CV.
+       (Embedded so the page works when opened directly, with no server.)
+       ════════════════════════════════════════════════════════════════ -->
+  <script type="application/json" id="cv-data">
+{
+  "updated": "June 2026",
+  "name": "Ben Ferry",
+  "title": "Senior BI Consultant",
+  "tagline": "Power BI & Microsoft Fabric consultant · Data-visualisation specialist · Builder of data products",
+  "contact": {
+    "email": "ben@powerbiferrytales.com",
+    "location": "Berlin, Germany",
+    "website": "https://powerbiferrytales.github.io",
+    "youtube": "https://www.youtube.com/@PowerBIFerryTales",
+    "linkedin": "https://www.linkedin.com/in/powerbiferrytales/",
+    "github": "https://github.com/powerbiferrytales",
+    "bluesky": "https://bsky.app/profile/powerbiferrytales.bsky.social"
+  },
+  "profile": [
+    "A Business Intelligence consultant specialising in Power BI and Microsoft Fabric — from data modelling and report development through to platform set-up, governance and team enablement.",
+    "A data-visualisation specialist at heart: I push reporting beyond the default visual set with Deneb and Vega-Lite, and speak regularly at international conferences on making data clear, honest and engaging.",
+    "Increasingly a builder of data products — browser-based BI tooling that runs with no backend, and native Android apps — published openly on GitHub and Google Play.",
+    "More than a decade across BI, analytics and data operations in Berlin, spanning enterprise consultancy, retail and higher education."
+  ],
+  "now": [
+    {
+      "name": "Ferry Tales Studio — Power BI Edition",
+      "blurb": "A browser-based studio for building Vega-Lite dashboards on live Power BI datasets. You write the spec; the app generates the DAX, runs it against the Power BI REST API, and renders the result — with live cross-filtering, multi-dataset dashboards, slicers, theming and a no-code editor. Multi-tenant Entra ID sign-in, and no backend: auth, querying and persistence all run in the browser.",
+      "tags": ["Vega-Lite", "Power BI REST API", "DAX generation", "TypeScript", "Vite", "Entra ID / MSAL"]
+    },
+    {
+      "name": "Power BI Ferry Tales — open site & tooling",
+      "blurb": "My open site and toolkit, published via GitHub Pages: a Vega-Lite chart builder, an HTML/CSS infographic builder, custom chart templates, and zero-backend share links (state lz-string-encoded straight into the URL). The home for my data-visualisation experiments.",
+      "tags": ["Vega-Lite", "Deneb", "HTML / CSS / JS", "lz-string", "GitHub Pages"]
+    },
+    {
+      "name": "Gaffer — Fantasy Premier League app",
+      "blurb": "A native Android app for FPL managers, published to Google Play: fixture-difficulty heatmaps, a chip-timing advisor and simulator, mini-league chip tracking, rivals head-to-head analysis, and branded, shareable squad and head-to-head cards. Zero-backend — built on the public FPL API with on-device storage.",
+      "tags": ["Kotlin", "Jetpack Compose", "Android", "Google Play", "REST APIs"]
+    },
+    {
+      "name": "Fabric Data App",
+      "blurb": "Microsoft Fabric Analytics web apps (React / Vite) that read live semantic models and embed natively in the Fabric portal — exploring the new Fabric app-development model.",
+      "tags": ["Microsoft Fabric", "React", "Vite", "Semantic models"]
+    }
+  ],
+  "experience": [
+    {
+      "role": "Senior BI Consultant",
+      "org": "Solita Germany",
+      "location": "Berlin / remote",
+      "start": "February 2025",
+      "end": "Present",
+      "summary": "Senior BI Consultant at Solita Germany — the German arm of the Nordic data, technology and design company — delivering end-to-end Power BI and Microsoft Fabric solutions for clients. My work spans report and dashboard development, Fabric platform set-up and maintenance, and enabling client teams to get more from their data, with a strong data-visualisation focus throughout.",
+      "bullets": [
+        "Design and build Power BI reports and dashboards for client engagements, applying strong data-visualisation principles to keep reporting clear, focused and engaging",
+        "Develop advanced and custom visualisations with Deneb and Vega-Lite where the standard Power BI visual set falls short",
+        "Data modelling, Power Query (M) transformations and DAX measure development across client semantic models",
+        "Set up and maintain Microsoft Fabric infrastructure — workspaces, capacities, semantic models and deployment pipelines",
+        "Establish BI best practice, documentation and reporting standards to keep client estates consistent and maintainable",
+        "Share BI knowledge and provide hands-on support — training, guidance and ad-hoc consultancy that upskill client teams"
+      ]
+    },
+    {
+      "role": "Senior Internal BI Consultant",
+      "org": "Internationale Hochschule",
+      "location": "Berlin",
+      "start": "June 2023",
+      "end": "January 2025",
+      "summary": "The purpose of my role was to ensure the optimal use of data and BI tools within the organisation. Data Governance, trainings, tenant management and ad-hoc consultancy were my core responsibilities.",
+      "bullets": [
+        "Led internal consulting",
+        "Created a company-wide Power BI training program",
+        "Managed the Power BI / Fabric tenant",
+        "Implemented and ensured adherence to the Data Governance strategy",
+        "Coordinated and supported the data community",
+        "Oversaw clean-up of the Power BI reporting packages",
+        "Ad hoc support for the Data Analyst community",
+        "Led the company-wide roll-out of Microsoft Fabric",
+        "Identified 3rd party software and coordinated the implementation with IT"
+      ]
+    },
+    {
+      "role": "Senior Data Analyst",
+      "org": "Mister Spex SE",
+      "location": "Berlin",
+      "start": "2019",
+      "end": "June 2023",
+      "summary": "As Senior Analyst I was the go-to for managing complex BI reporting projects, and responsible for knowledge sharing and exchange between the analysts within the BI team.",
+      "bullets": [
+        "In-house consultation for complex BI projects",
+        "Integration of external API data into the internal DWH",
+        "Creation of upper-management reporting packages",
+        "Responsible for all high-street retail reporting across four countries",
+        "Trainer for Power BI, data visualisation and BI data topics",
+        "Identifying gaps in analysis",
+        "Creation of documentation and reporting standards within BI"
+      ]
+    },
+    {
+      "role": "Senior BI Analyst",
+      "org": "BASF Services Europe",
+      "location": "Berlin",
+      "start": "2016",
+      "end": "2019",
+      "summary": "It was in this role that I began my career as an analyst. I discovered Power BI whilst working with Power Query and became a strong advocate for departmental adoption, then roll-out within the company's European Plastic and Rubber division.",
+      "bullets": [
+        "Monthly Power BI trainings in Berlin and Ludwigshafen",
+        "Roll-out of Power BI in the Service Centre and Plastics division",
+        "Lead of the project moving reporting from MS Access to a central DWH",
+        "Report package development for the RPA department",
+        "Month-end reporting for the European plastics division",
+        "Knowledge coordinator for BI topics"
+      ]
+    },
+    {
+      "role": "Team Specialist",
+      "org": "BASF Services Europe",
+      "location": "Berlin",
+      "start": "2013",
+      "end": "2016",
+      "summary": "Head of a team of 13 within the Master Data department, organisationally responsible for services provided to North East Europe, Africa, the Middle East and Russia. I also founded and ran the Global Bank Fraud Prevention team.",
+      "bullets": [
+        "Analysis of SLA standards",
+        "Large-scale analysis of Master Data maintenance standards",
+        "Mass changes to master data records within SAP",
+        "Creation of global bank-fraud prevention practices",
+        "Inter-departmental creation of company practices"
+      ]
+    },
+    {
+      "role": "Sales Support",
+      "org": "Zycko GmbH",
+      "location": "Berlin",
+      "start": "2011",
+      "end": "2013",
+      "summary": "My first foray into data analysis using Excel. A broad role spanning purchasing hardware from resellers, ensuring sales were shipped and delivered, and handling RMAs. I also built an Excel workbook to save time and increase efficiency in shipping orders.",
+      "bullets": []
+    }
+  ],
+  "experienceNote": "Further job history is part-time during my student years, available on request.",
+  "skills": [
+    {
+      "group": "Power BI & visualisation",
+      "items": ["Power BI", "Power Query (M)", "DAX", "Data Modelling", "Deneb", "Vega-Lite", "Data Visualisation", "Report Design"]
+    },
+    {
+      "group": "Data platform & governance",
+      "items": ["Microsoft Fabric", "Semantic Models", "Power BI REST API", "Power Automate", "SQL", "KQL", "Data Governance", "Purview", "Change Management"]
+    },
+    {
+      "group": "Software engineering",
+      "items": ["Kotlin", "Jetpack Compose", "Android", "JavaScript / TypeScript", "React", "Vite", "HTML / CSS", "REST APIs", "Entra ID / MSAL", "Git / GitHub Pages"]
+    },
+    {
+      "group": "Practice",
+      "items": ["Public Speaking", "Training & Enablement", "Technical Writing"]
+    }
+  ],
+  "speaking": [
+    { "event": "Budapest BI Forum 2024", "date": "20.11.2024", "talk": "Deneb, the Star of Data Visualisation" },
+    { "event": "DataMinds Connect 2024", "date": "09.10.2024", "talk": "Goodbye Visual Sh*te, Hello Vega-Lite" },
+    { "event": "viz.fo", "date": "03.05.2024", "talk": "Deneb, the Star of Data Visualisation" },
+    { "event": "Power BI Gebruikersdag 2024", "date": "09.03.2024", "talk": "Goodbye Visual Sh*te, Hello Vega-Lite" },
+    { "event": "Power BI & Fabric Summit 2024", "date": "12.02.2024", "talk": "Your Report Looks Boring and Nobody Cares" },
+    { "event": "Fabric February 2024", "date": "08.02.2024", "talk": "Your Report Looks Boring and Nobody Cares" },
+    { "event": "Fabric February 2024", "date": "08.02.2024", "talk": "Connect Live: Even More Live" },
+    { "event": "Budapest BI Forum 2023", "date": "22.11.2023", "talk": "Getting Creative with Deneb" },
+    { "event": "Data Saturday Parma 2023", "date": "18.11.2023", "talk": "Deneb, the Star of Custom Visualisations" },
+    { "event": "Power BI Summit 2023", "date": "10.03.2023", "talk": "Deneb, the Star of Custom Visualisations" },
+    { "event": "New Stars of Data #4", "date": "07.10.2022", "talk": "Drillthrough. When and Why and How" }
+  ],
+  "community": [
+    { "name": "Power BI Ferry Tales — YouTube", "blurb": "Tutorials and deep-dives on Power BI, Deneb and data visualisation." },
+    { "name": "Open-source tooling", "blurb": "Browser-based BI tools, chart builders and templates, published openly on GitHub Pages." },
+    { "name": "Active in the data community", "blurb": "A regular voice on the Power BI and Microsoft Fabric circuit, sharing on Bluesky and LinkedIn." }
+  ],
+  "education": [
+    { "qualification": "Bachelor of Arts", "institution": "Northumbria University", "period": "2002 – 2006" }
+  ],
+  "about": ["British", "Moved to Germany in 2006", "German Permanent Residency", "Proficient in German", "Married with 2 children", "Nerd"],
+  "interests": ["Kayaking", "Plays golf badly", "Plays ukulele", "Loves to bake"]
+}
+  </script>
+
+  <script>
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+    function contactRow(c){
+      const parts = [];
+      if(c.location) parts.push(`<span>${esc(c.location)}</span>`);
+      if(c.email)    parts.push(`<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>`);
+      if(c.website)  parts.push(`<a href="${esc(c.website)}" target="_blank" rel="noopener">Website</a>`);
+      if(c.linkedin) parts.push(`<a href="${esc(c.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>`);
+      if(c.youtube)  parts.push(`<a href="${esc(c.youtube)}" target="_blank" rel="noopener">YouTube</a>`);
+      if(c.github)   parts.push(`<a href="${esc(c.github)}" target="_blank" rel="noopener">GitHub</a>`);
+      if(c.bluesky)  parts.push(`<a href="${esc(c.bluesky)}" target="_blank" rel="noopener">Bluesky</a>`);
+      return `<div class="contact">${parts.join('')}</div>`;
+    }
+
+    const tags = arr => arr && arr.length
+      ? `<div class="tags">${arr.map(t=>`<span class="tag">${esc(t)}</span>`).join('')}</div>` : '';
+
+    function nowSection(items){
+      if(!items || !items.length) return '';
+      return `<section><h2>Now / Building</h2>${items.map(p=>`
+        <div class="entry">
+          <div class="entry-head"><span class="entry-title">${esc(p.name)}</span></div>
+          <p class="entry-summary">${esc(p.blurb)}</p>
+          ${tags(p.tags)}
+        </div>`).join('')}</section>`;
+    }
+
+    function experienceSection(items, note){
+      if(!items || !items.length) return '';
+      const body = items.map(e=>`
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-title">${esc(e.role)} <span class="entry-org">· ${esc(e.org)}${e.location?', '+esc(e.location):''}</span></span>
+            <span class="entry-dates">${esc(e.start)} – ${esc(e.end)}</span>
+          </div>
+          ${e.summary?`<p class="entry-summary">${esc(e.summary)}</p>`:''}
+          ${e.bullets && e.bullets.length?`<ul>${e.bullets.map(b=>`<li>${esc(b)}</li>`).join('')}</ul>`:''}
+        </div>`).join('');
+      return `<section><h2>Experience</h2>${body}${note?`<p class="note">${esc(note)}</p>`:''}</section>`;
+    }
+
+    function skillsSection(groups){
+      if(!groups || !groups.length) return '';
+      return `<section><h2>Skills</h2>${groups.map(g=>`
+        <div class="skill-group">
+          <h3>${esc(g.group)}</h3>
+          <div class="items">${g.items.map(i=>`<span class="tag">${esc(i)}</span>`).join('')}</div>
+        </div>`).join('')}</section>`;
+    }
+
+    function speakingSection(items){
+      if(!items || !items.length) return '';
+      return `<section><h2>Speaking</h2>${items.map(t=>`
+        <div class="talk">
+          <div class="meta"><div class="title">${esc(t.talk)}</div><div class="event">${esc(t.event)}</div></div>
+          <div class="date">${esc(t.date)}</div>
+        </div>`).join('')}</section>`;
+    }
+
+    function communitySection(items){
+      if(!items || !items.length) return '';
+      return `<section><h2>Community &amp; Content</h2>${items.map(c=>`
+        <div class="entry">
+          <div class="entry-head"><span class="entry-title">${esc(c.name)}</span></div>
+          ${c.blurb?`<p class="entry-summary">${esc(c.blurb)}</p>`:''}
+        </div>`).join('')}</section>`;
+    }
+
+    function footerSections(cv){
+      const edu = (cv.education||[]).map(e=>`
+        <div class="entry">
+          <div class="entry-head">
+            <span class="entry-title">${esc(e.qualification)}</span>
+            <span class="entry-dates">${esc(e.period)}</span>
+          </div>
+          <div class="entry-org">${esc(e.institution)}</div>
+        </div>`).join('');
+      const about = (cv.about||[]).map(a=>`<span class="tag">${esc(a)}</span>`).join('');
+      const interests = (cv.interests||[]).map(a=>`<span class="tag">${esc(a)}</span>`).join('');
+      return `
+        <div class="grid2">
+          <section style="margin-top:0"><h2>Education</h2>${edu}</section>
+          <section style="margin-top:0"><h2>About</h2><div class="pill-list">${about}</div>
+            ${interests?`<h3 style="font-size:.82rem;font-weight:600;margin:14px 0 6px">Also</h3><div class="pill-list">${interests}</div>`:''}
+          </section>
+        </div>`;
+    }
+
+    function render(cv){
+      document.getElementById('updated').textContent = cv.updated ? `Updated ${cv.updated}` : '';
+      document.title = `${cv.name} — CV`;
+      const html = `
+        <header class="masthead">
+          <h1>${esc(cv.name)}</h1>
+          <div class="role">${esc(cv.title)}</div>
+          ${cv.tagline?`<div class="tagline">${esc(cv.tagline)}</div>`:''}
+          ${contactRow(cv.contact||{})}
+        </header>
+        ${cv.profile&&cv.profile.length?`<section class="profile"><h2>Profile</h2>${cv.profile.map(p=>`<p>${esc(p)}</p>`).join('')}</section>`:''}
+        ${experienceSection(cv.experience, cv.experienceNote)}
+        ${nowSection(cv.now)}
+        ${skillsSection(cv.skills)}
+        ${speakingSection(cv.speaking)}
+        ${communitySection(cv.community)}
+        ${footerSections(cv)}
+      `;
+      const el = document.getElementById('cv');
+      el.innerHTML = html;
+      el.setAttribute('aria-busy','false');
+    }
+
+    try{
+      const data = JSON.parse(document.getElementById('cv-data').textContent);
+      render(data);
+    }catch(err){
+      document.getElementById('cv').innerHTML =
+        `<p style="color:var(--muted)">Couldn't read the embedded CV data (${esc(err.message)}).</p>`;
+    }
+  </script>
+</body>
+</html>

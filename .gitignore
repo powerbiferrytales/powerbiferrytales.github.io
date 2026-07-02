@@ -8,6 +8,8 @@
 !data/
 !data/*.json
 !data/*.csv
+!cv/
+!cv/index.html
 !deneb.html
 !fpl.html
 !viewer.html
