@@ -67,7 +67,8 @@
     }
 
     /* ── Masthead ── */
-    .masthead{border-bottom:2px solid var(--accent);padding-bottom:20px;margin-bottom:28px}
+    .masthead{position:relative;border-bottom:2px solid var(--accent);padding-bottom:20px;margin-bottom:28px}
+    .masthead .stamp{position:absolute;top:2px;right:0;color:var(--muted);font-size:.76rem}
     .masthead h1{
       font-size:2.5rem;font-weight:700;letter-spacing:.04em;
       color:var(--ink);line-height:1.1;
@@ -153,8 +154,10 @@
       .masthead h1{font-size:2rem}
       .grid2{grid-template-columns:1fr;gap:20px}
       .topbar-inner{padding:9px 16px;gap:10px}
-      .updated{display:none}
     }
+
+    /* Hide the section nav before it gets tight enough to clip a label */
+    @media(max-width:760px){ .secnav{display:none} }
 
     /* ── Print / PDF ── */
     @media print{
@@ -179,7 +182,6 @@
       <a class="brand" href="../index.html">← Ferry Tales</a>
       <nav class="secnav" id="secnav" aria-label="CV sections"></nav>
       <div class="topbar-actions">
-        <span class="updated" id="updated"></span>
         <button class="btn" onclick="window.print()">Save as PDF</button>
       </div>
     </div>
@@ -465,10 +467,10 @@
     }
 
     function render(cv){
-      document.getElementById('updated').textContent = cv.updated ? `Updated ${cv.updated}` : '';
       document.title = `${cv.name} — CV`;
       const html = `
         <header class="masthead">
+          ${cv.updated?`<div class="stamp">Updated ${esc(cv.updated)}</div>`:''}
           <h1>${esc(cv.name)}</h1>
           <div class="role">${esc(cv.title)}</div>
           ${cv.tagline?`<div class="tagline">${esc(cv.tagline)}</div>`:''}
