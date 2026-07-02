@@ -128,6 +128,7 @@
     .talk .title{font-weight:500}
     .talk .event{color:var(--muted);font-size:.85rem}
     .talk .date{color:var(--muted);font-size:.82rem;white-space:nowrap}
+    .talk-label{display:inline-block;font-size:.64rem;font-weight:600;color:var(--accent);background:#fbeaf0;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:1px;letter-spacing:.02em}
 
     /* ── Two-up footer sections ── */
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:30px}
@@ -352,6 +353,9 @@
     }
   ],
   "speaking": [
+    { "event": "Budapest BI Forum 2025", "date": "Nov 2025", "talk": "Deneb, the Star of Data Visualisation" },
+    { "event": "Budapest BI Forum 2025", "date": "Nov 2025", "talk": "Deneb Dashboards in a Day", "label": "Full-day workshop" },
+    { "event": "Power BI Gebruikersdag 2025", "date": "Mar 2025", "talk": "Deneb Dashboard in a Day (with Mike Carlo)", "label": "Full-day workshop" },
     { "event": "Budapest BI Forum 2024", "date": "20.11.2024", "talk": "Deneb, the Star of Data Visualisation" },
     { "event": "DataMinds Connect 2024", "date": "09.10.2024", "talk": "Goodbye Visual Sh*te, Hello Vega-Lite" },
     { "event": "viz.fo", "date": "03.05.2024", "talk": "Deneb, the Star of Data Visualisation" },
@@ -432,7 +436,7 @@
       if(!items || !items.length) return '';
       return `<section><h2>Speaking</h2>${items.map(t=>`
         <div class="talk">
-          <div class="meta"><div class="title">${esc(t.talk)}</div><div class="event">${esc(t.event)}</div></div>
+          <div class="meta"><div class="title">${esc(t.talk)}${t.label?`<span class="talk-label">${esc(t.label)}</span>`:''}</div><div class="event">${esc(t.event)}</div></div>
           <div class="date">${esc(t.date)}</div>
         </div>`).join('')}</section>`;
     }
