@@ -23,7 +23,8 @@
       --maxw:820px;
     }
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html{-webkit-text-size-adjust:100%}
+    html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
     body{
       font-family:'Poppins',system-ui,sans-serif;
       color:var(--ink);
@@ -32,20 +33,20 @@
       font-size:15px;
     }
 
-    /* ── Toolbar (screen only) ── */
-    .toolbar{
-      max-width:var(--maxw);
-      margin:0 auto;
-      padding:14px 32px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:16px;
-      flex-wrap:wrap;
-    }
-    .toolbar a.home{color:var(--accent);text-decoration:none;font-weight:600;font-size:.95rem}
-    .toolbar a.home:hover{opacity:.7}
-    .toolbar .right{display:flex;gap:10px;align-items:center}
+    /* ── Scroll progress (screen only) ── */
+    .progress{position:fixed;top:0;left:0;height:3px;width:0;background:var(--accent);z-index:60;transition:width .08s linear}
+
+    /* ── Sticky top bar (screen only) ── */
+    .topbar{position:sticky;top:0;z-index:50;background:rgba(250,250,250,.9);backdrop-filter:saturate(180%) blur(8px);-webkit-backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--rule)}
+    .topbar-inner{max-width:var(--maxw);margin:0 auto;display:flex;align-items:center;gap:14px;padding:9px 32px}
+    .brand{color:var(--accent);text-decoration:none;font-weight:600;font-size:.95rem;white-space:nowrap}
+    .brand:hover{opacity:.7}
+    .secnav{display:flex;gap:2px;flex:1;overflow-x:auto;scrollbar-width:none}
+    .secnav::-webkit-scrollbar{display:none}
+    .secnav a{font-size:.8rem;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:6px;white-space:nowrap;transition:color .15s,background .15s}
+    .secnav a:hover{color:var(--ink);background:var(--chip)}
+    .secnav a.active{color:var(--accent);font-weight:600}
+    .topbar-actions{display:flex;align-items:center;gap:10px;white-space:nowrap}
     .updated{color:var(--muted);font-size:.8rem}
     .btn{
       font-family:inherit;font-size:.85rem;font-weight:600;
@@ -84,7 +85,7 @@
     .contact a:hover{color:var(--accent)}
 
     /* ── Sections ── */
-    section{margin-top:30px}
+    section{margin-top:30px;scroll-margin-top:66px}
     h2{
       font-size:.8rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
       color:var(--accent);
@@ -132,20 +133,38 @@
     .pill-list{display:flex;flex-wrap:wrap;gap:6px}
     .note{color:var(--muted);font-size:.85rem;font-style:italic;margin-top:10px}
 
+    /* ── Website-feel touches (screen only) ── */
+    .tag{transition:color .15s,border-color .15s,background .15s}
+    .tag:hover{color:var(--ink);border-color:var(--accent)}
+    .contact a{transition:color .15s}
+    .talk .title{transition:color .15s}
+    .talk:hover .title{color:var(--accent)}
+    .now .entry{border:1px solid var(--rule);border-radius:10px;padding:16px 18px;margin-bottom:12px;transition:border-color .18s}
+    .now .entry:last-child{margin-bottom:0}
+    html.js .now .entry:hover{border-color:var(--accent)}
+
+    /* ── Scroll reveal (only when JS runs; print & reduced-motion opt out) ── */
+    html.js .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
+    html.js .reveal.in{opacity:1;transform:none}
+    @media(prefers-reduced-motion:reduce){html.js .reveal{opacity:1;transform:none;transition:none}}
+
     @media(max-width:680px){
       .sheet{padding:32px 22px}
       .masthead h1{font-size:2rem}
       .grid2{grid-template-columns:1fr;gap:20px}
-      .toolbar{padding:14px 20px}
+      .topbar-inner{padding:9px 16px;gap:10px}
+      .updated{display:none}
     }
 
     /* ── Print / PDF ── */
     @media print{
       body{background:#fff;font-size:11.5px}
-      .toolbar{display:none}
+      .topbar,.progress{display:none}
       .sheet{border:none;max-width:none;margin:0;padding:0 6mm}
       h2{break-after:avoid}
       .entry,.talk,.skill-group{break-inside:avoid}
+      .now .entry{border:none;border-radius:0;padding:0;margin-bottom:16px}
+      .reveal{opacity:1 !important;transform:none !important}
       a{color:inherit;text-decoration:none}
       @page{margin:14mm}
     }
@@ -153,13 +172,18 @@
 </head>
 <body>
 
-  <div class="toolbar">
-    <a class="home" href="../index.html">← Power BI Ferry Tales</a>
-    <div class="right">
-      <span class="updated" id="updated"></span>
-      <button class="btn" onclick="window.print()">Save as PDF</button>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="../index.html">← Ferry Tales</a>
+      <nav class="secnav" id="secnav" aria-label="CV sections"></nav>
+      <div class="topbar-actions">
+        <span class="updated" id="updated"></span>
+        <button class="btn" onclick="window.print()">Save as PDF</button>
+      </div>
     </div>
-  </div>
+  </header>
 
   <main class="sheet" id="cv" aria-busy="true">
     <p style="color:var(--muted)">Loading…</p>
@@ -371,7 +395,7 @@
 
     function nowSection(items){
       if(!items || !items.length) return '';
-      return `<section><h2>Now / Building</h2>${items.map(p=>`
+      return `<section class="now"><h2>Now / Building</h2>${items.map(p=>`
         <div class="entry">
           <div class="entry-head"><span class="entry-title">${esc(p.name)}</span></div>
           <p class="entry-summary">${esc(p.blurb)}</p>
@@ -463,9 +487,73 @@
       el.setAttribute('aria-busy','false');
     }
 
+    const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+    const NAV_LABELS = { 'now-building':'Building', 'community-content':'Community', 'education-about':'Education' };
+
+    function enhance(){
+      const cvEl = document.getElementById('cv');
+      const sections = [...cvEl.querySelectorAll(':scope > section')];
+      const nav = document.getElementById('secnav');
+
+      // Build the section nav from whatever sections were rendered
+      sections.forEach(s=>{
+        const h = s.querySelector('h2'); if(!h) return;
+        const id = slug(h.textContent);
+        s.id = id;
+        const a = document.createElement('a');
+        a.href = '#'+id;
+        a.textContent = NAV_LABELS[id] || h.textContent.trim();
+        a.dataset.target = id;
+        nav.appendChild(a);
+      });
+      const links = [...nav.querySelectorAll('a')];
+
+      // Scroll-reveal (sections + footer block)
+      const revealEls = [...sections];
+      const footer = cvEl.querySelector('.grid2'); if(footer) revealEls.push(footer);
+      revealEls.forEach(el=>el.classList.add('reveal'));
+      // Hard reveal: drop the .reveal hidden state entirely so visibility never
+      // depends on a transition actually running (belt-and-braces for odd envs).
+      const hardReveal = ()=>revealEls.forEach(el=>{ el.classList.add('in'); el.classList.remove('reveal'); });
+
+      try{
+        if('IntersectionObserver' in window){
+          const ro = new IntersectionObserver((entries)=>{
+            entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); ro.unobserve(e.target); } });
+          }, { rootMargin:'0px 0px -8% 0px', threshold:0.05 });
+          revealEls.forEach(el=>ro.observe(el));
+
+          // Scroll-spy: highlight the section crossing the middle band
+          const so = new IntersectionObserver((entries)=>{
+            entries.forEach(e=>{ if(e.isIntersecting){
+              links.forEach(l=>l.classList.toggle('active', l.dataset.target===e.target.id));
+            }});
+          }, { rootMargin:'-45% 0px -50% 0px', threshold:0 });
+          sections.forEach(s=>so.observe(s));
+        } else {
+          hardReveal();
+        }
+      }catch(e){ hardReveal(); }
+
+      // Fail-safe: if nothing has revealed shortly after load, force everything visible
+      setTimeout(()=>{ if(!cvEl.querySelector('.reveal.in')) hardReveal(); }, 1000);
+
+      // Scroll-progress bar
+      const prog = document.getElementById('progress');
+      const onScroll = ()=>{
+        const h = document.documentElement;
+        const max = h.scrollHeight - h.clientHeight;
+        prog.style.width = (max>0 ? (h.scrollTop/max)*100 : 0) + '%';
+      };
+      window.addEventListener('scroll', onScroll, { passive:true });
+      onScroll();
+    }
+
     try{
+      document.documentElement.classList.add('js');
       const data = JSON.parse(document.getElementById('cv-data').textContent);
       render(data);
+      enhance();
     }catch(err){
       document.getElementById('cv').innerHTML =
         `<p style="color:var(--muted)">Couldn't read the embedded CV data (${esc(err.message)}).</p>`;
