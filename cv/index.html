@@ -139,6 +139,11 @@
     .contact a{transition:color .15s}
     .now .entry{border:1px solid var(--rule);border-radius:10px;padding:16px 18px;margin-bottom:12px}
     .now .entry:last-child{margin-bottom:0}
+    .entry-title a{color:inherit;text-decoration:none;border-bottom:1px solid var(--rule);transition:color .15s,border-color .15s}
+    .entry-title a:hover{color:var(--accent);border-bottom-color:var(--accent)}
+    .entry-title .ext{color:var(--muted);font-size:.82em;border:none}
+    .now-fig{display:block;margin:12px 0 2px}
+    .now-fig img{display:block;width:100%;max-width:420px;height:auto;border:1px solid var(--rule);border-radius:8px;background:#f6f5f2}
 
     /* ── Scroll reveal (only when JS runs; print & reduced-motion opt out) ── */
     html.js .reveal{opacity:0;transform:translateY(14px);transition:opacity .5s ease,transform .5s ease}
@@ -232,6 +237,12 @@
       "name": "Fabric Data App",
       "blurb": "Microsoft Fabric Analytics web apps (React / Vite) that read live semantic models and embed natively in the Fabric portal, exploring the new Fabric app-development model.",
       "tags": ["Microsoft Fabric", "React", "Vite", "Semantic models"]
+    },
+    {
+      "name": "Kayak Spots",
+      "link": "https://powerbiferrytales.github.io/kayak-spots/",
+      "blurb": "An interactive map of over 3,600 kayak launch and take-out spots across Germany and Europe, published as an installable web app (PWA). The spot data is enriched from OpenStreetMap with Python.",
+      "tags": ["Leaflet", "OpenStreetMap", "Python", "PWA", "GitHub Pages"]
     }
   ],
   "experience": [
@@ -396,12 +407,24 @@
 
     function nowSection(items){
       if(!items || !items.length) return '';
-      return `<section class="now"><h2>Now / Building</h2>${items.map(p=>`
-        <div class="entry">
-          <div class="entry-head"><span class="entry-title">${esc(p.name)}</span></div>
+      return `<section class="now"><h2>Now / Building</h2>${items.map(p=>{
+        const title = p.link
+          ? `<a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(p.name)} <span class="ext" aria-hidden="true">↗</span></a>`
+          : esc(p.name);
+        let fig = '';
+        if(p.image){
+          const img = `<img src="${esc(p.image)}" alt="${esc(p.imageAlt||p.name)}" loading="lazy">`;
+          fig = p.link
+            ? `<a class="now-fig" href="${esc(p.link)}" target="_blank" rel="noopener">${img}</a>`
+            : `<div class="now-fig">${img}</div>`;
+        }
+        return `<div class="entry">
+          <div class="entry-head"><span class="entry-title">${title}</span></div>
           <p class="entry-summary">${esc(p.blurb)}</p>
+          ${fig}
           ${tags(p.tags)}
-        </div>`).join('')}</section>`;
+        </div>`;
+      }).join('')}</section>`;
     }
 
     function experienceSection(items, note){
