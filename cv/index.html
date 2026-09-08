@@ -358,6 +358,11 @@
       "items": ["Public Speaking", "Training & Enablement", "Technical Writing"]
     }
   ],
+  "certifications": [
+    { "name": "SQL Analytics on Databricks", "kind": "Knowledge Badge", "issuer": "Databricks", "issued": "Aug 2026", "credentialId": "191169979" },
+    { "name": "Data Governance & Security (Execution)", "kind": "Partner Training", "issuer": "Databricks", "issued": "Aug 2026", "expires": "Aug 2028", "credentialId": "191091090" },
+    { "name": "AI/BI for Data Analysts", "kind": "Knowledge Badge", "issuer": "Databricks", "issued": "Jun 2026", "credentialId": "184739327" }
+  ],
   "speaking": [
     { "event": "Budapest BI Forum 2025", "date": "Nov 2025", "talk": "Deneb, the Star of Data Visualisation" },
     { "event": "Budapest BI Forum 2025", "date": "Nov 2025", "talk": "Deneb Dashboards in a Day", "label": "Full-day workshop" },
@@ -450,6 +455,20 @@
         </div>`).join('')}</section>`;
     }
 
+    function certificationsSection(items){
+      if(!items || !items.length) return '';
+      return `<section><h2>Certifications</h2>${items.map(c=>{
+        const label = c.kind ? `<span class="talk-label">${esc(c.kind)}</span>` : '';
+        const sub = [esc(c.issuer)];
+        if(c.expires) sub.push(`expires ${esc(c.expires)}`);
+        if(c.credentialId) sub.push(`ID ${esc(c.credentialId)}`);
+        return `<div class="talk">
+          <div class="meta"><div class="title">${esc(c.name)}${label}</div><div class="event">${sub.join(' · ')}</div></div>
+          <div class="date">${esc(c.issued)}</div>
+        </div>`;
+      }).join('')}</section>`;
+    }
+
     function speakingSection(items){
       if(!items || !items.length) return '';
       return `<section><h2>Speaking</h2>${items.map(t=>`
@@ -502,6 +521,7 @@
         ${experienceSection(cv.experience, cv.experienceNote)}
         ${nowSection(cv.now)}
         ${skillsSection(cv.skills)}
+        ${certificationsSection(cv.certifications)}
         ${speakingSection(cv.speaking)}
         ${communitySection(cv.community)}
         ${footerSections(cv)}
@@ -512,7 +532,7 @@
     }
 
     const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
-    const NAV_LABELS = { 'now-building':'Building', 'community-content':'Community', 'education-about':'Education' };
+    const NAV_LABELS = { 'now-building':'Building', 'certifications':'Certs', 'community-content':'Community', 'education-about':'Education' };
 
     function enhance(){
       const cvEl = document.getElementById('cv');
