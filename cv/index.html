@@ -133,6 +133,7 @@
     /* ── Two-up footer sections ── */
     .grid2{display:grid;grid-template-columns:1fr 1fr;gap:30px}
     .pill-list{display:flex;flex-wrap:wrap;gap:6px}
+    .footer .interests{color:var(--muted);margin-top:8px}
     .note{color:var(--muted);font-size:.85rem;font-style:italic;margin-top:10px}
 
     /* ── Website-feel touches (screen only) ── */
@@ -384,11 +385,8 @@
     { "name": "Open-source tooling", "blurb": "Browser-based BI tools, chart builders and templates, published openly on GitHub Pages." },
     { "name": "Active in the data community", "blurb": "A regular voice on the Power BI and Microsoft Fabric circuit, sharing on Bluesky and LinkedIn." }
   ],
-  "education": [
-    { "qualification": "Bachelor of Arts", "institution": "Northumbria University", "period": "2002 – 2006" }
-  ],
-  "about": ["British", "Moved to Germany in 2006", "German Permanent Residency", "Proficient in German", "Married with 2 children", "Nerd"],
-  "interests": ["Kayaking", "Plays golf badly", "Plays ukulele", "Loves to bake"]
+  "about": "British, in Germany since 2006, now a permanent resident and proficient in German. Married with two children. And a nerd.",
+  "interests": "Away from the screen: kayaking, golf (badly), ukulele, and baking."
 }
   </script>
 
@@ -488,23 +486,10 @@
     }
 
     function footerSections(cv){
-      const edu = (cv.education||[]).map(e=>`
-        <div class="entry">
-          <div class="entry-head">
-            <span class="entry-title">${esc(e.qualification)}</span>
-            <span class="entry-dates">${esc(e.period)}</span>
-          </div>
-          <div class="entry-org">${esc(e.institution)}</div>
-        </div>`).join('');
-      const about = (cv.about||[]).map(a=>`<span class="tag">${esc(a)}</span>`).join('');
-      const interests = (cv.interests||[]).map(a=>`<span class="tag">${esc(a)}</span>`).join('');
-      return `
-        <div class="grid2">
-          <section style="margin-top:0"><h2>Education</h2>${edu}</section>
-          <section style="margin-top:0"><h2>About</h2><div class="pill-list">${about}</div>
-            ${interests?`<h3 style="font-size:.82rem;font-weight:600;margin:14px 0 6px">Also</h3><div class="pill-list">${interests}</div>`:''}
-          </section>
-        </div>`;
+      const about = cv.about ? `<p>${esc(cv.about)}</p>` : '';
+      const interests = cv.interests ? `<p class="interests">${esc(cv.interests)}</p>` : '';
+      if(!about && !interests) return '';
+      return `<div class="footer"><section style="margin-top:0"><h2>About</h2>${about}${interests}</section></div>`;
     }
 
     function render(cv){
@@ -554,7 +539,7 @@
 
       // Scroll-reveal (sections + footer block)
       const revealEls = [...sections];
-      const footer = cvEl.querySelector('.grid2'); if(footer) revealEls.push(footer);
+      const footer = cvEl.querySelector('.footer'); if(footer) revealEls.push(footer);
       revealEls.forEach(el=>el.classList.add('reveal'));
       // Hard reveal: drop the .reveal hidden state entirely so visibility never
       // depends on a transition actually running (belt-and-braces for odd envs).
