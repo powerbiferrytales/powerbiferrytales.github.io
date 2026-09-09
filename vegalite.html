@@ -1095,6 +1095,142 @@ body.light-mode .hd-cn { color: #c2410c; }
 .help-link-icon { font-size: 24px; flex-shrink: 0; }
 .help-link-label { font-size: 14px; font-weight: 700; letter-spacing: 0.04em; color: var(--accent); }
 .help-link-desc { font-size: 13px; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+/* ─── CAPTURE & PRESENTATION MODE ─── */
+.capture-badge {
+  display:inline-block;background:var(--accent);color:#000;
+  font-size:11px;font-weight:700;padding:1px 7px;border-radius:9px;
+  margin-left:6px;vertical-align:middle;
+}
+#present-overlay {
+  position:fixed;inset:0;z-index:600;background:var(--bg);
+  display:flex;flex-direction:column;
+}
+#present-overlay.hidden { display:none; }
+#present-chart-wrap {
+  flex:1;position:relative;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+#present-chart-inner {
+  position:relative;width:50%;height:85%;
+}
+.present-chart-layer {
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:32px;overflow:auto;
+  transition:opacity 0.6s ease;
+}
+.present-chart-layer.behind { opacity:0;z-index:0; }
+.present-chart-layer.front { opacity:1;z-index:1; }
+#present-controls {
+  display:flex;align-items:center;justify-content:center;gap:14px;
+  padding:14px 24px;background:var(--surface);border-top:1px solid var(--border);
+  flex-shrink:0;
+}
+#present-controls button {
+  background:none;border:1px solid var(--border2);color:var(--muted);
+  font-size:13px;font-family:var(--mono);padding:6px 14px;
+  border-radius:3px;cursor:pointer;letter-spacing:0.05em;
+}
+#present-controls button:hover { border-color:var(--accent);color:var(--accent); }
+#present-controls button.active { border-color:var(--accent);color:var(--accent); }
+#present-speed {
+  background:var(--surface2);color:var(--muted);border:1px solid var(--border2);
+  font-size:12px;font-family:var(--mono);padding:5px 8px;
+  border-radius:3px;cursor:pointer;letter-spacing:0.04em;
+}
+.present-dots { display:flex;gap:8px;align-items:center;margin:0 12px; }
+.present-dot {
+  width:10px;height:10px;border-radius:50%;background:var(--border2);
+  cursor:pointer;transition:all 0.2s;
+}
+.present-dot.active { background:var(--accent);transform:scale(1.3); }
+.present-dot:hover { background:var(--muted); }
+.present-dot.active:hover { background:var(--accent); }
+#present-step-label {
+  color:var(--muted);font-size:12px;font-family:var(--mono);
+  letter-spacing:0.06em;min-width:80px;text-align:center;
+}
+#present-editor {
+  position:absolute;right:0;top:0;bottom:56px;width:380px;
+  background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:610;
+  transform:translateX(100%);transition:transform 0.25s ease;
+}
+#present-editor.open { transform:translateX(0); }
+#present-editor-head {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 16px;border-bottom:1px solid var(--border);
+}
+#present-editor-head span { color:var(--accent);font-size:13px;font-weight:700;letter-spacing:0.06em;font-family:var(--mono); }
+#present-editor-head button { background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px; }
+#present-editor-head button:hover { color:var(--accent); }
+#present-step-list {
+  flex:1;overflow-y:auto;padding:10px;
+}
+.present-step-item {
+  background:var(--surface2);border:1px solid var(--border);border-radius:4px;
+  margin-bottom:8px;padding:10px 12px;cursor:pointer;
+  transition:border-color 0.15s;
+}
+.present-step-item:hover { border-color:var(--border2); }
+.present-step-item.active { border-color:var(--accent); }
+.present-step-head {
+  display:flex;align-items:center;justify-content:space-between;
+}
+.present-step-name {
+  color:var(--text);font-size:12px;font-family:var(--mono);font-weight:700;
+  letter-spacing:0.04em;
+}
+.present-step-desc {
+  color:var(--muted);font-size:11px;font-family:var(--mono);margin-top:4px;
+}
+.present-step-actions { display:flex;gap:4px; }
+.present-step-actions button {
+  background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 4px;
+}
+.present-step-actions button:hover { color:var(--accent); }
+
+/* ─── PRESENT CODE OVERLAY ─── */
+#present-code-panel {
+  position:absolute;z-index:620;
+  background:color-mix(in srgb, var(--surface) 90%, transparent);border:1px solid var(--border2);border-radius:6px;
+  backdrop-filter:blur(12px);
+  max-width:50vw;max-height:60vh;min-width:220px;
+  display:flex;flex-direction:column;
+  transition:opacity 0.3s;
+}
+#present-code-panel.hidden { display:none; }
+#present-code-panel.pos-tl { top:24px;left:24px; }
+#present-code-panel.pos-tr { top:24px;right:24px; }
+#present-code-panel.pos-bl { bottom:70px;left:24px; }
+#present-code-panel.pos-br { bottom:70px;right:24px; }
+#present-code-head {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 12px;border-bottom:1px solid var(--border2);flex-shrink:0;
+}
+#present-code-head span { color:var(--accent);font-size:11px;font-weight:700;letter-spacing:0.06em;font-family:var(--mono); }
+#present-code-settings {
+  display:flex;align-items:center;gap:8px;
+}
+#present-code-settings select, #present-code-settings input {
+  background:var(--surface2);color:var(--text);border:1px solid var(--border2);border-radius:3px;
+  font-size:11px;padding:2px 5px;font-family:var(--mono);
+}
+#present-code-settings select { max-width:120px; }
+#present-code-settings input[type="number"] { width:42px;text-align:center; }
+#present-code-settings button {
+  background:none;border:1px solid var(--border2);color:var(--muted);cursor:pointer;
+  font-size:11px;padding:2px 6px;border-radius:3px;font-family:var(--mono);
+}
+#present-code-settings button:hover { border-color:var(--accent);color:var(--accent); }
+#present-code-settings button.active { border-color:var(--accent);color:var(--accent); }
+#present-code-body {
+  overflow:auto;padding:12px 14px;flex:1;
+  color:var(--text);line-height:1.6;white-space:pre;tab-size:2;
+}
+#present-code-body .diff-add { color:var(--green); }
+#present-code-body .diff-key { color:var(--accent); }
 </style>
 </head>
 <body>
@@ -1123,6 +1259,8 @@ body.light-mode .hd-cn { color: #c2410c; }
         <button class="share-opt" id="sopt-view-deneb">VIEW AS DENEB<span class="share-opt-desc">Format spec for Power BI Deneb</span></button>
       </div>
     </div>
+    <button class="btn" id="btn-capture" title="Save current chart state as a presentation step">⏺ CAPTURE</button>
+    <button class="btn" id="btn-present" title="Play captured presentation">▶ PRESENT<span class="capture-badge hidden" id="capture-count"></span></button>
     <button class="btn" id="btn-help" title="Open help guide">? HELP</button>
     <a class="btn" href="https://powerbiferrytales.github.io/" target="_blank" rel="noopener" title="Visit Ferry Tales website">⬡ WEBSITE</a>
     <div class="header-btns"></div>
@@ -1873,6 +2011,64 @@ body.light-mode .hd-cn { color: #c2410c; }
         overflow:auto;padding:16px;
       "></div>
     </div>
+  </div>
+</div>
+
+<!-- ─── PRESENTATION OVERLAY ─── -->
+<div id="present-overlay" class="hidden">
+  <div id="present-chart-wrap">
+    <div id="present-chart-inner">
+      <div id="present-chart-a" class="present-chart-layer front"></div>
+      <div id="present-chart-b" class="present-chart-layer behind"></div>
+    </div>
+  </div>
+  <div id="present-editor">
+    <div id="present-editor-head">
+      <span>STEPS</span>
+      <div style="display:flex;gap:6px;">
+        <button id="present-clear-steps" title="Clear all steps" style="font-size:12px;font-family:var(--mono);letter-spacing:0.04em;">CLEAR</button>
+        <button id="present-editor-close" title="Close editor">✕</button>
+      </div>
+    </div>
+    <div id="present-step-list"></div>
+  </div>
+  <div id="present-code-panel" class="hidden pos-tr">
+    <div id="present-code-head">
+      <span>CHANGES</span>
+      <div id="present-code-settings">
+        <select id="present-code-font" title="Font">
+          <option value="'Cascadia Code',monospace">Cascadia Code</option>
+          <option value="'Fira Code',monospace">Fira Code</option>
+          <option value="'JetBrains Mono',monospace">JetBrains Mono</option>
+          <option value="Consolas,monospace">Consolas</option>
+          <option value="'Courier New',monospace">Courier New</option>
+          <option value="monospace" selected>System Mono</option>
+        </select>
+        <input type="number" id="present-code-size" value="13" min="9" max="24" title="Font size">
+        <button data-pos="tl" title="Top left">↖</button>
+        <button data-pos="tr" class="active" title="Top right">↗</button>
+        <button data-pos="bl" title="Bottom left">↙</button>
+        <button data-pos="br" title="Bottom right">↘</button>
+      </div>
+    </div>
+    <pre id="present-code-body"></pre>
+  </div>
+  <div id="present-controls">
+    <button id="present-edit-btn" title="Reorder or remove steps">STEPS</button>
+    <button id="present-code-toggle" title="Show/hide code changes">CODE</button>
+    <button id="present-prev" title="Previous step">◀</button>
+    <button id="present-play" title="Play / Pause">▶ PLAY</button>
+    <button id="present-next" title="Next step">▶</button>
+    <select id="present-speed" title="Transition speed">
+      <option value="1500">1.5s</option>
+      <option value="2000">2s</option>
+      <option value="3000" selected>3s</option>
+      <option value="5000">5s</option>
+      <option value="8000">8s</option>
+    </select>
+    <div class="present-dots" id="present-dots"></div>
+    <span id="present-step-label"></span>
+    <button id="present-exit" title="Exit presentation">✕ EXIT</button>
   </div>
 </div>
 
@@ -3411,6 +3607,297 @@ function viewAsDeneb() {
   showCodeViewer('DENEB SPEC', JSON.stringify(denebSpec, null, 2), renderSpec, 'vega-lite', configJson);
 }
 
+// ─── PRESENTATION MODE ────────────────────────────────────────
+const _present = {
+  steps: [],
+  current: 0,
+  playing: false,
+  timer: null,
+  embedA: null,
+  embedB: null,
+  activeLayer: 'a',
+  interval: 3000,
+};
+
+function _captureStep() {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  else configBuffer = cmEditor.getValue();
+  let spec, config;
+  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return; }
+  try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return; }
+  _present.steps.push({
+    name: `Step ${_present.steps.length + 1}`,
+    spec: JSON.parse(JSON.stringify(spec)),
+    config: JSON.parse(JSON.stringify(config)),
+  });
+  const n = _present.steps.length;
+  const badge = document.getElementById('capture-count');
+  badge.textContent = n;
+  badge.classList.remove('hidden');
+  showShareFeedback(`✓ Step ${n} captured`, 'var(--accent)', 1500);
+}
+
+function _presentGetSpec(stepIndex) {
+  const step = _present.steps[stepIndex];
+  if (!step) return null;
+  const wrap = document.getElementById('present-chart-inner');
+  const w = wrap.clientWidth - 64;
+  const h = wrap.clientHeight - 64;
+  return { ...step.spec, config: step.config, width: w, height: h, autosize: { type: 'fit', contains: 'padding' } };
+}
+
+async function _presentRender(stepIndex, animate) {
+  const spec = _presentGetSpec(stepIndex);
+  if (!spec) return;
+  const bg = spec.config?.background || spec.background || getComputedStyle(document.body).getPropertyValue('--bg').trim();
+  document.getElementById('present-overlay').style.background = bg;
+
+  if (!animate) {
+    const layerEl = document.getElementById('present-chart-a');
+    layerEl.innerHTML = '';
+    layerEl.style.background = bg;
+    layerEl.className = 'present-chart-layer front';
+    document.getElementById('present-chart-b').className = 'present-chart-layer behind';
+    if (_present.embedA) { try { _present.embedA.finalize(); } catch(_){} }
+    if (_present.embedB) { try { _present.embedB.finalize(); } catch(_){} }
+    _present.embedA = null; _present.embedB = null;
+    try {
+      const r = await vegaEmbed(layerEl, spec, { renderer: 'svg', actions: false });
+      _present.embedA = r;
+    } catch(_) {}
+    _present.activeLayer = 'a';
+  } else {
+    const nextId = _present.activeLayer === 'a' ? 'b' : 'a';
+    const nextEl = document.getElementById('present-chart-' + nextId);
+    const currEl = document.getElementById('present-chart-' + _present.activeLayer);
+    const embedKey = 'embed' + nextId.toUpperCase();
+    const currEmbedKey = 'embed' + _present.activeLayer.toUpperCase();
+
+    nextEl.innerHTML = '';
+    nextEl.style.background = bg;
+
+    if (_present[embedKey]) { try { _present[embedKey].finalize(); } catch(_){} _present[embedKey] = null; }
+    try {
+      const r = await vegaEmbed(nextEl, spec, { renderer: 'svg', actions: false });
+      _present[embedKey] = r;
+    } catch(_) {}
+
+    nextEl.className = 'present-chart-layer front';
+    currEl.className = 'present-chart-layer behind';
+
+    _present.activeLayer = nextId;
+    setTimeout(() => {
+      if (_present[currEmbedKey]) { try { _present[currEmbedKey].finalize(); } catch(_){} _present[currEmbedKey] = null; }
+      currEl.innerHTML = '';
+    }, 700);
+  }
+
+  _present.current = stepIndex;
+  _presentUpdateUI();
+}
+
+function _presentUpdateUI() {
+  const dots = document.getElementById('present-dots');
+  const total = _present.steps.length;
+  dots.innerHTML = '';
+  for (let i = 0; i < total; i++) {
+    const dot = document.createElement('div');
+    dot.className = 'present-dot' + (i === _present.current ? ' active' : '');
+    dot.onclick = () => _presentGoTo(i);
+    dots.appendChild(dot);
+  }
+  document.getElementById('present-step-label').textContent =
+    `${_present.current + 1} / ${total}`;
+  document.getElementById('present-play').textContent =
+    _present.playing ? '⏸ PAUSE' : '▶ PLAY';
+
+  document.querySelectorAll('.present-step-item').forEach((el, i) => {
+    el.classList.toggle('active', i === _present.current);
+  });
+  _presentUpdateCode();
+}
+
+function _presentGoTo(index) {
+  if (index < 0 || index >= _present.steps.length) return;
+  _presentRender(index, true);
+}
+
+function _presentNext() {
+  const next = _present.current + 1;
+  if (next >= _present.steps.length) {
+    if (_present.playing) _presentPause();
+    return;
+  }
+  _presentGoTo(next);
+}
+
+function _presentPrev() {
+  _presentGoTo(_present.current - 1);
+}
+
+function _presentPlay() {
+  if (_present.steps.length < 2) return;
+  _present.playing = true;
+  _presentUpdateUI();
+  _present.timer = setInterval(() => _presentNext(), _present.interval);
+}
+
+function _presentPause() {
+  _present.playing = false;
+  if (_present.timer) { clearInterval(_present.timer); _present.timer = null; }
+  _presentUpdateUI();
+}
+
+function _presentTogglePlay() {
+  if (_present.playing) _presentPause();
+  else _presentPlay();
+}
+
+function _presentRenderStepList() {
+  const list = document.getElementById('present-step-list');
+  list.innerHTML = '';
+  _present.steps.forEach((step, i) => {
+    const item = document.createElement('div');
+    item.className = 'present-step-item' + (i === _present.current ? ' active' : '');
+    const markType = step.spec.mark?.type || step.spec.mark || '—';
+    const theme = step.config?.background ? step.config.background : '';
+    item.innerHTML = `
+      <div class="present-step-head">
+        <span class="present-step-name" contenteditable="true">${step.name}</span>
+        <div class="present-step-actions">
+          ${i > 0 ? '<button data-act="up" title="Move up">↑</button>' : ''}
+          ${i < _present.steps.length - 1 ? '<button data-act="down" title="Move down">↓</button>' : ''}
+          ${_present.steps.length > 1 ? '<button data-act="del" title="Delete step">✕</button>' : ''}
+        </div>
+      </div>
+      <div class="present-step-desc">${markType}${theme ? ' · ' + theme : ''}</div>
+    `;
+    const nameEl = item.querySelector('.present-step-name');
+    nameEl.addEventListener('blur', () => { step.name = nameEl.textContent.trim() || `Step ${i+1}`; });
+    nameEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); } });
+
+    item.addEventListener('click', e => {
+      if (e.target.tagName === 'BUTTON' || e.target.isContentEditable) return;
+      _presentGoTo(i);
+    });
+
+    item.querySelectorAll('[data-act]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const act = btn.dataset.act;
+        if (act === 'del') {
+          _present.steps.splice(i, 1);
+          if (_present.current >= _present.steps.length) _present.current = _present.steps.length - 1;
+        } else if (act === 'up' && i > 0) {
+          [_present.steps[i-1], _present.steps[i]] = [_present.steps[i], _present.steps[i-1]];
+        } else if (act === 'down' && i < _present.steps.length - 1) {
+          [_present.steps[i], _present.steps[i+1]] = [_present.steps[i+1], _present.steps[i]];
+        }
+        _presentRenderStepList();
+        _presentUpdateUI();
+      });
+    });
+
+    list.appendChild(item);
+  });
+}
+
+// ─── Code overlay diff ────────────────────────────────────────
+function _specDiff(prev, curr) {
+  if (!prev) return curr;
+  const diff = {};
+  for (const key of Object.keys(curr)) {
+    const pv = prev[key], cv = curr[key];
+    if (JSON.stringify(pv) === JSON.stringify(cv)) continue;
+    if (pv && cv && typeof pv === 'object' && typeof cv === 'object' && !Array.isArray(pv) && !Array.isArray(cv)) {
+      const nested = _specDiff(pv, cv);
+      if (Object.keys(nested).length > 0) diff[key] = nested;
+    } else {
+      diff[key] = cv;
+    }
+  }
+  for (const key of Object.keys(prev)) {
+    if (!(key in curr)) diff[key] = undefined;
+  }
+  return diff;
+}
+
+function _presentUpdateCode() {
+  const panel = document.getElementById('present-code-panel');
+  if (panel.classList.contains('hidden')) return;
+  const body = document.getElementById('present-code-body');
+  const idx = _present.current;
+
+  if (idx === 0) {
+    body.innerHTML = '<span style="color:#666">— Base state —</span>';
+    return;
+  }
+
+  const prev = _present.steps[idx - 1];
+  const curr = _present.steps[idx];
+  const specDiff = _specDiff(prev.spec, curr.spec);
+  const cfgDiff = _specDiff(prev.config, curr.config);
+  const hasCfg = Object.keys(cfgDiff).length > 0;
+  const hasSpec = Object.keys(specDiff).length > 0;
+
+  if (!hasSpec && !hasCfg) {
+    body.innerHTML = '<span style="color:#666">— No changes —</span>';
+    return;
+  }
+
+  let html = '';
+  if (hasSpec) {
+    html += _diffToHtml(specDiff);
+  }
+  if (hasCfg) {
+    if (hasSpec) html += '\n\n<span class="diff-key">// config</span>\n';
+    html += _diffToHtml(cfgDiff);
+  }
+  body.innerHTML = html;
+}
+
+function _diffToHtml(obj) {
+  const json = JSON.stringify(obj, null, 2);
+  return json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"([^"]+)":/g, '<span class="diff-key">"$1"</span>:');
+}
+
+function _presentToggleCode() {
+  const panel = document.getElementById('present-code-panel');
+  const btn = document.getElementById('present-code-toggle');
+  panel.classList.toggle('hidden');
+  btn.classList.toggle('active', !panel.classList.contains('hidden'));
+  if (!panel.classList.contains('hidden')) _presentUpdateCode();
+}
+
+function enterPresentation() {
+  if (_present.steps.length < 2) {
+    showShareFeedback('⚠ Capture at least 2 steps first', 'var(--red)', 2500);
+    return;
+  }
+  _present.current = 0;
+  _present.playing = false;
+  if (_present.timer) { clearInterval(_present.timer); _present.timer = null; }
+
+  document.getElementById('present-overlay').classList.remove('hidden');
+  _presentRenderStepList();
+  _presentRender(0, false);
+}
+
+function exitPresentation() {
+  _presentPause();
+  if (_present.embedA) { try { _present.embedA.finalize(); } catch(_){} _present.embedA = null; }
+  if (_present.embedB) { try { _present.embedB.finalize(); } catch(_){} _present.embedB = null; }
+  document.getElementById('present-chart-a').innerHTML = '';
+  document.getElementById('present-chart-b').innerHTML = '';
+  const overlay = document.getElementById('present-overlay');
+  overlay.style.background = '';
+  overlay.classList.add('hidden');
+  document.getElementById('present-editor').classList.remove('open');
+  document.getElementById('present-code-panel').classList.add('hidden');
+  document.getElementById('present-code-toggle').classList.remove('active');
+}
+
 function loadSpecFromHash() {
   try {
     const hash = location.hash;
@@ -3590,6 +4077,53 @@ function bindEvents() {
         btn.textContent = '✓ COPIED!';
         setTimeout(() => { btn.textContent = 'COPY CONFIG'; }, 1800);
       });
+  });
+
+  // Capture & Presentation mode
+  document.getElementById('btn-capture').onclick = _captureStep;
+  document.getElementById('btn-present').onclick = enterPresentation;
+  document.getElementById('present-clear-steps').onclick = () => {
+    _present.steps = [];
+    document.getElementById('capture-count').classList.add('hidden');
+    _presentRenderStepList();
+    _presentUpdateUI();
+  };
+  document.getElementById('present-exit').onclick = exitPresentation;
+  document.getElementById('present-play').onclick = _presentTogglePlay;
+  document.getElementById('present-next').onclick = _presentNext;
+  document.getElementById('present-prev').onclick = _presentPrev;
+  document.getElementById('present-speed').onchange = function() {
+    _present.interval = parseInt(this.value);
+    if (_present.playing) { _presentPause(); _presentPlay(); }
+  };
+  document.getElementById('present-edit-btn').onclick = () => {
+    document.getElementById('present-editor').classList.toggle('open');
+  };
+  document.getElementById('present-editor-close').onclick = () => {
+    document.getElementById('present-editor').classList.remove('open');
+  };
+  document.getElementById('present-code-toggle').onclick = _presentToggleCode;
+  document.getElementById('present-code-font').onchange = function() {
+    document.getElementById('present-code-body').style.fontFamily = this.value;
+  };
+  document.getElementById('present-code-size').onchange = function() {
+    document.getElementById('present-code-body').style.fontSize = this.value + 'px';
+  };
+  document.querySelectorAll('#present-code-settings [data-pos]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panel = document.getElementById('present-code-panel');
+      panel.className = panel.className.replace(/pos-\w+/, 'pos-' + btn.dataset.pos);
+      document.querySelectorAll('#present-code-settings [data-pos]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('present-overlay').classList.contains('hidden')) return;
+    if (e.target.isContentEditable) return;
+    if (e.key === 'Escape') exitPresentation();
+    else if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); _presentNext(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); _presentPrev(); }
+    else if (e.key === 'c' || e.key === 'C') _presentToggleCode();
   });
 
   document.getElementById('btn-theme-toggle').onclick    = toggleStudioTheme;
