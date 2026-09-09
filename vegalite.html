@@ -1231,6 +1231,45 @@ body.light-mode .hd-cn { color: #c2410c; }
 }
 #present-code-body .diff-add { color:var(--green); }
 #present-code-body .diff-key { color:var(--accent); }
+
+/* ─── ANNOTATION OVERLAY ─── */
+#present-annotate-svg {
+  position:absolute;inset:0;width:100%;height:100%;z-index:615;pointer-events:none;
+}
+#present-annotate-svg.active { pointer-events:auto;cursor:crosshair; }
+#present-annotate-svg.active.tool-text { cursor:text; }
+#present-annotate-toolbar {
+  position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:625;
+  display:flex;align-items:center;gap:2px;
+  background:color-mix(in srgb, var(--surface) 92%, transparent);
+  border:1px solid var(--border2);border-radius:6px;padding:4px 8px;
+  backdrop-filter:blur(12px);
+}
+#present-annotate-toolbar.hidden { display:none; }
+.ann-tool {
+  display:flex;align-items:center;justify-content:center;
+  width:30px;height:28px;border-radius:4px;cursor:pointer;
+  border:1px solid transparent;color:var(--muted);font-size:15px;
+}
+.ann-tool:hover { color:var(--text); }
+.ann-tool.active { background:var(--accent-glow);border-color:var(--accent);color:var(--accent); }
+.ann-sep { width:1px;height:18px;background:var(--border2);margin:0 4px; }
+.ann-color {
+  width:16px;height:16px;border-radius:50%;cursor:pointer;
+  border:2px solid transparent;box-sizing:border-box;
+}
+.ann-color.active { border-color:var(--accent); }
+#ann-size {
+  background:var(--surface);color:var(--muted);border:1px solid var(--border2);
+  border-radius:4px;padding:2px 4px;font-size:11px;font-family:var(--font);
+  cursor:pointer;outline:none;height:28px;
+}
+#ann-size:focus { border-color:var(--accent); }
+.ann-text-input {
+  position:absolute;z-index:630;background:transparent;border:1px dashed var(--accent);
+  color:inherit;font-size:14px;font-family:var(--font);padding:2px 4px;
+  outline:none;min-width:60px;border-radius:2px;
+}
 </style>
 </head>
 <body>
@@ -2021,6 +2060,32 @@ body.light-mode .hd-cn { color: #c2410c; }
       <div id="present-chart-a" class="present-chart-layer front"></div>
       <div id="present-chart-b" class="present-chart-layer behind"></div>
     </div>
+    <svg id="present-annotate-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs id="ann-defs"></defs>
+      <rect width="100%" height="100%" fill="transparent"/>
+    </svg>
+    <div id="present-annotate-toolbar" class="hidden">
+      <div class="ann-tool active" data-tool="draw" title="Freehand draw">&#9998;</div>
+      <div class="ann-tool" data-tool="arrow" title="Arrow">&#8599;</div>
+      <div class="ann-tool" data-tool="text" title="Text">T</div>
+      <div class="ann-sep"></div>
+      <div class="ann-color active" data-color="#e24b4a" style="background:#e24b4a"></div>
+      <div class="ann-color" data-color="#2563eb" style="background:#2563eb"></div>
+      <div class="ann-color" data-color="#22c55e" style="background:#22c55e"></div>
+      <div class="ann-color" data-color="#f59e0b" style="background:#f59e0b"></div>
+      <div class="ann-color" data-color="#ffffff" style="background:#ffffff;border-color:var(--border2)"></div>
+      <div class="ann-color" data-color="#000000" style="background:#000000"></div>
+      <div class="ann-sep"></div>
+      <select id="ann-size" title="Stroke thickness">
+        <option value="1.5">Thin</option>
+        <option value="2.5" selected>Medium</option>
+        <option value="5">Thick</option>
+        <option value="8">Bold</option>
+      </select>
+      <div class="ann-sep"></div>
+      <div class="ann-tool" id="ann-undo" title="Undo">&#8630;</div>
+      <div class="ann-tool" id="ann-clear" title="Clear all">&#128465;</div>
+    </div>
   </div>
   <div id="present-editor">
     <div id="present-editor-head">
@@ -2056,6 +2121,7 @@ body.light-mode .hd-cn { color: #c2410c; }
   <div id="present-controls">
     <button id="present-edit-btn" title="Reorder or remove steps">STEPS</button>
     <button id="present-code-toggle" title="Show/hide code changes">CODE</button>
+    <button id="present-annotate-toggle" title="Draw annotations on chart">ANNOTATE</button>
     <button id="present-prev" title="Previous step">◀</button>
     <button id="present-play" title="Play / Pause">▶ PLAY</button>
     <button id="present-next" title="Next step">▶</button>
@@ -3693,6 +3759,7 @@ async function _presentRender(stepIndex, animate) {
   }
 
   _present.current = stepIndex;
+  _annClear();
   _presentUpdateUI();
 }
 
@@ -3870,6 +3937,168 @@ function _presentToggleCode() {
   if (!panel.classList.contains('hidden')) _presentUpdateCode();
 }
 
+/* ─── ANNOTATION ─── */
+const _ann = { tool: 'draw', color: '#e24b4a', size: 2.5, drawing: false, path: null, points: [], stack: [] };
+
+function _annToggle() {
+  const svg = document.getElementById('present-annotate-svg');
+  const tb = document.getElementById('present-annotate-toolbar');
+  const btn = document.getElementById('present-annotate-toggle');
+  const active = svg.classList.toggle('active');
+  tb.classList.toggle('hidden', !active);
+  btn.classList.toggle('active', active);
+  svg.classList.toggle('tool-text', active && _ann.tool === 'text');
+}
+
+function _annClear() {
+  const svg = document.getElementById('present-annotate-svg');
+  while (svg.children.length > 2) svg.removeChild(svg.lastChild);
+  _ann.stack = [];
+}
+
+function _annUndo() {
+  if (!_ann.stack.length) return;
+  const el = _ann.stack.pop();
+  el.remove();
+}
+
+function _annStartDraw(e) {
+  if (_ann.tool !== 'draw' && _ann.tool !== 'arrow') return;
+  const svg = document.getElementById('present-annotate-svg');
+  const rect = svg.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  _ann.drawing = true;
+  _ann.points = [{ x, y }];
+  if (_ann.tool === 'draw') {
+    _ann.path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    _ann.path.setAttribute('fill', 'none');
+    _ann.path.setAttribute('stroke', _ann.color);
+    _ann.path.setAttribute('stroke-width', _ann.size);
+    _ann.path.setAttribute('stroke-linecap', 'round');
+    _ann.path.setAttribute('stroke-linejoin', 'round');
+    _ann.path.setAttribute('d', `M${x} ${y}`);
+    svg.appendChild(_ann.path);
+  }
+}
+
+function _annMoveDraw(e) {
+  if (!_ann.drawing) return;
+  const svg = document.getElementById('present-annotate-svg');
+  const rect = svg.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  _ann.points.push({ x, y });
+  if (_ann.tool === 'draw' && _ann.path) {
+    _ann.path.setAttribute('d', _ann.path.getAttribute('d') + ` L${x} ${y}`);
+  }
+}
+
+function _annArrowMarker(color) {
+  const id = 'ann-arrow-' + color.replace('#', '');
+  if (document.getElementById(id)) return id;
+  const defs = document.getElementById('ann-defs');
+  const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+  marker.setAttribute('id', id);
+  marker.setAttribute('markerWidth', '10');
+  marker.setAttribute('markerHeight', '7');
+  marker.setAttribute('refX', '9');
+  marker.setAttribute('refY', '3.5');
+  marker.setAttribute('orient', 'auto');
+  const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+  poly.setAttribute('points', '0 0, 10 3.5, 0 7');
+  poly.setAttribute('fill', color);
+  marker.appendChild(poly);
+  defs.appendChild(marker);
+  return id;
+}
+
+function _annEndDraw(e) {
+  if (!_ann.drawing) return;
+  _ann.drawing = false;
+  if (_ann.tool === 'draw' && _ann.path) {
+    _ann.stack.push(_ann.path);
+    _ann.path = null;
+  } else if (_ann.tool === 'arrow' && _ann.points.length >= 2) {
+    const svg = document.getElementById('present-annotate-svg');
+    const start = _ann.points[0];
+    const end = _ann.points[_ann.points.length - 1];
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
+    line.setAttribute('x2', end.x); line.setAttribute('y2', end.y);
+    line.setAttribute('stroke', _ann.color);
+    line.setAttribute('stroke-width', _ann.size);
+    line.setAttribute('stroke-linecap', 'round');
+    line.setAttribute('marker-end', `url(#${_annArrowMarker(_ann.color)})`);
+    svg.appendChild(line);
+    _ann.stack.push(line);
+  }
+}
+
+function _annPlaceText(e) {
+  if (_ann.tool !== 'text') return;
+  const svg = document.getElementById('present-annotate-svg');
+  const wrap = document.getElementById('present-chart-wrap');
+  const rect = svg.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  svg.style.pointerEvents = 'none';
+  const input = document.createElement('input');
+  input.className = 'ann-text-input';
+  input.style.left = x + 'px';
+  input.style.top = y + 'px';
+  input.style.color = _ann.color;
+  wrap.appendChild(input);
+  setTimeout(() => input.focus(), 0);
+  const commit = () => {
+    const text = input.value.trim();
+    input.remove();
+    svg.style.pointerEvents = '';
+    if (!text) return;
+    const el = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    el.setAttribute('x', x); el.setAttribute('y', y + 16);
+    el.setAttribute('fill', _ann.color);
+    el.setAttribute('font-size', Math.max(14, _ann.size * 6));
+    el.setAttribute('font-family', 'var(--font)');
+    el.setAttribute('font-weight', '500');
+    el.textContent = text;
+    svg.appendChild(el);
+    _ann.stack.push(el);
+  };
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = ''; input.blur(); } });
+}
+
+function _annInitEvents() {
+  const svg = document.getElementById('present-annotate-svg');
+  svg.addEventListener('pointerdown', e => {
+    if (!svg.classList.contains('active')) return;
+    if (_ann.tool === 'text') { _annPlaceText(e); return; }
+    _annStartDraw(e);
+  });
+  svg.addEventListener('pointermove', _annMoveDraw);
+  svg.addEventListener('pointerup', _annEndDraw);
+  svg.addEventListener('pointerleave', _annEndDraw);
+
+  document.querySelectorAll('.ann-tool[data-tool]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ann-tool[data-tool]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _ann.tool = btn.dataset.tool;
+      const svg = document.getElementById('present-annotate-svg');
+      svg.classList.toggle('tool-text', _ann.tool === 'text');
+    });
+  });
+  document.querySelectorAll('.ann-color').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.ann-color').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _ann.color = btn.dataset.color;
+    });
+  });
+  document.getElementById('ann-size').addEventListener('change', e => { _ann.size = parseFloat(e.target.value); });
+  document.getElementById('ann-undo').addEventListener('click', _annUndo);
+  document.getElementById('ann-clear').addEventListener('click', _annClear);
+  document.getElementById('present-annotate-toggle').onclick = _annToggle;
+}
+
 function enterPresentation() {
   if (_present.steps.length < 2) {
     showShareFeedback('⚠ Capture at least 2 steps first', 'var(--red)', 2500);
@@ -3896,6 +4125,10 @@ function exitPresentation() {
   document.getElementById('present-editor').classList.remove('open');
   document.getElementById('present-code-panel').classList.add('hidden');
   document.getElementById('present-code-toggle').classList.remove('active');
+  _annClear();
+  document.getElementById('present-annotate-svg').classList.remove('active');
+  document.getElementById('present-annotate-toolbar').classList.add('hidden');
+  document.getElementById('present-annotate-toggle').classList.remove('active');
 }
 
 function loadSpecFromHash() {
@@ -4117,13 +4350,15 @@ function bindEvents() {
       btn.classList.add('active');
     });
   });
+  _annInitEvents();
   document.addEventListener('keydown', e => {
     if (document.getElementById('present-overlay').classList.contains('hidden')) return;
-    if (e.target.isContentEditable) return;
+    if (e.target.isContentEditable || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
     if (e.key === 'Escape') exitPresentation();
     else if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); _presentNext(); }
     else if (e.key === 'ArrowLeft') { e.preventDefault(); _presentPrev(); }
     else if (e.key === 'c' || e.key === 'C') _presentToggleCode();
+    else if (e.key === 'a' || e.key === 'A') _annToggle();
   });
 
   document.getElementById('btn-theme-toggle').onclick    = toggleStudioTheme;
