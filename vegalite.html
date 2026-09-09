@@ -498,7 +498,7 @@ select {
 /* ─── MODAL ─── */
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-  display: flex; align-items: center; justify-content: center; z-index: 100;
+  display: flex; align-items: center; justify-content: center; z-index: 500;
   backdrop-filter: blur(6px);
 }
 .modal-box {
@@ -1116,9 +1116,11 @@ body.light-mode .hd-cn { color: #c2410c; }
         <button class="share-opt" id="sopt-spec">SHARE SPEC<span class="share-opt-desc">Copy full spec JSON to clipboard</span></button>
         <button class="share-opt" id="sopt-visual">SHARE VISUAL<span class="share-opt-desc">Copy link to your datavis</span></button>
         <button class="share-opt" id="sopt-copy-img">COPY IMAGE<span class="share-opt-desc">Copy chart as PNG to clipboard</span></button>
-        <button class="share-opt" id="sopt-save-png">SAVE AS PNG<span class="share-opt-desc">Download chart as PNG file (2×)</span></button>
+        <button class="share-opt" id="sopt-save-png">SAVE AS PNG<span class="share-opt-desc">Download chart as PNG file</span></button>
         <button class="share-opt" id="sopt-save-svg">SAVE AS SVG<span class="share-opt-desc">Download chart as scalable vector</span></button>
         <button class="share-opt" id="sopt-vega-editor">OPEN IN VEGA EDITOR<span class="share-opt-desc">Open spec in the online Vega editor</span></button>
+        <button class="share-opt" id="sopt-view-vega">VIEW AS VEGA<span class="share-opt-desc">Compile to full Vega spec</span></button>
+        <button class="share-opt" id="sopt-view-deneb">VIEW AS DENEB<span class="share-opt-desc">Format spec for Power BI Deneb</span></button>
       </div>
     </div>
     <button class="btn" id="btn-help" title="Open help guide">? HELP</button>
@@ -1844,6 +1846,32 @@ body.light-mode .hd-cn { color: #c2410c; }
       </div>
       <textarea id="paste-area" placeholder="Paste your CSV or JSON array here..."></textarea>
       <button class="btn btn-primary" id="btn-load-paste">LOAD DATA →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CODE VIEWER MODAL ─── -->
+<div class="modal-overlay hidden" id="code-viewer-modal">
+  <div class="modal-box" style="width:92vw;max-width:1400px;max-height:90vh;height:80vh;">
+    <div class="modal-head">
+      <span id="code-viewer-title">VEGA SPEC</span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-primary" id="btn-code-copy">COPY CODE</button>
+        <button class="btn btn-primary hidden" id="btn-code-copy-config">COPY CONFIG</button>
+        <button class="btn" id="btn-code-close">✕ CLOSE</button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:0;flex:1;overflow:hidden;flex-direction:row;">
+      <pre id="code-viewer-pre" style="
+        flex:1;min-width:0;margin:0;padding:15px 17px;overflow:auto;
+        background:var(--bg);color:var(--text);
+        font-family:var(--mono);font-size:13px;line-height:1.65;
+        white-space:pre;tab-size:2;border:none;border-right:1px solid var(--border);
+      "></pre>
+      <div id="code-viewer-preview" style="
+        flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
+        overflow:auto;padding:16px;
+      "></div>
     </div>
   </div>
 </div>
@@ -3314,6 +3342,75 @@ function openInVegaEditor() {
   window.open(`https://vega.github.io/editor/#/url/vega-lite/${encoded}`, '_blank');
 }
 
+// ─── Code viewer modal helpers ────────────────────────────────
+let _codeViewerEmbed = null;
+let _codeViewerConfigJson = null;
+function showCodeViewer(title, code, renderSpec, renderMode, configJson) {
+  document.getElementById('code-viewer-title').textContent = title;
+  document.getElementById('code-viewer-pre').textContent = code;
+  document.getElementById('btn-code-copy').textContent = configJson ? 'COPY SPEC' : 'COPY CODE';
+  const cfgBtn = document.getElementById('btn-code-copy-config');
+  if (configJson) { cfgBtn.classList.remove('hidden'); _codeViewerConfigJson = configJson; }
+  else { cfgBtn.classList.add('hidden'); _codeViewerConfigJson = null; }
+  const previewEl = document.getElementById('code-viewer-preview');
+  previewEl.innerHTML = '';
+  previewEl.style.background = '';
+  if (_codeViewerEmbed) { try { _codeViewerEmbed.finalize(); } catch(_){} _codeViewerEmbed = null; }
+
+  if (renderSpec) {
+    const bg = renderSpec.config?.background || renderSpec.background || '#ffffff';
+    previewEl.style.background = bg;
+    const container = document.createElement('div');
+    previewEl.appendChild(container);
+    vegaEmbed(container, renderSpec, {
+      renderer: 'svg', actions: false, mode: renderMode || 'vega-lite'
+    }).then(r => { _codeViewerEmbed = r; }).catch(() => {});
+  }
+  document.getElementById('code-viewer-modal').classList.remove('hidden');
+}
+
+function _getSpecAndConfig() {
+  if (activeEditorView === 'spec') specBuffer = cmEditor.getValue();
+  else configBuffer = cmEditor.getValue();
+  let spec, config;
+  try { spec = JSON.parse(specBuffer); } catch(e) { err("Spec: " + e.message); return null; }
+  try { config = JSON.parse(configBuffer); } catch(e) { err("Config: " + e.message); return null; }
+  return { spec, config };
+}
+
+function viewAsVega() {
+  const parsed = _getSpecAndConfig();
+  if (!parsed) return;
+  const vlSpec = { ...parsed.spec, config: parsed.config };
+  try {
+    const compiled = vegaLite.compile(vlSpec);
+    showCodeViewer('VEGA SPEC', JSON.stringify(compiled.spec, null, 2), compiled.spec, 'vega');
+  } catch(e) {
+    err("Compile: " + e.message);
+  }
+}
+
+function viewAsDeneb() {
+  const parsed = _getSpecAndConfig();
+  if (!parsed) return;
+  const denebSpec = { ...parsed.spec };
+  delete denebSpec.$schema;
+  delete denebSpec.config;
+  if (denebSpec.data && denebSpec.data.url) {
+    denebSpec.data = { name: "dataset" };
+  } else if (denebSpec.data && denebSpec.data.values) {
+    denebSpec.data = { name: "dataset" };
+  }
+  if (Array.isArray(denebSpec.layer)) {
+    denebSpec.layer.forEach(l => {
+      if (l.data && (l.data.url || l.data.values)) l.data = { name: "dataset" };
+    });
+  }
+  const configJson = JSON.stringify(parsed.config, null, 2);
+  const renderSpec = { ...parsed.spec, config: parsed.config };
+  showCodeViewer('DENEB SPEC', JSON.stringify(denebSpec, null, 2), renderSpec, 'vega-lite', configJson);
+}
+
 function loadSpecFromHash() {
   try {
     const hash = location.hash;
@@ -3467,6 +3564,33 @@ function bindEvents() {
   _so('sopt-save-png')(savePng);
   _so('sopt-save-svg')(saveSvg);
   _so('sopt-vega-editor')(openInVegaEditor);
+  _so('sopt-view-vega')(viewAsVega);
+  _so('sopt-view-deneb')(viewAsDeneb);
+
+  // Code viewer modal
+  document.getElementById('btn-code-close').onclick = () => document.getElementById('code-viewer-modal').classList.add('hidden');
+  document.getElementById('code-viewer-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('code-viewer-modal')) document.getElementById('code-viewer-modal').classList.add('hidden');
+  });
+  document.getElementById('btn-code-copy').addEventListener('click', () => {
+    const code = document.getElementById('code-viewer-pre').textContent;
+    const label = _codeViewerConfigJson ? 'COPY SPEC' : 'COPY CODE';
+    navigator.clipboard.writeText(code)
+      .then(() => {
+        const btn = document.getElementById('btn-code-copy');
+        btn.textContent = '✓ COPIED!';
+        setTimeout(() => { btn.textContent = label; }, 1800);
+      });
+  });
+  document.getElementById('btn-code-copy-config').addEventListener('click', () => {
+    if (!_codeViewerConfigJson) return;
+    navigator.clipboard.writeText(_codeViewerConfigJson)
+      .then(() => {
+        const btn = document.getElementById('btn-code-copy-config');
+        btn.textContent = '✓ COPIED!';
+        setTimeout(() => { btn.textContent = 'COPY CONFIG'; }, 1800);
+      });
+  });
 
   document.getElementById('btn-theme-toggle').onclick    = toggleStudioTheme;
   document.getElementById('btn-reset-template').onclick  = resetCurrentTemplate;
